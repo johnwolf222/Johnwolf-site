@@ -8,11 +8,13 @@ import { rollingGlyphs } from './rollingTitleGlyphs.js';
  * SVG artboards rather than being re-typeset in a different font. The HTML
  * wrappers provide consistent 3D rotations across browser SVG engines.
  */
-export default function RollingTitle({ index, direction = 1, reducedMotion = false }) {
+export default function RollingTitle({ index, direction = 1, reducedMotion = false, onRollComplete }) {
   const scenes = useRef([]);
   const current = useRef(index);
   const motion = useRef(null);
   const initialized = useRef(false);
+  const settledCallback = useRef(onRollComplete);
+  settledCallback.current = onRollComplete;
 
   useLayoutEffect(() => {
     const panels = scenes.current;
@@ -55,6 +57,7 @@ export default function RollingTitle({ index, direction = 1, reducedMotion = fal
     if (reducedMotion) {
       gsap.set(previous, { autoAlpha: 0 });
       gsap.set(newChars, { rotationX: 0, autoAlpha: 1 });
+      settledCallback.current?.();
       return undefined;
     }
 
@@ -65,6 +68,7 @@ export default function RollingTitle({ index, direction = 1, reducedMotion = fal
         gsap.set(previous, { autoAlpha: 0 });
         gsap.set(oldChars, { rotationX: 0, autoAlpha: 1 });
         motion.current = null;
+        settledCallback.current?.();
       },
     });
     const staggerFrom = clockwise ? 'start' : 'end';

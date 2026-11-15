@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import EmergingSubtitle from './EmergingSubtitle.jsx';
 import './NewHomepage.css';
 import RollingTitle from './RollingTitle.jsx';
 
@@ -37,28 +38,80 @@ export default function NewHomepage() {
   const touch = useRef(null);
   const rollDirection = useRef(1);
   const idleTimer = useRef(null);
+  const subtitle = useRef(null);
+  const currentIndex = useRef(0);
+  const desiredIndex = useRef(0);
+  const queued = useRef(null);
+  const transitioning = useRef(false);
+  const disposed = useRef(false);
+  const navigateRef = useRef(null);
   const reduced = useReducedMotion();
 
-  // The seven provided title artworks retain their own proportions and layout.
   const scene = SCENES[index];
-  const manualAdvance = next => {
-    rollDirection.current = next < index ? -1 : 1;
-    setIndex((next + SCENES.length) % SCENES.length);
-    setManual(true);
-    window.clearTimeout(idleTimer.current);
-    idleTimer.current = window.setTimeout(() => setManual(false), 10000);
+
+  // First submerge the dot and subtitle beneath the top edge of the title;
+  // only then change the index, which triggers the existing GSAP title roll.
+  const beginTransition = (next, direction) => {
+    if (transitioning.current) {
+      queued.current = { next, direction };
+      return;
+    }
+    if (next === currentIndex.current) return;
+    transitioning.current = true;
+    (subtitle.current?.sink() ?? Promise.resolve()).then(() => {
+      if (disposed.current) return;
+      rollDirection.current = direction;
+      currentIndex.current = next;
+      setIndex(next);
+    });
   };
 
+  const titleHasSettled = () => {
+    // Rise back out only once the per-letter title animation has finished.
+    (subtitle.current?.rise() ?? Promise.resolve()).then(() => {
+      if (disposed.current) return;
+      transitioning.current = false;
+      const pending = queued.current;
+      queued.current = null;
+      if (pending) beginTransition(pending.next, pending.direction);
+    });
+  };
+
+  const requestAdvance = (value, mode = 'step', isManual = true) => {
+    const prior = desiredIndex.current;
+    const next = ((mode === 'step' ? prior + value : value) % SCENES.length + SCENES.length) % SCENES.length;
+    const direction = mode === 'step' ? Math.sign(value) || 1 : next < prior ? -1 : 1;
+    desiredIndex.current = next;
+    if (isManual) {
+      setManual(true);
+      window.clearTimeout(idleTimer.current);
+      idleTimer.current = window.setTimeout(() => setManual(false), 10000);
+    }
+    beginTransition(next, direction);
+  };
+  navigateRef.current = requestAdvance;
+
+  // The four-second timer stays intact. Requests made during a roll are queued
+  // rather than interrupting and corrupting the approved lettering timeline.
   useEffect(() => {
     if (reduced || manual) return undefined;
-    const timer = window.setInterval(() => {
-      rollDirection.current = 1;
-      setIndex(previous => (previous + 1) % SCENES.length);
-    }, 4000);
+    const timer = window.setInterval(() => navigateRef.current?.(1, 'step', false), 4000);
     return () => window.clearInterval(timer);
   }, [reduced, manual]);
 
-  useEffect(() => () => window.clearTimeout(idleTimer.current), []);
+  // Preload each small source SVG so the next subtitle is ready as its title rolls.
+  useEffect(() => {
+    const images = SCENES.map(item => {
+      const image = new Image();
+      image.src = `${ART}subtitle-${item.slug}.svg`;
+      return image;
+    });
+    return () => {
+      disposed.current = true;
+      window.clearTimeout(idleTimer.current);
+      images.forEach(image => { image.onload = null; });
+    };
+  }, []);
 
   const pointerStart = event => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -70,7 +123,7 @@ export default function NewHomepage() {
     const dy = event.clientY - touch.current.y;
     touch.current = null;
     if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.25) {
-      manualAdvance(index + (dx < 0 ? 1 : -1));
+      requestAdvance(dx < 0 ? 1 : -1);
     }
   };
 
@@ -83,10 +136,10 @@ export default function NewHomepage() {
         onPointerCancel={() => { touch.current = null; }}
       >
         <img className="jw-new-home__layer jw-new-home__cards" src={`${ART}cards-placeholder.svg`} alt="" aria-hidden="true" draggable="false" />
-        <RollingTitle index={index} direction={rollDirection.current} reducedMotion={reduced} />
+        <RollingTitle index={index} direction={rollDirection.current} reducedMotion={reduced} onRollComplete={titleHasSettled} />
         <img className="jw-new-home__layer jw-new-home__head" src={`${ART}head-placeholder.svg`} alt="" aria-hidden="true" draggable="false" />
         <img key={`outline-${scene.slug}`} className="jw-new-home__layer jw-new-home__outline" src={`${ART}outline-${scene.slug}.svg`} alt="" aria-hidden="true" draggable="false" />
-        <img key={`subtitle-${scene.slug}`} className="jw-new-home__layer jw-new-home__subtitle" src={`${ART}subtitle-${scene.slug}.svg`} alt="" aria-hidden="true" draggable="false" />
+        <EmergingSubtitle ref={subtitle} index={index} slug={scene.slug} reducedMotion={reduced} />
         <div className="jw-new-home__indicators" aria-label="Choose a featured discipline">
           {SCENES.map((item, i) => (
             <button
@@ -95,7 +148,7 @@ export default function NewHomepage() {
               className={`jw-new-home__indicator${i === index ? ' is-active' : ''}`}
               aria-label={`Show ${item.label}`}
               aria-current={i === index ? 'true' : undefined}
-              onClick={() => manualAdvance(i)}
+              onClick={() => requestAdvance(i, 'direct')}
             />
           ))}
         </div>
@@ -103,8 +156,8 @@ export default function NewHomepage() {
       <div className="jw-new-home__bottom-bar">
         <span className="jw-new-home__counter" aria-live="polite">{scene.label}</span>
         <div className="jw-new-home__buttons">
-          <button type="button" onClick={() => manualAdvance(index - 1)} aria-label="Previous discipline">←</button>
-          <button type="button" onClick={() => manualAdvance(index + 1)} aria-label="Next discipline">→</button>
+          <button type="button" onClick={() => requestAdvance(-1)} aria-label="Previous discipline">←</button>
+          <button type="button" onClick={() => requestAdvance(1)} aria-label="Next discipline">→</button>
         </div>
         <a className="jw-new-home__scroll" href="#work">Explore work ↓</a>
       </div>

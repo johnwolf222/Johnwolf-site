@@ -58,7 +58,17 @@
 .jw-roll-glyph svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .jw-new-home__head { z-index: 3; }
 .jw-new-home__outline { z-index: 4; opacity: 0; }
-.jw-new-home__subtitle { z-index: 5; animation: jw-subtitle-arrive 600ms ease-out both; }
+/* Only the space ABOVE the purple letters is visible. The entire supplied
+   dot+text SVG sinks below y=338/810 and rises back from within the title. */
+.jw-new-home__subtitle-clip {
+  z-index: 5;
+  clip-path: inset(0 0 58.2716% 0);
+  pointer-events: none;
+}
+.jw-new-home__subtitle {
+  will-change: transform, opacity;
+  pointer-events: none;
+}
 .jw-new-home__indicators {
   position: absolute;
   z-index: 7;
@@ -125,7 +135,7 @@
 .jw-new-home__counter {max-width:calc(50% - 65px);line-height:1.45}
 .jw-new-home__sr-only {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 /* Large titles use the GSAP per-glyph rolling timeline in RollingTitle.jsx. */
-@keyframes jw-subtitle-arrive {from{opacity:0;transform:translate3d(-2%,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+/* Subtitle emergence is synchronized with RollingTitle onComplete. */
 #root .jw-floating-work {
   isolation:isolate;
   position:relative;
@@ -155,7 +165,7 @@
   .jw-floating-work__art {top:27%;height:75%;}
 }
 @media (prefers-reduced-motion: reduce) {
-  .jw-new-home__subtitle {animation:none}
+  .jw-new-home__subtitle {will-change:auto}
   .jw-roll-glyph {will-change:auto}
   .jw-new-home__indicator,.jw-new-home__buttons button {transition:none}
 }
