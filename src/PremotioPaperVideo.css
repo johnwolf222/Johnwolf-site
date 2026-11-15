@@ -1,0 +1,33 @@
+/* Isolated licensed paper animation; does not alter approved hero typography,
+   interactive head, site navigation, or any other section. */
+#root .jw-premotio-paper-stage {
+  position: fixed;
+  inset: 0;
+  height: 100svh;
+  width: 100%;
+  overflow: hidden;
+  z-index: 1;
+  pointer-events: none;
+  background: transparent;
+}
+.jw-premotio-paper-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  mix-blend-mode: multiply;
+  opacity: 0;
+  transition: opacity 260ms ease;
+  pointer-events: none;
+}
+.jw-premotio-paper-video.is-ready { opacity: 1; }
+.jw-premotio-reduced { position:absolute; inset:0; }
+.jw-premotio-reduced img {
+  position: absolute;
+  width: auto;
+  height: clamp(70px, 20vh, 210px);
+  object-fit: contain;
+}
+@media (prefers-reduced-motion: reduce) {
+  .jw-premotio-paper-video { transition: none; }
+}
