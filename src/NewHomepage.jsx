@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './NewHomepage.css';
+import RollingTitle from './RollingTitle.jsx';
 
 /**
  * The source SVGs come from JohnWolf_homepage.zip. They have a shared 16:9
@@ -34,12 +35,14 @@ export default function NewHomepage() {
   const [index, setIndex] = useState(0);
   const [manual, setManual] = useState(false);
   const touch = useRef(null);
+  const rollDirection = useRef(1);
   const idleTimer = useRef(null);
   const reduced = useReducedMotion();
 
   // The seven provided title artworks retain their own proportions and layout.
   const scene = SCENES[index];
   const manualAdvance = next => {
+    rollDirection.current = next < index ? -1 : 1;
     setIndex((next + SCENES.length) % SCENES.length);
     setManual(true);
     window.clearTimeout(idleTimer.current);
@@ -49,6 +52,7 @@ export default function NewHomepage() {
   useEffect(() => {
     if (reduced || manual) return undefined;
     const timer = window.setInterval(() => {
+      rollDirection.current = 1;
       setIndex(previous => (previous + 1) % SCENES.length);
     }, 4000);
     return () => window.clearInterval(timer);
@@ -79,7 +83,7 @@ export default function NewHomepage() {
         onPointerCancel={() => { touch.current = null; }}
       >
         <img className="jw-new-home__layer jw-new-home__cards" src={`${ART}cards-placeholder.svg`} alt="" aria-hidden="true" draggable="false" />
-        <img key={`title-${scene.slug}`} className="jw-new-home__layer jw-new-home__title" src={`${ART}title-${scene.slug}.svg`} alt="" aria-hidden="true" draggable="false" />
+        <RollingTitle index={index} direction={rollDirection.current} reducedMotion={reduced} />
         <img className="jw-new-home__layer jw-new-home__head" src={`${ART}head-placeholder.svg`} alt="" aria-hidden="true" draggable="false" />
         <img key={`outline-${scene.slug}`} className="jw-new-home__layer jw-new-home__outline" src={`${ART}outline-${scene.slug}.svg`} alt="" aria-hidden="true" draggable="false" />
         <img key={`subtitle-${scene.slug}`} className="jw-new-home__layer jw-new-home__subtitle" src={`${ART}subtitle-${scene.slug}.svg`} alt="" aria-hidden="true" draggable="false" />
