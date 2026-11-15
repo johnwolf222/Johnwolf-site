@@ -3,6 +3,7 @@ import EmergingSubtitle from './EmergingSubtitle.jsx';
 import './NewHomepage.css';
 import RollingTitle from './RollingTitle.jsx';
 import HomepageHead from './HomepageHead.jsx';
+import { useHomepageTextImpact } from './HomepageTextImpact.js';
 
 /**
  * The source SVGs come from JohnWolf_homepage.zip. They have a shared 16:9
@@ -34,6 +35,7 @@ function useReducedMotion() {
 }
 
 export default function NewHomepage() {
+  const homeRef = useRef(null);
   const [index, setIndex] = useState(0);
   const [manual, setManual] = useState(false);
   const touch = useRef(null);
@@ -49,6 +51,7 @@ export default function NewHomepage() {
   const reduced = useReducedMotion();
 
   const scene = SCENES[index];
+  const textImpact = useHomepageTextImpact(homeRef, index, reduced);
 
   // First submerge the dot and subtitle beneath the top edge of the title;
   // only then change the index, which triggers the existing GSAP title roll.
@@ -129,7 +132,7 @@ export default function NewHomepage() {
   };
 
   return (
-    <section id="home" className="jw-new-home" aria-label="John Wolf Vision homepage">
+    <section id="home" ref={homeRef} className="jw-new-home" aria-label="John Wolf Vision homepage">
       <div
         className="jw-new-home__artboard"
         onPointerDown={pointerStart}
@@ -138,7 +141,7 @@ export default function NewHomepage() {
       >
         <img className="jw-new-home__layer jw-new-home__cards" src={`${ART}cards-placeholder.svg`} alt="" aria-hidden="true" draggable="false" />
         <RollingTitle index={index} direction={rollDirection.current} reducedMotion={reduced} onRollComplete={titleHasSettled} />
-        <HomepageHead reducedMotion={reduced} />
+        <HomepageHead reducedMotion={reduced} onImpact={textImpact} />
         <img key={`outline-${scene.slug}`} className="jw-new-home__layer jw-new-home__outline" src={`${ART}outline-${scene.slug}.svg`} alt="" aria-hidden="true" draggable="false" />
         <EmergingSubtitle ref={subtitle} index={index} slug={scene.slug} reducedMotion={reduced} />
         <div className="jw-new-home__indicators" aria-label="Choose a featured discipline">
@@ -157,8 +160,8 @@ export default function NewHomepage() {
       <div className="jw-new-home__bottom-bar">
         <span className="jw-new-home__counter" aria-live="polite">{scene.label}</span>
         <div className="jw-new-home__buttons">
-          <button type="button" onClick={() => requestAdvance(-1)} aria-label="Previous discipline">←</button>
-          <button type="button" onClick={() => requestAdvance(1)} aria-label="Next discipline">→</button>
+          <button type="button" onClick={() => requestAdvance(-1)} aria-label="Previous discipline"><span className="jw-impact-arrow" aria-hidden="true">←</span></button>
+          <button type="button" onClick={() => requestAdvance(1)} aria-label="Next discipline"><span className="jw-impact-arrow" aria-hidden="true">→</span></button>
         </div>
         <a className="jw-new-home__scroll" href="#work">Explore work ↓</a>
       </div>

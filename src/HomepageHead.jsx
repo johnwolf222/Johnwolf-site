@@ -9,12 +9,14 @@ import { installSurfaceRipple } from './about/ripple.js';
 // Reuse the model and motion controller, not a generated or approximate portrait.
 const HEAD_MODEL = '/about/head-interactive.glb';
 
-export default function HomepageHead({ reducedMotion = false }) {
+export default function HomepageHead({ reducedMotion = false, onImpact }) {
   const stage = useRef(null);
   const canvas = useRef(null);
   const triggerRef = useRef(null);
   const reducedRef = useRef(reducedMotion);
   reducedRef.current = reducedMotion;
+  const onImpactRef = useRef(onImpact);
+  onImpactRef.current = onImpact;
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -101,6 +103,17 @@ export default function HomepageHead({ reducedMotion = false }) {
       hitTester.setFromCamera(ndc, camera);
       return hitTester.intersectObjects(targets, true)[0] || null;
     };
+    // Project the center of the *moving* head so text waves originate from
+    // its actual on-screen location, the same approach as the About experience.
+    const headScreenCenter = () => {
+      pivot.updateWorldMatrix(true, false);
+      const position = pivot.getWorldPosition(new THREE.Vector3()).project(camera);
+      const rect = surface.getBoundingClientRect();
+      return {
+        x: rect.left + (position.x * 0.5 + 0.5) * rect.width,
+        y: rect.top + (0.5 - position.y * 0.5) * rect.height,
+      };
+    };
     const onPointerDown = event => {
       // A click on a navigation/control must never recoil the head.
       if (event.target.closest?.('button, a, input, textarea, select')) return;
@@ -110,6 +123,7 @@ export default function HomepageHead({ reducedMotion = false }) {
       const side = projected.x < -0.07 ? -1 : projected.x > 0.07 ? 1 : 0;
       if (controller.hit(side)) {
         rippleSurfaces.get(contact.object)?.trigger(contact.point, controller.time, 1);
+        onImpactRef.current?.(headScreenCenter());
       }
     };
 
@@ -148,8 +162,10 @@ export default function HomepageHead({ reducedMotion = false }) {
     };
     triggerRef.current = () => {
       if (!live || !loaded) return;
-      controller.hit(0);
-      start();
+      if (controller.hit(0)) {
+        onImpactRef.current?.(headScreenCenter());
+        start();
+      }
     };
     const onVisibility = () => document.hidden ? stop() : start();
     const observer = new IntersectionObserver(entries => {

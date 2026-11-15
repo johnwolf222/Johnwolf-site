@@ -168,6 +168,7 @@
   cursor:pointer;
   transition: background .2s ease, transform .2s ease;
 }
+.jw-impact-arrow { display: inline-block; }
 .jw-new-home__buttons button:hover {background:#6d33c8;border-color:#6d33c8;transform:translateY(-2px)}
 .jw-new-home__buttons button:focus-visible {outline: 3px solid #191919;outline-offset: 4px}
 .jw-new-home__scroll { color:#25202d; white-space:nowrap; }
