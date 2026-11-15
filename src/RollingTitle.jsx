@@ -20,10 +20,11 @@ export default function RollingTitle({ index, direction = 1, reducedMotion = fal
 
     // Finish any interrupted roll before accepting another input, so rapid
     // arrows, dots, and swipes never leave stray letters on screen.
-    if (motion.current) {
-      motion.current.progress(1);
-      motion.current.kill();
+    const previousMotion = motion.current;
+    if (previousMotion) {
       motion.current = null;
+      previousMotion.progress(1);
+      previousMotion.kill();
     }
 
     if (!initialized.current) {
