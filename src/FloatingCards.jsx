@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import WebGLFallback from './FloatingCardsWebGL.jsx';
 import './FloatingCards.css';
 
-// Actual 12-second Premotio Hole 01 export with the approved card artwork.
+// Approved 12-second Premotio Hole 01 export: 21 artwork sources, 24 sheets.
 // The previous WebGL implementation remains available if the video cannot load.
-const PREMOTIO_VIDEO = 'https://adnm32k0mqvvkxwh.public.blob.vercel-storage.com/johnwolf/approved-hole01-paperflow-20261115-v1.mp4';
+const PREMOTIO_VIDEO = 'https://adnm32k0mqvvkxwh.public.blob.vercel-storage.com/johnwolf/hole01-all21-sheets24-20261115-v2.mp4';
 
 export default function FloatingCards() {
   const [failed, setFailed] = useState(false);
