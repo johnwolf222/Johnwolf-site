@@ -1,0 +1,26 @@
+name: Recovery integration checks
+on:
+  push:
+    branches: [integration/recovered-portfolio]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-and-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Check all required source and asset paths
+        run: |
+          test -s package.json
+          test -s package-lock.json
+          test -s src/main.jsx
+          test -s about-experience-src/main.js
+          test -s about-experience-src/public/head-interactive.glb
+          test -s about-experience-src/public/source_meshopt.glb
+      - name: Build and verify 3D asset output
+        run: sh build-recovered.sh
