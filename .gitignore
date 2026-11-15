@@ -4,6 +4,4 @@ dist/
 .env.*
 !.env.example
 .DS_Store
-public/models/
-*.glb
-*.gltf
+# 3D model assets must remain tracked; do not ignore *.glb or *.gltf.
