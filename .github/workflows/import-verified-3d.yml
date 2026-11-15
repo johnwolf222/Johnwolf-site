@@ -1,0 +1,30 @@
+name: Import verified approved 3D head
+on:
+  push:
+    branches: [integration/recovered-portfolio]
+    paths: [.github/workflows/import-verified-3d.yml]
+permissions:
+  contents: write
+jobs:
+  import-approved-head:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: integration/recovered-portfolio
+          persist-credentials: true
+      - name: Retrieve and cryptographically verify the approved model
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p public/about
+          curl --fail --location --retry 4 --retry-delay 2 --silent --show-error \
+            'https://johnwolf-3d-source-verification-a1bfv12oj-realtor-heartbeat.vercel.app/head-interactive.glb' \
+            --output public/about/head-interactive.glb
+          test "$(stat -c%s public/about/head-interactive.glb)" = '20022596'
+          test "$(git hash-object public/about/head-interactive.glb)" = '42fa6e31d60018fba35e2d553ae7f67e0b10924f'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f public/about/head-interactive.glb
+          git commit -m 'Add verified approved interactive 3D head to portfolio'
+          git push origin HEAD:integration/recovered-portfolio
