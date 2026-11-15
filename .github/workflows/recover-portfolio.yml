@@ -1,0 +1,30 @@
+name: Recover approved portfolio source
+on:
+  push:
+    branches: [integration/recovered-portfolio]
+    paths: [.github/workflows/recover-portfolio.yml]
+permissions:
+  contents: write
+jobs:
+  import-source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: integration/recovered-portfolio
+          persist-credentials: true
+      - name: Import source from archived public development branch (read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet --depth 1 --branch feature/standalone-3d-about-page https://github.com/Johnwolf-connect/John-Connect-site.git /tmp/portfolio-source
+          rsync -a --exclude=.git --exclude=.github /tmp/portfolio-source/ ./
+          echo 'Recovered source file count:'
+          find src public -type f | wc -l
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m 'Restore portfolio source into johnwolf222 integration branch'
+            git push origin HEAD:integration/recovered-portfolio
+          fi
