@@ -1,11 +1,23 @@
 import { useCallback, useEffect, useRef } from 'react';
 
-// A lightweight adaptation of the About-page damped radial text wave. All
-// displacement uses CSS's independent "translate" property: this NEVER writes
-// to "transform", which the approved title roll and subtitle reveal own.
+// A soft, elastic ripple that travels OUTWARD through the letters rather than
+// shaking them in place. Individual CSS translate/rotate/scale properties leave
+// GSAP's locked transform-based title roll and subtitle reveal untouched.
 const TITLE_INK_LEFT = [107, 137, 180, 158, 86, 163, 216];
-const DURATION = 2300; // Includes travel time from the head to the outer labels.
-const SPEED = 840;     // px per second: stagger outward by physical distance.
+const SPEED = 790;      // Traveling wave front (pixels per second).
+const CREST = 0.94;    // One broad, flexible outward bend.
+const RETURN = 0.70;   // One small, gentle elastic rebound; no rapid oscillation.
+const SETTLE = CREST + RETURN;
+
+// Smooth single-crest pulse followed by a quiet undershoot. A high-frequency
+// sine gave the old effect a shaky appearance; this produces a fluid flex.
+const sampleRipple = arrival => {
+  if (arrival <= 0 || arrival >= SETTLE) return 0;
+  if (arrival < CREST) {
+    return Math.pow(Math.sin(Math.PI * arrival / CREST), 1.32);
+  }
+  return -0.13 * Math.sin(Math.PI * (arrival - CREST) / RETURN);
+};
 
 const getCenter = node => {
   const r = node.getBoundingClientRect();
@@ -24,7 +36,12 @@ export function useHomepageTextImpact(homeRef, index, reducedMotion) {
     if (frame.current) cancelAnimationFrame(frame.current);
     frame.current = 0;
     for (const { node } of targets.current) {
-      if (node.isConnected) node.style.translate = '';
+      if (!node.isConnected) continue;
+      node.style.translate = '';
+      node.style.rotate = '';
+      node.style.scale = '';
+      node.style.transformOrigin = '';
+      if (node instanceof SVGElement) node.style.transformBox = '';
     }
     targets.current = [];
   }, []);
@@ -72,32 +89,50 @@ export function useHomepageTextImpact(homeRef, index, reducedMotion) {
       const center = node === subtitle && subtitlePoint ? subtitlePoint : getCenter(node);
       const dx = center.x - origin.x;
       const dy = center.y - origin.y;
+      const distance = Math.hypot(dx, dy);
+      const isTitle = node.matches('.jw-roll-glyph svg');
+      const isSubtitle = node === subtitle;
+      // Rotate/expand around the visible ink, not the subtitle's 1440x810
+      // transparent artboard. Keep the original letter geometry untouched.
+      if (isSubtitle) {
+        const box = node.getBoundingClientRect();
+        node.style.transformOrigin =
+          `${(center.x - box.left).toFixed(2)}px ${(center.y - box.top).toFixed(2)}px`;
+      } else {
+        node.style.transformOrigin = '50% 50%';
+      }
+      if (node instanceof SVGElement) node.style.transformBox = 'fill-box';
       return {
-        node, dx, dy, distance: Math.hypot(dx, dy),
-        magnitude: node.matches('.jw-roll-glyph svg') ? 12 :
-                   node === subtitle ? 9 : 7,
+        node, dx, dy, distance,
+        ux: dx / Math.max(16, distance),
+        uy: dy / Math.max(16, distance),
+        magnitude: isTitle ? 23 : isSubtitle ? 13 : 10,
+        stretch: isTitle ? 0.09 : isSubtitle ? 0.055 : 0.045,
+        bend: isTitle ? 3.6 : isSubtitle ? 1.8 : 1.5,
       };
     });
 
     const started = performance.now();
+    const maxDistance = Math.max(0, ...targets.current.map(item => item.distance));
+    const durationMs = (maxDistance / SPEED + SETTLE + 0.06) * 1000;
     const tick = now => {
       const age = Math.max(0, (now - started) / 1000);
       for (const item of targets.current) {
         if (!item.node.isConnected) continue;
-        const arrival = age - item.distance / SPEED;
-        let x = 0, y = 0;
-        if (arrival > 0 && arrival < 1.75) {
-          // Original About physics: fast impact, spring oscillation, decay.
-          const wave = item.magnitude *
-            (1 - Math.exp(-arrival * 24)) *
-            Math.exp(-arrival * 3.1) *
-            Math.sin(arrival * Math.PI * 2 / 0.48);
-          x = wave * item.dx / (item.distance + 16);
-          y = wave * item.dy / (item.distance + 16) * 0.65;
-        }
+        const flex = sampleRipple(age - item.distance / SPEED);
+        const outward = item.magnitude * flex;
+        // A connected elastic sheet: the crest bends, elongates and eases back
+        // as it travels. The slight tangential lift makes it a wave, not a shake.
+        const x = outward * item.ux - 1.5 * flex * item.uy;
+        const y = outward * item.uy * 0.74 + 1.3 * flex * item.ux;
+        const angle = item.bend * flex * (item.ux >= 0 ? 1 : -1);
+        const sx = 1 + item.stretch * flex;
+        const sy = 1 - item.stretch * 0.56 * flex;
         item.node.style.translate = `${x.toFixed(3)}px ${y.toFixed(3)}px`;
+        item.node.style.rotate = `${angle.toFixed(3)}deg`;
+        item.node.style.scale = `${sx.toFixed(4)} ${sy.toFixed(4)}`;
       }
-      if ((now - started) < DURATION) {
+      if ((now - started) < durationMs) {
         frame.current = requestAnimationFrame(tick);
       } else {
         stop();
