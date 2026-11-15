@@ -94,10 +94,8 @@ export default function FloatingCards() {
 
     media.add('(prefers-reduced-motion: no-preference)', () => {
       const tl = gsap.timeline({ paused: true, defaults: { ease: 'power2.inOut' } });
-      const floats = [];
       CARDS.forEach((card, i) => {
         const node = items.current[i];
-        const inner = interiors.current[i];
         tl.fromTo(node,
           {
             x: () => layout(card).x,
@@ -120,15 +118,8 @@ export default function FloatingCards() {
             duration: 1,
             ease: 'power2.inOut',
           }, 0);
-        // Subtle independent floating survives while scroll is stationary.
-        floats.push(gsap.to(inner, {
-          y: i % 2 ? 7 : -8,
-          rotation: i % 3 ? -1.7 : 1.9,
-          duration: 2.5 + (i % 4) * 0.54,
-          repeat: -1, yoyo: true,
-          ease: 'sine.inOut',
-          delay: i * 0.09,
-        }));
+        // Each card's resting 3D motion is driven by one shared, continuous
+        // phase below. It is independent of the scroll/position timeline.
         if (GALLERY_ORDER.includes(card.id)) {
           tl.to(node, {
             y: () => destination(card).y - window.innerHeight * 0.28,
@@ -139,6 +130,59 @@ export default function FloatingCards() {
           }, 1.70);
         }
       });
+      // Hole Zero One study: the moving cards occupy real-looking depth and
+      // gently change attitude around a clear central opening. On HOME, only
+      // a small drift/tilt/breath is active; the infinite orbit triggered by
+      // scrolling is a later, separately approved phase.
+      //
+      // Use a continuous analytic phase rather than back-and-forth tweens.
+      // Its smooth, unequal frequencies avoid the artificial synchronized
+      // "ping-pong" look, while the source artwork stays pixel-identical.
+      const startedAt = gsap.ticker.time;
+      const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+      let lastWeight = -1;
+      let homeWeight = 1;
+      const measureIdleWeight = () => {
+        const y = Math.max(0, -home.getBoundingClientRect().top);
+        const fraction = Math.min(1, y / Math.max(1, window.innerHeight * 0.62));
+        // Fade resting movement away naturally as scroll takes control.
+        homeWeight = 1 - fraction * fraction * (3 - 2 * fraction);
+      };
+      const tickIdle = time => {
+        if (homeWeight <= 0 && lastWeight === 0) return;
+        const elapsed = Math.max(0, time - startedAt);
+        const ramp = Math.min(1, elapsed / 1.4);
+        const weight = homeWeight * ramp * ramp * (3 - 2 * ramp);
+        lastWeight = weight;
+        const artScale = Math.min(3.1, board.getBoundingClientRect().width / 540);
+        CARDS.forEach((card, i) => {
+          const node = interiors.current[i];
+          if (!node) return;
+          const phase = i * goldenAngle;
+          const omega = 2 * Math.PI / (6.8 + (i % 5) * 0.82);
+          // An elliptical, slightly asymmetric float, with independent
+          // pitch/yaw and depth breathing inspired by the source globe camera.
+          const x = Math.sin(elapsed * omega + phase) * 4.8 * artScale * weight;
+          const y = Math.cos(elapsed * omega * 0.83 + phase * 1.12) * 6.1 * artScale * weight;
+          const z = Math.sin(elapsed * omega * 0.67 + phase * 1.47) * 20 * weight;
+          const pitch = Math.sin(elapsed * omega * 0.76 + phase) * 4.3 * weight;
+          const yaw = Math.cos(elapsed * omega * 0.63 + phase) * 6.0 * weight;
+          const roll = Math.sin(elapsed * omega * 0.95 + phase * 1.2) * 2.0 * weight;
+          const scale = 1 + Math.sin(elapsed * omega * 0.71 + phase) * 0.022 * weight;
+          gsap.set(node, { x, y, z, rotationX: pitch, rotationY: yaw, rotationZ: roll, scale });
+        });
+      };
+      const stopIdle = () => {
+        gsap.ticker.remove(tickIdle);
+        window.removeEventListener('scroll', measureIdleWeight);
+        window.removeEventListener('resize', measureIdleWeight);
+        gsap.set(interiors.current.filter(Boolean), { clearProps: 'transform' });
+      };
+      measureIdleWeight();
+      gsap.ticker.add(tickIdle);
+      window.addEventListener('scroll', measureIdleWeight, { passive: true });
+      window.addEventListener('resize', measureIdleWeight, { passive: true });
+
       // At halfway through the total two-section scroll the cards occupy
       // their Selected Work positions. They remain there until work is leaving.
       tl.to({}, { duration: 0.99 }, 1);
@@ -154,7 +198,7 @@ export default function FloatingCards() {
       return () => {
         st.kill();
         tl.kill();
-        floats.forEach(tween => tween.kill());
+        stopIdle();
       };
     });
 
