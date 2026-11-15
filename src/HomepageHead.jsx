@@ -175,8 +175,8 @@ export default function HomepageHead({ reducedMotion = false }) {
       const bounds = new THREE.Box3().setFromObject(geometry);
       const dimensions = bounds.getSize(new THREE.Vector3());
       const center = bounds.getCenter(new THREE.Vector3());
-      // ~34% of the artboard height, matching the former SVG head silhouette.
-      scale = 1.07 / Math.max(dimensions.x, dimensions.y, dimensions.z);
+      // Slightly smaller homepage head (~8.4% reduction); keep its center and motion intact.
+      scale = 0.98 / Math.max(dimensions.x, dimensions.y, dimensions.z);
       geometry.position.copy(center).multiplyScalar(-1);
       orient.scale.setScalar(scale);
       orient.add(geometry);
