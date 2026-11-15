@@ -21,3 +21,13 @@
   object-fit: contain;
   pointer-events: none;
 }
+/* The export is an independently rendered paper layer. Multiplication
+   removes its white backdrop without replacing the site's approved glow. */
+.jw-premotio-paper-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
