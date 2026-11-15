@@ -514,7 +514,7 @@ export default function HomepageHero(){
  return <div ref={homepageRef} className="jw-homepage" aria-label="John Wolf portfolio homepage">
   <div className="jw-artboard">
    {states.map((_,which)=>liveTitle(which))}
-   {layer('Man.svg','jw-art-man')}
+   {/* Portrait intentionally removed; preserve all other animated artwork. */}
    
    {layer('Subtitle dot.svg','jw-art-subtitle-dot')}
    {states.map((_,which)=>liveSubtitle(which))}
