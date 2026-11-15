@@ -65,18 +65,16 @@ const FRAGMENT = `
     float span = minDim * (0.012 * nearRays * ringZone + 0.018 * edgeRays * edge);
     vec2 delta = ray * span / resolution;
     vec4 crisp = texture2D(frame, uv);
-    vec4 blurSum = vec4(0.0);
-    for (int i = 0; i < 7; ++i) {
-      float p = (float(i) - 3.0) / 3.0;
-      vec4 sampleColor = texture2D(frame, uv + p * delta);
-      // Subtle RGB separation resembles the reference's ray treatment.
-      sampleColor.r = texture2D(frame, uv + (p + 0.14) * delta).r;
-      sampleColor.b = texture2D(frame, uv + (p - 0.14) * delta).b;
-      blurSum += sampleColor;
-    }
-    blurSum /= 7.0;
+    // Five taps rather than twenty-two: preserves the ray shape without
+    // putting excessive pressure on high-DPI and mobile WebGL contexts.
+    vec4 nearMinus = texture2D(frame, uv - delta);
+    vec4 farPlus = texture2D(frame, uv + delta);
+    vec4 innerMinus = texture2D(frame, uv - 0.4 * delta);
+    vec4 innerPlus = texture2D(frame, uv + 0.4 * delta);
+    vec4 blurSum = 0.2 * (crisp + nearMinus + farPlus + innerMinus + innerPlus);
+    vec4 rgbShift = vec4(innerPlus.r, blurSum.g, innerMinus.b, blurSum.a);
     float rayBlend = min(0.48, nearRays * ringZone * 0.28 + edgeRays * edge * 0.37);
-    vec4 color = mix(crisp, blurSum, rayBlend);
+    vec4 color = mix(crisp, mix(blurSum, rgbShift, 0.14), rayBlend);
     gl_FragColor = vec4(color.rgb, color.a);
   }
 `;
@@ -159,8 +157,6 @@ export default function FloatingCards() {
     let frame = 0;
     let previous = 0;
     let clock = 0;
-    let currentRate = 1;
-    let hasScrolled = window.scrollY > 8;
     let destroyed = false;
     let contextLost = false;
 
@@ -236,7 +232,6 @@ export default function FloatingCards() {
       uniforms.ringRadius.value = HOLE.ring * Math.min(width, height) * dpr;
     }
 
-    const onScroll = () => { if (window.scrollY > 8) hasScrolled = true; };
     const onLost = event => {
       event.preventDefault();
       contextLost = true;
@@ -256,8 +251,8 @@ export default function FloatingCards() {
         return;
       }
       const u = age / HOLE.flight;
-      const z = -1920 + 1570 * smooth(0.0, 0.98, u)
-        + 120 * Math.sin(u * TAU + c.phase) * Math.sin(u * Math.PI);
+      // Premotio's Easing=None: no acceleration/deceleration along the flight.
+      const z = -1920 + 1570 * u;
       const perspective = FOCAL / (FOCAL - z);
       const angle = c.angle + 0.17 * Math.sin(u * Math.PI * 1.18 + c.gust)
         + 0.06 * Math.sin(u * TAU * 1.7 + c.phase);
@@ -268,7 +263,8 @@ export default function FloatingCards() {
         (width * 0.5 + 200) / Math.max(0.06, Math.abs(dx)),
         (height * 0.5 + 200) / Math.max(0.06, Math.abs(dy)),
       );
-      const radial = ring * 0.79 + (outer - ring * 0.79) * Math.pow(u, 1.18);
+      // Emerge from the rim and fly outward at a constant radial rate.
+      const radial = ring + (outer - ring) * u;
       const wind = (Math.sin(u * 10.2 + c.phase) * 24 +
         Math.sin(u * 4.7 + c.phase * 0.72) * 21) * Math.sin(u * Math.PI);
       const xScreen = radial * dx + wind * -dy;
@@ -335,11 +331,8 @@ export default function FloatingCards() {
       if (!visible || document.hidden) { previous = now; return; }
       const delta = previous ? Math.min(0.05, Math.max(0, (now - previous) / 1000)) : 0;
       previous = now;
-      // A continuously moving resting field; scrolling sustains the same
-      // flight model without resetting the phase or remounting any cards.
-      currentRate += ((hasScrolled ? 1.12 : 1.0) - currentRate) *
-        (1 - Math.exp(-2 * delta));
-      clock += delta * currentRate;
+      // Preserve exact 9 s flight / 12 s cycle, including after scrolling.
+      clock += delta;
       for (const card of cards) drawCard(card, clock);
       renderer.setRenderTarget(target);
       renderer.clear();
@@ -351,14 +344,12 @@ export default function FloatingCards() {
 
     resize();
     window.addEventListener('resize', resize, { passive: true });
-    window.addEventListener('scroll', onScroll, { passive: true });
     frame = requestAnimationFrame(animate);
     return () => {
       destroyed = true;
       if (frame) cancelAnimationFrame(frame);
       canvas.removeEventListener('webglcontextlost', onLost);
       window.removeEventListener('resize', resize);
-      window.removeEventListener('scroll', onScroll);
       for (const item of cards) {
         item.geometry.dispose();
         item.material.dispose();
