@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import EmergingSubtitle from './EmergingSubtitle.jsx';
 import './NewHomepage.css';
 import RollingTitle from './RollingTitle.jsx';
+import HomepageHead from './HomepageHead.jsx';
 
 /**
  * The source SVGs come from JohnWolf_homepage.zip. They have a shared 16:9
@@ -137,7 +138,7 @@ export default function NewHomepage() {
       >
         <img className="jw-new-home__layer jw-new-home__cards" src={`${ART}cards-placeholder.svg`} alt="" aria-hidden="true" draggable="false" />
         <RollingTitle index={index} direction={rollDirection.current} reducedMotion={reduced} onRollComplete={titleHasSettled} />
-        <img className="jw-new-home__layer jw-new-home__head" src={`${ART}head-placeholder.svg`} alt="" aria-hidden="true" draggable="false" />
+        <HomepageHead reducedMotion={reduced} />
         <img key={`outline-${scene.slug}`} className="jw-new-home__layer jw-new-home__outline" src={`${ART}outline-${scene.slug}.svg`} alt="" aria-hidden="true" draggable="false" />
         <EmergingSubtitle ref={subtitle} index={index} slug={scene.slug} reducedMotion={reduced} />
         <div className="jw-new-home__indicators" aria-label="Choose a featured discipline">

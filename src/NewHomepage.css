@@ -56,7 +56,46 @@
   will-change: transform, opacity;
 }
 .jw-roll-glyph svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.jw-new-home__head { z-index: 3; }
+/* The approved About-page GLB renders in the original head position.
+   Canvas alpha preserves the layered SVG/title/card composition. */
+.jw-new-home__head-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  overflow: visible;
+}
+.jw-new-home__head-canvas {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 240ms ease-out;
+}
+.jw-new-home__head-canvas.is-ready { opacity: 1; }
+.jw-new-home__head-fallback {
+  opacity: 1;
+  transition: opacity 240ms ease-out;
+}
+.jw-new-home__head-fallback.is-hidden { opacity: 0; }
+.jw-new-home__head-stage:focus-visible::after {
+  content: '';
+  position: absolute;
+  left: 40%;
+  top: 33%;
+  width: 20%;
+  height: 36%;
+  border-radius: 50%;
+  border: 2px solid #8045db;
+  box-shadow: 0 0 0 4px rgba(128, 69, 219, 0.15);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .jw-new-home__head-canvas,.jw-new-home__head-fallback {transition:none;}
+}
 .jw-new-home__outline { z-index: 4; opacity: 0; }
 /* Only the space ABOVE the purple letters is visible. The entire supplied
    dot+text SVG sinks below y=338/810 and rises back from within the title. */
