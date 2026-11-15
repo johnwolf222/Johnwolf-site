@@ -13,7 +13,24 @@ const states=[
  ['Large Title Learning.svg','Large Title Learning Large Title Creation overlay mask to man.svg'],
  ['Large Title Solving.svg','Large Title Solving  overlay mask to man.svg']
 ];
-const labels=['Portfolio','Branding','Designer','Creation','Guidelines','Learning','Solving'];
+const labels=['Portfolio','Branding','Visual Designer','Content Creation','Content Guidelines','AI Machine Learning','Problem Solving'];
+// Original Canva artwork always takes precedence. Temporary vector fallback is
+// displayed only if the original file cannot load.
+const fallbackTitles=['PORTFOLIO','BRANDING','VISUAL DESIGNER','CONTENT CREATION','CONTENT GUIDELINES','AI MACHINE LEARNING','PROBLEM SOLVING'];
+function svgFallback(name,cls){
+ const i=states.findIndex(pair=>pair.includes(name));
+ let art='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 810"/>';
+ if(i>=0){
+  const label=fallbackTitles[i],fontSize=Math.min(205,Math.floor(1320/(label.length*.63)));
+  const attrs=cls.includes('outline')?'fill="none" stroke="#ffffff" stroke-width="2"':'fill="#8542ed"';
+  art='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 810"><text x="68" y="436" font-family="Arial Black,Impact,Arial,sans-serif" font-size="'+fontSize+'" font-weight="900" '+attrs+'>'+label+'</text></svg>';
+ }else if(name==='More about me.svg'){
+  art='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 810"><text x="67" y="660" fill="#8542ed" font-size="26" font-weight="800" font-family="Arial,sans-serif">MORE ABOUT ME</text></svg>';
+ }else if(name==='Swipe up icon.svg'){
+  art='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 810"><text x="65" y="728" fill="#8542ed" font-size="18" font-family="Arial,sans-serif">SWIPE UP</text></svg>';
+ }
+ return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(art);
+}
 // Editable copy. Portfolio keeps its original Canva service-line artwork.
 const subtitles=['WELCOME TO THE','THE ART OF','BEHIND THE','THE PROCESS OF','BUILDING','ALWAYS','CREATIVE PROBLEM'];
 const bodyLines=[
@@ -46,7 +63,14 @@ const aboutProof=[
 
 const indicatorXs=[483.425781,517.5,551.574219,585.644531,619.71875,653.789062,687.863281];
 const indicatorY=195.027344;
-const layer=(name,cls)=> <img className={'jw-art '+cls} src={root+encodeURIComponent(name)} alt="" aria-hidden="true" draggable="false"/>;
+const layer=(name,cls)=> <img className={'jw-art '+cls} src={root+encodeURIComponent(name)} alt="" aria-hidden="true" draggable="false"
+ onError={event=>{
+  const img=event.currentTarget;
+  if(img.dataset.fallbackApplied)return;
+  img.dataset.fallbackApplied='true';
+  document.documentElement.classList.add('jw-canva-fallback');
+  img.src=svgFallback(name,cls);
+ }}/>
 
 // Each Canva title contains one vector path per glyph. Wrapping those paths
 // preserves the exact approved lettering during the 3D-style camera rush.
@@ -136,10 +160,20 @@ export default function HomepageHero(){
   });
   return()=>{live=false};
  },[]);
+ const manualPauseUntilRef=useRef(0);
+ useEffect(()=>{
+  const timer=setInterval(()=>{
+   if(!document.hidden&&!aboutOpen&&Date.now()>=manualPauseUntilRef.current&&pendingRef.current===null){
+    changeTitle(indexRef.current+1,1,true);
+   }
+  },4000);
+  return()=>clearInterval(timer);
+ },[aboutOpen]);
  const titleRunRef=useRef(null);
  const pendingRef=useRef(null),indexRef=useRef(0),touchRef=useRef(null),directionRef=useRef(1);
  indexRef.current=index;
- const changeTitle=(next,swipeDirection)=>{
+ const changeTitle=(next,swipeDirection,isAutomatic=false)=>{
+  if(!isAutomatic)manualPauseUntilRef.current=Date.now()+10000;
   // Wrap the first and last titles without losing the direction of the gesture.
   const wrapped=((next%states.length)+states.length)%states.length;
   if(pendingRef.current!==null||wrapped===indexRef.current)return;
