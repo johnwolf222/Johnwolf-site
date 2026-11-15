@@ -139,7 +139,7 @@ export default function NewHomepage() {
         onPointerUp={pointerEnd}
         onPointerCancel={() => { touch.current = null; }}
       >
-        <img className="jw-new-home__layer jw-new-home__cards" src={`${ART}cards-placeholder.svg`} alt="" aria-hidden="true" draggable="false" />
+        {/* Shared cards render once outside Home and Work so they can cross both sections. */}
         <RollingTitle index={index} direction={rollDirection.current} reducedMotion={reduced} onRollComplete={titleHasSettled} />
         <HomepageHead reducedMotion={reduced} onImpact={textImpact} />
         <img key={`outline-${scene.slug}`} className="jw-new-home__layer jw-new-home__outline" src={`${ART}outline-${scene.slug}.svg`} alt="" aria-hidden="true" draggable="false" />
@@ -178,9 +178,9 @@ export function FloatingWorkSection() {
       <div className="jw-floating-work__intro">
         <span className="jw-floating-work__eyebrow">JOHN WOLF / SELECTED WORK</span>
         <h2 id="jw-work-heading">Work in motion.</h2>
-        <p>Projects move beyond a static gallery. The floating cards will transition from the homepage into this space as their scroll choreography is finalized.</p>
+        <p>From first impression to selected work, the visuals move with you.</p>
       </div>
-      <img className="jw-floating-work__art" src={`${ART}cards-placeholder.svg`} alt="Preview of the floating project-card artwork" loading="lazy" />
+      {/* The six main cards arrive here from the homepage; no duplicate collage. */}
     </section>
   );
 }

@@ -1,0 +1,32 @@
+/* Shared, non-clipped visual layer; it stays alive between Home and Work. */
+#root .jw-floating-card-stage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100svh;
+  overflow: hidden;
+  z-index: 1;
+  pointer-events: none;
+  user-select: none;
+  contain: layout style;
+}
+#root .jw-floating-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 50% 50%;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.jw-floating-card__drift { width: 100%; height: 100%; transform-origin: 50% 50%; }
+.jw-floating-card__drift img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  #root .jw-floating-card {will-change: auto;}
+}
