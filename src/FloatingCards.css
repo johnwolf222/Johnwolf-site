@@ -1,41 +1,30 @@
-/* Shared, non-clipped visual layer; it stays alive between Home and Work. */
+/* Shared WebGL paper field: one scene persists across Home and Selected Work.
+   The approved homepage text, 3D head and navigation sit in the layer above. */
 #root .jw-floating-card-stage {
   position: fixed;
   inset: 0;
   width: 100%;
   height: 100svh;
-  overflow: hidden;
   z-index: 1;
+  overflow: hidden;
   pointer-events: none;
-  user-select: none;
-  contain: layout style;
-  perspective: 1200px;
-  perspective-origin: 50% 48%;
+  background: transparent;
+  isolation: isolate;
 }
-#root .jw-floating-card {
-  position: absolute;
-  top: 0;
-  left: 0;
-  transform-origin: 50% 50%;
-  pointer-events: none;
-  will-change: transform, opacity;
-  transform-style: preserve-3d;
-}
-.jw-floating-card__drift {
-  width: 100%; height: 100%;
-  transform-origin: 50% 50%;
-  transform-style: preserve-3d;
-  backface-visibility: visible;
-  will-change: transform;
-}
-.jw-floating-card__drift img {
+.jw-paper-flow-canvas {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: fill;
+  opacity: 1;
   pointer-events: none;
-  -webkit-user-drag: none;
 }
-@media (prefers-reduced-motion: reduce) {
-  #root .jw-floating-card {will-change: auto;}
+.jw-paper-fallback { position: absolute; inset: 0; overflow: hidden; }
+.jw-paper-fallback img {
+  position: absolute;
+  display: block;
+  height: clamp(48px, 15vh, 128px);
+  width: auto;
+  object-fit: contain;
+  image-rendering: auto;
+  pointer-events: none;
 }

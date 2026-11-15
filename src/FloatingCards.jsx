@@ -1,255 +1,263 @@
-import React, { useLayoutEffect, useRef } from 'react';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import React, { useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
 import './FloatingCards.css';
 
-gsap.registerPlugin(ScrollTrigger);
-
-// Exact silhouettes separated from the user's "Animated cards (place holder)"
-// artwork. The 540 x 303 source is aligned to the 16:9 homepage artboard.
-const CARDS = [
-  { id: 1, x: 168, y: 3, w: 59, h: 65 },
-  { id: 2, x: 392, y: 49, w: 39, h: 47 },
-  { id: 3, x: 289, y: 56, w: 51, h: 45 },
-  { id: 4, x: 78, y: 84, w: 32, h: 47 },
-  { id: 5, x: 0, y: 115, w: 26, h: 65 },
-  { id: 6, x: 496, y: 129, w: 44, h: 64 },
-  { id: 7, x: 345, y: 153, w: 68, h: 60 },
-  { id: 8, x: 153, y: 166, w: 64, h: 63 },
-  { id: 9, x: 276, y: 209, w: 46, h: 30 },
-  { id: 10, x: 357, y: 274, w: 55, h: 29 },
-  { id: 11, x: 212, y: 281, w: 50, h: 22 },
-  { id: 12, x: 83, y: 283, w: 42, h: 20 },
+// Hole Zero One-inspired flowing-paper field. Each source remains the exact
+// image supplied in Cards.zip, independently addressable in the scene.
+// The source file is a reference for motion, not included in our bundle.
+const SOURCE = '/new-homepage/approved-cards/';
+const CARD_ASPECTS = [
+  1087 / 1446, 1087 / 1446, 1087 / 1446, 1024 / 1535,
+  1087 / 1446, 1087 / 1446, 1087 / 1446, 1087 / 1446,
+  1087 / 1446, 1087 / 1446, 1087 / 1446, 1087 / 1446,
+  896 / 1200,
 ];
+const COUNT = CARD_ASPECTS.length;
+const TAU = Math.PI * 2;
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+const CAMERA_Z = 15;
+const FOV = 38;
+const IDLE_SPEED = 0.073; // full passage roughly every 14 seconds
+const SCROLL_SPEED = 0.116; // scroll engages the sustained, faster flow
 
-// Six fully visible, identifiable cards enter the selected-work gallery.
-// The remaining decorative edge cards disperse as the section changes.
-const GALLERY_ORDER = [1, 3, 7, 8, 2, 4];
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const smooth = (a, b, value) => {
+  const t = clamp((value - a) / (b - a), 0, 1);
+  return t * t * (3 - 2 * t);
+};
+
+function FallbackCards() {
+  return (
+    <div className="jw-paper-fallback">
+      {CARD_ASPECTS.map((_, i) => (
+        <img
+          key={i}
+          src={`${SOURCE}${String(i + 1).padStart(2, '0')}.webp`}
+          alt=""
+          loading="eager"
+          style={{
+            '--i': i,
+            left: `${50 + 42 * Math.cos(i * GOLDEN_ANGLE)}%`,
+            top: `${50 + 42 * Math.sin(i * GOLDEN_ANGLE)}%`,
+            transform: `translate(-50%,-50%) rotate(${((i * 17) % 48) - 24}deg)`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function FloatingCards() {
-  const root = useRef(null);
-  const items = useRef([]);
-  const interiors = useRef([]);
+  const canvasRef = useRef(null);
+  const [fallback, setFallback] = useState(false);
 
-  useLayoutEffect(() => {
-    const home = document.querySelector('#home');
-    const work = document.querySelector('#work');
-    const board = document.querySelector('.jw-new-home__artboard');
-    if (!home || !work || !board || !items.current.every(Boolean)) return undefined;
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const home = document.getElementById('home');
+    const work = document.getElementById('work');
+    if (!canvas || !home || !work) return undefined;
 
-    const media = gsap.matchMedia();
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        canvas, alpha: true, antialias: true, powerPreference: 'high-performance',
+        premultipliedAlpha: false,
+      });
+    } catch (error) {
+      console.warn('Floating cards WebGL unavailable; showing sharp image fallback.', error);
+      setFallback(true);
+      return undefined;
+    }
 
-    const layout = card => {
-      // Compensate for the original SVG's 1.78 artboard-unit left offset.
-      const rect = board.getBoundingClientRect();
-      const scale = rect.width / 540;
-      return {
-        x: rect.left + (card.x - 0.667) * scale,
-        y: rect.top + window.scrollY + card.y * scale,
-        width: card.w * scale,
-        height: card.h * scale,
-      };
+    renderer.setClearColor(0x000000, 0);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.NoToneMapping;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 100);
+    camera.position.z = CAMERA_Z;
+    const loader = new THREE.TextureLoader();
+    const cards = [];
+    const textures = [];
+    const imageUrls = CARD_ASPECTS.map((_, index) =>
+      `${SOURCE}${String(index + 1).padStart(2, '0')}.webp`);
+    const maxAnisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
+    let disposed = false;
+    let webglUnavailable = false;
+    let frame = 0;
+    let time0 = 0;
+    let travel = 0;
+    let cyclesPerSecond = IDLE_SPEED;
+    let startedScroll = window.scrollY > 8;
+    let screenW = 1;
+    let screenH = 1;
+    let viewW = 1;
+    let viewH = 1;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    function measure() {
+      if (disposed) return;
+      screenW = Math.max(1, window.innerWidth);
+      screenH = Math.max(1, window.innerHeight);
+      camera.aspect = screenW / screenH;
+      camera.updateProjectionMatrix();
+      viewH = 2 * CAMERA_Z * Math.tan(THREE.MathUtils.degToRad(FOV) / 2);
+      viewW = viewH * camera.aspect;
+      renderer.setSize(screenW, screenH, false);
+    }
+
+    const noteScroll = () => {
+      if (window.scrollY > 8) startedScroll = true;
     };
 
-    const destination = card => {
-      const slot = GALLERY_ORDER.indexOf(card.id);
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      if (slot >= 0) {
-        const mobile = vw <= 700;
-        const columns = mobile ? 2 : 3;
-        const xs = mobile ? [0.275, 0.725] : [0.235, 0.5, 0.765];
-        const ys = mobile ? [0.38, 0.60, 0.81] : [0.47, 0.77];
-        const col = slot % columns;
-        const row = Math.floor(slot / columns);
-        const wLimit = mobile ? Math.min(vw * 0.37, 158) : Math.min(vw * 0.24, 225);
-        const hLimit = mobile ? Math.min(vh * 0.18, 138) : Math.min(vh * 0.24, 185);
-        const size = Math.min(wLimit / card.w, hLimit / card.h);
-        const width = card.w * size;
-        const height = card.h * size;
-        return {
-          x: xs[col] * vw - width / 2,
-          y: ys[row] * vh - height / 2,
-          width,
-          height,
-          rotation: (slot % 2 ? -1 : 1) * (slot % 3 + 1) * 2.5,
-          opacity: 1,
-          scale: 1,
-        };
-      }
-      // Small cropped border cards peel away rather than becoming awkward
-      // enlarged fragments of a project image in the actual gallery.
-      const from = layout(card);
-      const direction = from.x + from.width / 2 < vw / 2 ? -1 : 1;
-      return {
-        x: from.x + direction * vw * 0.68,
-        y: from.y + (card.id % 2 ? -1 : 1) * vh * 0.24,
-        width: from.width,
-        height: from.height,
-        rotation: direction * 28,
+    const onLost = event => {
+      event.preventDefault();
+      webglUnavailable = true;
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      setFallback(true);
+    };
+    canvas.addEventListener('webglcontextlost', onLost);
+
+    // A segmented plane is genuine flexible geometry, not a rigid CSS card.
+    // Its two edges and corners curl independently as it travels through 3D.
+    CARD_ASPECTS.forEach((aspect, index) => {
+      const geometry = new THREE.PlaneGeometry(1, 1, 12, 16);
+      const original = geometry.attributes.position.array.slice();
+      const material = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        side: THREE.DoubleSide,
+        transparent: true,
         opacity: 0,
-        scale: 0.70,
-      };
-    };
-
-    media.add('(prefers-reduced-motion: no-preference)', () => {
-      const tl = gsap.timeline({ paused: true, defaults: { ease: 'power2.inOut' } });
-      CARDS.forEach((card, i) => {
-        const node = items.current[i];
-        tl.fromTo(node,
-          {
-            x: () => layout(card).x,
-            y: () => layout(card).y,
-            width: () => layout(card).width,
-            height: () => layout(card).height,
-            rotation: 0,
-            opacity: 1,
-            scale: 1,
-            immediateRender: true,
-          },
-          {
-            x: () => destination(card).x,
-            y: () => destination(card).y,
-            width: () => destination(card).width,
-            height: () => destination(card).height,
-            rotation: () => destination(card).rotation,
-            opacity: () => destination(card).opacity,
-            scale: () => destination(card).scale,
-            duration: 1,
-            ease: 'power2.inOut',
-          }, 0);
-        // Each card's resting 3D motion is driven by one shared, continuous
-        // phase below. It is independent of the scroll/position timeline.
-        if (GALLERY_ORDER.includes(card.id)) {
-          tl.to(node, {
-            y: () => destination(card).y - window.innerHeight * 0.28,
-            opacity: 0,
-            scale: 0.86,
-            duration: 0.29,
-            ease: 'power2.in',
-          }, 1.70);
-        }
+        depthWrite: false,
+        depthTest: true,
+        toneMapped: false,
       });
-      // Hole Zero One study: the moving cards occupy real-looking depth and
-      // gently change attitude around a clear central opening. On HOME, only
-      // a small drift/tilt/breath is active; the infinite orbit triggered by
-      // scrolling is a later, separately approved phase.
-      //
-      // Use a continuous analytic phase rather than back-and-forth tweens.
-      // Its smooth, unequal frequencies avoid the artificial synchronized
-      // "ping-pong" look, while the source artwork stays pixel-identical.
-      const startedAt = gsap.ticker.time;
-      const goldenAngle = Math.PI * (3 - Math.sqrt(5));
-      let lastWeight = -1;
-      let homeWeight = 1;
-      const measureIdleWeight = () => {
-        const y = Math.max(0, -home.getBoundingClientRect().top);
-        const fraction = Math.min(1, y / Math.max(1, window.innerHeight * 0.62));
-        // Fade resting movement away naturally as scroll takes control.
-        homeWeight = 1 - fraction * fraction * (3 - 2 * fraction);
-      };
-      const tickIdle = time => {
-        if (homeWeight <= 0 && lastWeight === 0) return;
-        const elapsed = Math.max(0, time - startedAt);
-        const ramp = Math.min(1, elapsed / 1.4);
-        const weight = homeWeight * ramp * ramp * (3 - 2 * ramp);
-        lastWeight = weight;
-        const artScale = Math.min(3.1, board.getBoundingClientRect().width / 540);
-        CARDS.forEach((card, i) => {
-          const node = interiors.current[i];
-          if (!node) return;
-          const phase = i * goldenAngle;
-          const omega = 2 * Math.PI / (6.8 + (i % 5) * 0.82);
-          // An elliptical, slightly asymmetric float, with independent
-          // pitch/yaw and depth breathing inspired by the source globe camera.
-          const x = Math.sin(elapsed * omega + phase) * 4.8 * artScale * weight;
-          const y = Math.cos(elapsed * omega * 0.83 + phase * 1.12) * 6.1 * artScale * weight;
-          const z = Math.sin(elapsed * omega * 0.67 + phase * 1.47) * 20 * weight;
-          const pitch = Math.sin(elapsed * omega * 0.76 + phase) * 4.3 * weight;
-          const yaw = Math.cos(elapsed * omega * 0.63 + phase) * 6.0 * weight;
-          const roll = Math.sin(elapsed * omega * 0.95 + phase * 1.2) * 2.0 * weight;
-          const scale = 1 + Math.sin(elapsed * omega * 0.71 + phase) * 0.022 * weight;
-          gsap.set(node, { x, y, z, rotationX: pitch, rotationY: yaw, rotationZ: roll, scale });
-        });
-      };
-      const stopIdle = () => {
-        gsap.ticker.remove(tickIdle);
-        window.removeEventListener('scroll', measureIdleWeight);
-        window.removeEventListener('resize', measureIdleWeight);
-        gsap.set(interiors.current.filter(Boolean), { clearProps: 'transform' });
-      };
-      measureIdleWeight();
-      gsap.ticker.add(tickIdle);
-      window.addEventListener('scroll', measureIdleWeight, { passive: true });
-      window.addEventListener('resize', measureIdleWeight, { passive: true });
-
-      // At halfway through the total two-section scroll the cards occupy
-      // their Selected Work positions. They remain there until work is leaving.
-      tl.to({}, { duration: 0.99 }, 1);
-      const st = ScrollTrigger.create({
-        trigger: home,
-        start: 'top top',
-        endTrigger: work,
-        end: 'bottom top',
-        scrub: 0.85,
-        animation: tl,
-        invalidateOnRefresh: true,
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.frustumCulled = false;
+      scene.add(mesh);
+      cards.push({ mesh, geometry, material, original, aspect, index });
+      loader.load(imageUrls[index], texture => {
+        if (disposed) { texture.dispose(); return; }
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.anisotropy = maxAnisotropy;
+        texture.minFilter = THREE.LinearMipmapLinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.generateMipmaps = true;
+        texture.needsUpdate = true;
+        material.map = texture;
+        material.needsUpdate = true;
+        textures.push(texture);
+      }, undefined, error => {
+        console.warn(`Floating card ${index + 1} could not load:`, error);
       });
-      return () => {
-        st.kill();
-        tl.kill();
-        stopIdle();
-      };
     });
 
-    media.add('(prefers-reduced-motion: reduce)', () => {
-      // Static, scroll-selectable arrangements for motion-sensitive viewers.
-      const update = () => {
-        const showWork = work.getBoundingClientRect().top < window.innerHeight * 0.55;
-        CARDS.forEach((card, i) => {
-          const homeRect = layout(card);
-          const workRect = destination(card);
-          gsap.set(items.current[i], showWork ? workRect : {
-            ...homeRect, opacity: 1, rotation: 0, scale: 1,
-          });
-        });
-      };
-      const trigger = ScrollTrigger.create({
-        trigger: home,
-        start: 'top top',
-        endTrigger: work,
-        end: 'bottom top',
-        onUpdate: update,
-        onRefresh: update,
-      });
-      update();
-      return () => trigger.kill();
-    });
+    // No teleports in the visible field: each card fades in near the central
+    // opening, follows a curved outward path, and fades after crossing an edge.
+    // The modulo phase loops indefinitely, with an even distribution of cards.
+    function place(card, elapsed) {
+      const { mesh, geometry, material, original, index, aspect } = card;
+      const p = ((index / COUNT + travel + 0.17) % 1 + 1) % 1;
+      const angle = index * GOLDEN_ANGLE + p * 1.25 + 0.22;
+      const xDirection = Math.cos(angle);
+      const yDirection = Math.sin(angle);
+      const inner = viewH * 0.18;
+      const edgeX = viewW * 0.5 / Math.max(0.085, Math.abs(xDirection));
+      const edgeY = viewH * 0.5 / Math.max(0.085, Math.abs(yDirection));
+      const outer = Math.min(edgeX, edgeY) + viewH * 0.24;
+      const radius = inner + (outer - inner) * Math.pow(p, 0.93);
+      const sway = 0.036 * Math.sin(elapsed * 0.88 + index * 1.9);
+      const depth = -0.65 + 1.25 * Math.sin(p * TAU * 0.75 + index * 0.9);
+
+      mesh.position.set(
+        Math.cos(angle + sway) * radius,
+        Math.sin(angle + sway) * radius,
+        depth,
+      );
+      const worldH = viewH * (0.123 + 0.073 * p) *
+        (1 + 0.08 * Math.sin(index * 2.7 + p * TAU));
+      mesh.scale.set(worldH * aspect, worldH, worldH);
+
+      // The sheets bank, twist and roll while remaining recognizable rather
+      // than constantly turning edge-on. No CSS blur or enlarged tiny sprites.
+      const flutter = elapsed * (1.4 + index % 4 * 0.12) + index * 1.72;
+      mesh.rotation.set(
+        0.20 * Math.sin(flutter * 0.71) + 0.16 * Math.sin(angle),
+        0.32 * Math.sin(flutter * 0.58) + 0.19 * Math.cos(angle + p),
+        0.18 * Math.sin(index * 1.2 + p * 3.3) + 0.15 * (p - 0.4),
+      );
+
+      const vertices = geometry.attributes.position;
+      const bend = 0.085 + 0.052 * Math.sin(flutter * 0.64);
+      const flex = 0.045 * Math.sin(flutter * 1.17);
+      for (let v = 0; v < vertices.count; v++) {
+        const j = v * 3;
+        const ux = original[j];
+        const uy = original[j + 1];
+        const edgeCurl = Math.pow(Math.abs(ux) * 2, 1.55);
+        // Rounded page curvature with independently flexing leading/trailing
+        // corners, making the card behave like thin moving paper.
+        const z = bend * edgeCurl * (0.5 + 0.5 * Math.cos(uy * 3 + flutter * 0.8))
+          + flex * Math.sin(Math.PI * (ux + 0.5)) * Math.sin(uy * 3.8 + flutter);
+        vertices.setXYZ(v, ux, uy + 0.012 * Math.sin(ux * 3.4 + flutter) * edgeCurl, z);
+      }
+      vertices.needsUpdate = true;
+
+      const appearance = smooth(0.0, 0.12, p) * (1 - smooth(0.85, 1.0, p));
+      const distanceFade = clamp(1 - Math.max(0, -depth - 0.25) * 0.09, 0.82, 1);
+      material.opacity = appearance * distanceFade;
+      mesh.visible = material.opacity > 0.008 && !!material.map;
+    }
+
+    function animate(now) {
+      frame = requestAnimationFrame(animate);
+      if (disposed || webglUnavailable) return;
+      const insidePage = home.getBoundingClientRect().top < screenH &&
+        work.getBoundingClientRect().bottom > 0;
+      const workBottom = work.getBoundingClientRect().bottom;
+      const exitOpacity = smooth(-0.15 * screenH, 0.18 * screenH, workBottom);
+      canvas.style.opacity = `${insidePage ? exitOpacity : 0}`;
+      if (!insidePage || document.hidden) { time0 = now; return; }
+
+      const dt = time0 ? Math.min(0.06, (now - time0) / 1000) : 0;
+      time0 = now;
+      if (!reduced.matches) {
+        cyclesPerSecond += ((startedScroll ? SCROLL_SPEED : IDLE_SPEED) - cyclesPerSecond) *
+          (1 - Math.exp(-dt * 2.3));
+        travel += dt * cyclesPerSecond;
+      }
+      const elapsed = reduced.matches ? 0 : travel / IDLE_SPEED;
+      for (const card of cards) place(card, elapsed);
+      renderer.render(scene, camera);
+    }
+
+    measure();
+    window.addEventListener('resize', measure, { passive: true });
+    window.addEventListener('scroll', noteScroll, { passive: true });
+    frame = requestAnimationFrame(animate);
 
     return () => {
-      media.revert();
+      disposed = true;
+      if (frame) cancelAnimationFrame(frame);
+      canvas.removeEventListener('webglcontextlost', onLost);
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', noteScroll);
+      for (const c of cards) {
+        c.geometry.dispose();
+        c.material.dispose();
+        scene.remove(c.mesh);
+      }
+      for (const texture of textures) texture.dispose();
+      renderer.dispose();
     };
   }, []);
 
   return (
-    <div className="jw-floating-card-stage" ref={root} aria-hidden="true">
-      {CARDS.map((card, i) => (
-        <div
-          className="jw-floating-card"
-          key={card.id}
-          ref={node => { items.current[i] = node; }}
-          style={{ opacity: 0 }}
-        >
-          <div className="jw-floating-card__drift" ref={node => { interiors.current[i] = node; }}>
-            <img
-              src={`/new-homepage/cards/card-${String(card.id).padStart(2, '0')}.svg`}
-              alt=""
-              draggable="false"
-              loading="eager"
-            />
-          </div>
-        </div>
-      ))}
+    <div className="jw-floating-card-stage" aria-label="Flowing selected artwork" role="presentation">
+      <canvas ref={canvasRef} className="jw-paper-flow-canvas" aria-hidden="true" />
+      {fallback && <FallbackCards />}
     </div>
   );
 }
