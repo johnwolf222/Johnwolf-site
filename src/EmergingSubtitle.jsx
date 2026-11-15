@@ -43,14 +43,14 @@ const EmergingSubtitle = forwardRef(function EmergingSubtitle(
 
   useImperativeHandle(ref, () => ({
     sink: () => animateTo({ yPercent: SUBMERGED_Y_PERCENT, autoAlpha: 0 }, 0.38, 'power2.in'),
-    rise: () => animateTo({ yPercent: 0, autoAlpha: 1 }, 0.64, 'power3.out'),
+    rise: () => animateTo({ yPercent: 0, autoAlpha: 1 }, 0.34, 'power3.out'),
   }), []);
 
   useLayoutEffect(() => {
     const image = imageRef.current;
     gsap.set(image, { yPercent: SUBMERGED_Y_PERCENT, autoAlpha: 0 });
-    const start = gsap.delayedCall(0.14, () => {
-      animateTo({ yPercent: 0, autoAlpha: 1 }, 0.68, 'power3.out');
+    const start = gsap.delayedCall(0.08, () => {
+      animateTo({ yPercent: 0, autoAlpha: 1 }, 0.36, 'power3.out');
     });
     return () => {
       start.kill();
