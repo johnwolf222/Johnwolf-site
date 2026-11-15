@@ -160,7 +160,7 @@ export default function HomepageHero(){
   });
   return()=>{live=false};
  },[]);
- const manualPauseUntilRef=useRef(0);
+ const manualPauseUntilRef=useRef(0),queuedManualRef=useRef(null);
  useEffect(()=>{
   const timer=setInterval(()=>{
    if(!document.hidden&&!aboutOpen&&Date.now()>=manualPauseUntilRef.current&&pendingRef.current===null){
@@ -176,7 +176,12 @@ export default function HomepageHero(){
   if(!isAutomatic)manualPauseUntilRef.current=Date.now()+10000;
   // Wrap the first and last titles without losing the direction of the gesture.
   const wrapped=((next%states.length)+states.length)%states.length;
-  if(pendingRef.current!==null||wrapped===indexRef.current)return;
+  // Manual input during an animation is queued instead of discarded.
+  if(pendingRef.current!==null){
+   if(!isAutomatic)queuedManualRef.current={index:wrapped,direction:swipeDirection};
+   return;
+  }
+  if(wrapped===indexRef.current)return;
   directionRef.current=swipeDirection??(wrapped>indexRef.current?1:-1);
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
    indexRef.current=wrapped;setIndex(wrapped);return;
@@ -226,7 +231,14 @@ export default function HomepageHero(){
     indexRef.current=pending;setIndex(pending);pendingRef.current=null;setPending(null);
     if(aboutLaunchQueuedRef.current){
      aboutLaunchQueuedRef.current=false;
+     queuedManualRef.current=null;
      setAboutOpen(true);
+    }else if(queuedManualRef.current){
+     const selection=queuedManualRef.current;
+     queuedManualRef.current=null;
+     if(selection.index!==pending){
+      setTimeout(()=>changeTitle(selection.index,selection.direction),0);
+     }
     }
    }});
    titleRunRef.current=timeline;
