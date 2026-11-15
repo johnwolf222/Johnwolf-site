@@ -97,7 +97,7 @@ export default function NewHomepage() {
         </div>
       </div>
       <div className="jw-new-home__bottom-bar">
-        <span className="jw-new-home__counter" aria-live="polite">{String(index + 1).padStart(2, '0')} / 07 — {scene.label}</span>
+        <span className="jw-new-home__counter" aria-live="polite">{scene.label}</span>
         <div className="jw-new-home__buttons">
           <button type="button" onClick={() => manualAdvance(index - 1)} aria-label="Previous discipline">←</button>
           <button type="button" onClick={() => manualAdvance(index + 1)} aria-label="Next discipline">→</button>
