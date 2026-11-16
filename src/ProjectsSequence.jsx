@@ -229,7 +229,9 @@ export default function ProjectsSequence() {
         pin: true,
         pinSpacing: true,
         anticipatePin: 1,
-        scrub: reduced.matches ? true : .28,
+        // The scroll position is the single source of truth: do not add a
+        // second 280ms lag that leaves Home/cards in the wrong state on reverse.
+        scrub: true,
         invalidateOnRefresh: true,
         onRefresh: () => {
           measure();
