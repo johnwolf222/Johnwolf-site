@@ -243,8 +243,10 @@ export default function ProjectsSequence() {
       ease: 'none', onUpdate: render }, 0);
 
     const onScroll = () => {
-      // This also updates the carousel AFTER the pin's GSAP timeline ends.
-      // ScrollTrigger retains progress=1 until reversing into the pin.
+      // Read the *current* native scroll position before updating the pin,
+      // head and gallery. Without this explicit refresh, the browser can
+      // briefly display stale pin transforms on quick reverse or anchor jumps.
+      ScrollTrigger.update();
       render();
     };
     const onResize = () => {
