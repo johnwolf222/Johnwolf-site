@@ -1,0 +1,261 @@
+import React, { useEffect, useRef, useState } from 'react';
+import './ProjectsSequence.css';
+
+// The seven center-card moments follow the approved moving-carousel reference.
+// All 21 distinct approved artworks participate in the descending spiral.
+export const PROJECTS = [
+  { image: 9, name: 'Souly Unboxed', description: 'Brand identity and visual communication.' },
+  { image: 7, name: 'Chick Muy Caliente', description: 'Branding and promotional design.' },
+  { image: 5, name: 'Better Mate', description: 'An expressive identity for Better Mate.' },
+  { image: 11, name: 'Food & Hospitality', description: 'Creative direction and food-focused imagery.' },
+  { image: 2, name: 'Nurusa', description: 'Healthy food service branding.' },
+  { image: 1, name: 'Inkzilla', description: 'Tattoo shop identity and visual design.' },
+  { image: 10, name: 'One on One', description: 'Identity and creative presentation.' },
+];
+const ARTWORK_COUNT = 21;
+const CARD_IDS = Array.from({ length: ARTWORK_COUNT }, (_, i) => i + 1);
+const fileFor = id => '/new-homepage/approved-cards/' +
+  String(id).padStart(2, '0') + (id > 13 ? '.avif' : '.webp');
+const clamp = (n, min = 0, max = 1) => Math.max(min, Math.min(max, n));
+const smooth = (n, a = 0, b = 1) => {
+  const t = clamp((n - a) / (b - a || 1));
+  return t * t * (3 - 2 * t);
+};
+const mix = (a, b, t) => a + (b - a) * t;
+const vhStep = 0.78;
+const landingVh = 0.88;
+const getSectionTop = node => window.scrollY + node.getBoundingClientRect().top;
+
+/**
+ * The homepage video is intentionally immutable. This is a separate,
+ * scroll-scrubbed scene that takes over during the Home -> Projects passage.
+ * The sheet positions are updated directly on rAF to avoid remounting
+ * the 21 approved images as the scroll position changes.
+ */
+export default function ProjectsSequence() {
+  const sectionRef = useRef(null);
+  const stageRef = useRef(null);
+  const cardRefs = useRef([]);
+  const headRef = useRef(null);
+  const copyRef = useRef(null);
+  const currentRef = useRef(0);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const section = sectionRef.current;
+    const stage = stageRef.current;
+    const head = headRef.current;
+    const copy = copyRef.current;
+    const videoStage = document.querySelector('.jw-floating-card-stage');
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (!section || !stage) return undefined;
+    let frame = 0;
+    let measuredTop = 0;
+    let sectionHeight = 0;
+    let viewportWidth = 0;
+    let viewportHeight = 0;
+    let scrollPosition = window.scrollY;
+    let lastScroll = -Infinity;
+    let lastVisible = false;
+    let lastActive = -1;
+    let alive = true;
+
+    function measure() {
+      measuredTop = getSectionTop(section);
+      sectionHeight = section.getBoundingClientRect().height;
+      viewportWidth = window.innerWidth;
+      viewportHeight = window.innerHeight;
+      requestDraw();
+    }
+
+    function positionCard(card, index, entry, focus, blend, w, h) {
+      const phase = index / ARTWORK_COUNT;
+      const theta = phase * Math.PI * 4.4 + entry * Math.PI * 3.35;
+      const radialX = Math.min(w * 0.35, 540);
+      const spiralX = Math.cos(theta) * radialX;
+      // Offset each consecutive sheet vertically: a descending helical stair.
+      const spiralY = (phase - .5) * h * .76 +
+        Math.sin(theta) * h * .12 + (entry - .32) * h * .36;
+      const spiralZ = Math.sin(theta) * 240 - 100;
+      const spiralRotY = Math.cos(theta) * 56;
+      const spiralRotZ = Math.sin(theta) * 17;
+      const spiralScale = .55 + .12 * Math.sin(theta);
+      const spotlightIndex = PROJECTS.findIndex(project => project.image === index + 1);
+      let carouselX, carouselY, carouselZ, carouselRotY, carouselScale, carouselOpacity;
+      if (spotlightIndex >= 0) {
+        const len = PROJECTS.length;
+        // Cyclic shortest signed distance produces a complete seven-card
+        // perspective arc even on the first and last spotlight.
+        let dist = spotlightIndex - focus;
+        while (dist > len / 2) dist -= len;
+        while (dist < -len / 2) dist += len;
+        const d = Math.abs(dist);
+        carouselX = dist * Math.min(w * .218, 290);
+        carouselY = h * .235 + d * h * .014;
+        carouselZ = -d * 155;
+        carouselRotY = -Math.sign(dist) * Math.min(65, d * 23);
+        carouselScale = 1 / (1 + d * .18);
+        carouselOpacity = clamp(1 - d * .20, .24, 1);
+      } else {
+        carouselX = spiralX * 1.38;
+        carouselY = h * .8 + spiralY * .35;
+        carouselZ = -510;
+        carouselRotY = spiralRotY;
+        carouselScale = .2;
+        carouselOpacity = 0;
+      }
+      const x = mix(spiralX, carouselX, blend);
+      const y = mix(spiralY, carouselY, blend);
+      const z = mix(spiralZ, carouselZ, blend);
+      const ry = mix(spiralRotY, carouselRotY, blend);
+      const rz = spiralRotZ * (1 - blend);
+      const scale = mix(spiralScale, carouselScale, blend);
+      const appear = smooth(entry, .035, .21);
+      const opacity = appear * mix(1, carouselOpacity, blend);
+      card.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' +
+        y.toFixed(1) + 'px,' + z.toFixed(1) + 'px) rotateY(' +
+        ry.toFixed(1) + 'deg) rotateZ(' + rz.toFixed(1) +
+        'deg) scale(' + scale.toFixed(3) + ')';
+      card.style.opacity = String(opacity);
+      card.style.zIndex = String(40 + Math.round(z / 10));
+      card.style.visibility = opacity < .01 ? 'hidden' : 'visible';
+    }
+
+    function draw(now = 0) {
+      frame = 0;
+      if (!alive) return;
+      const yTarget = window.scrollY;
+      const highPrecision = reduced.matches;
+      // Gentle catch-up prevents sharp snapping when a wheel emits large deltas.
+      scrollPosition += (yTarget - scrollPosition) * (highPrecision ? 1 : .28);
+      if (Math.abs(yTarget - scrollPosition) < .35) scrollPosition = yTarget;
+      const w = viewportWidth || window.innerWidth;
+      const h = viewportHeight || window.innerHeight;
+      const start = measuredTop - h * .55;
+      const land = measuredTop + h * landingVh;
+      const entry = highPrecision ? (scrollPosition >= measuredTop ? 1 : 0) :
+        clamp((scrollPosition - start) / (land - start));
+      const blend = highPrecision ? 1 : smooth(entry, .66, 1);
+      const focus = clamp((scrollPosition - land) / (h * vhStep), 0, PROJECTS.length - 1);
+      const active = Math.round(focus);
+      const exitStart = measuredTop + sectionHeight - h * 1.18;
+      const exitFade = 1 - smooth(scrollPosition, exitStart, exitStart + h * .65);
+      const stageShown = scrollPosition >= (highPrecision ? measuredTop : start) &&
+        scrollPosition < measuredTop + sectionHeight - h * .2;
+      const alpha = (highPrecision ? 1 : smooth(entry, .01, .16)) * exitFade;
+      // Only the departure from Home fades its video. Scroll back and the exact
+      // approved 21-sheet export returns at full opacity, unmodified.
+      if (videoStage) {
+        const fadeVideo = 1 - smooth(scrollPosition, start, measuredTop + h * .15);
+        videoStage.style.opacity = String(fadeVideo);
+      }
+      stage.style.opacity = String(stageShown ? alpha : 0);
+      stage.style.visibility = stageShown ? 'visible' : 'hidden';
+      stage.style.backgroundColor = 'rgba(255,255,255,' +
+        (highPrecision ? 1 : smooth(entry, .08, .42)).toFixed(3) + ')';
+      if (head) {
+        const centerY = mix(h * .46, h * .18, smooth(entry, .35, .88));
+        head.style.top = centerY.toFixed(1) + 'px';
+        head.style.opacity = String(smooth(entry, .15, .42) * exitFade);
+      }
+      if (copy) copy.style.opacity = String(blend * exitFade);
+      for (let i = 0; i < ARTWORK_COUNT; i++) {
+        const card = cardRefs.current[i];
+        if (card) positionCard(card, i, entry, focus, blend, w, h);
+      }
+      if (active !== lastActive) {
+        lastActive = active;
+        currentRef.current = active;
+        setActiveIndex(active);
+      }
+      if (stageShown !== lastVisible) {
+        lastVisible = stageShown;
+        setVisible(stageShown);
+      }
+      lastScroll = scrollPosition;
+      if (Math.abs(yTarget - scrollPosition) > .35) frame = requestAnimationFrame(draw);
+    }
+
+    function requestDraw() {
+      if (!frame) frame = requestAnimationFrame(draw);
+    }
+    const onResize = () => measure();
+    const onReduced = () => requestDraw();
+    window.addEventListener('scroll', requestDraw, { passive: true });
+    window.addEventListener('resize', onResize);
+    reduced.addEventListener?.('change', onReduced);
+    const observer = new ResizeObserver(measure);
+    observer.observe(section);
+    measure();
+    return () => {
+      alive = false;
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener('scroll', requestDraw);
+      window.removeEventListener('resize', onResize);
+      reduced.removeEventListener?.('change', onReduced);
+      if (videoStage) videoStage.style.opacity = '';
+    };
+  }, []);
+
+  function goTo(index) {
+    const section = sectionRef.current;
+    if (!section) return;
+    const vh = window.innerHeight;
+    const i = clamp(index, 0, PROJECTS.length - 1);
+    const top = getSectionTop(section) + vh * (landingVh + i * vhStep);
+    window.scrollTo({ top, behavior: 'smooth' });
+  }
+  function next() {
+    if (currentRef.current >= PROJECTS.length - 1) {
+      document.querySelector('#about')?.scrollIntoView({ behavior: 'smooth' });
+    } else goTo(currentRef.current + 1);
+  }
+  function previous() {
+    if (currentRef.current <= 0) {
+      document.querySelector('#home')?.scrollIntoView({ behavior: 'smooth' });
+    } else goTo(currentRef.current - 1);
+  }
+  const project = PROJECTS[activeIndex];
+  return (
+    <section id="work" ref={sectionRef} className="jw-projects-journey" aria-labelledby="jw-projects-heading">
+      <div ref={stageRef} className={'jw-projects-stage' + (visible ? ' is-visible' : '')}
+        style={{ opacity: 0, visibility: 'hidden' }}>
+        <div className="jw-projects-stage__head" ref={headRef} aria-hidden="true">
+          <img className="jw-projects-stage__head-source"
+            src="/new-homepage/head-placeholder.svg" alt="" draggable="false" />
+        </div>
+        <div className="jw-projects-stage__scene" aria-hidden="true">
+          {CARD_IDS.map((id, index) => (
+            <div className="jw-projects-stage__card" key={id}
+              ref={node => { cardRefs.current[index] = node; }}
+              data-artwork={id}>
+              <img src={fileFor(id)} alt="" draggable="false" />
+            </div>
+          ))}
+        </div>
+        <div className="jw-projects-stage__information" ref={copyRef}>
+          <h2 id="jw-projects-heading">PROJECTS</h2>
+          <div className="jw-projects-stage__details" aria-live="polite" aria-atomic="true">
+            <h3>{project.name}</h3>
+            <p>{project.description}</p>
+          </div>
+          <div className="jw-projects-stage__controls" aria-label="Featured projects">
+            <button type="button" onClick={previous} aria-label="Previous featured project">←</button>
+            <div className="jw-projects-stage__dots">
+              {PROJECTS.map((item, index) =>
+                <button key={item.image} type="button" onClick={() => goTo(index)}
+                  className={activeIndex === index ? 'is-selected' : ''}
+                  aria-label={'Show ' + item.name}
+                  aria-current={activeIndex === index ? 'step' : undefined} />
+              )}
+            </div>
+            <button type="button" onClick={next} aria-label="Next featured project">→</button>
+            <span className="jw-projects-stage__count">{String(activeIndex + 1).padStart(2, '0')} / 07</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
