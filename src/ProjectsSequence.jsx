@@ -71,16 +71,16 @@ export default function ProjectsSequence() {
 
     function positionCard(card, index, entry, focus, blend, w, h) {
       const phase = index / ARTWORK_COUNT;
-      const theta = phase * Math.PI * 4.4 + entry * Math.PI * 3.35;
-      const radialX = Math.min(w * 0.35, 540);
+      const theta = phase * Math.PI * 5.2 + entry * Math.PI * 2.9;
+      const radialX = Math.min(w * 0.40, 600);
       const spiralX = Math.cos(theta) * radialX;
       // Offset each consecutive sheet vertically: a descending helical stair.
-      const spiralY = (phase - .5) * h * .76 +
-        Math.sin(theta) * h * .12 + (entry - .32) * h * .36;
-      const spiralZ = Math.sin(theta) * 240 - 100;
+      const spiralY = (phase - .5) * h * 1.24 +
+        Math.sin(theta) * h * .13 + (entry - .32) * h * .52;
+      const spiralZ = Math.sin(theta) * 260 - 140;
       const spiralRotY = Math.cos(theta) * 56;
       const spiralRotZ = Math.sin(theta) * 17;
-      const spiralScale = .55 + .12 * Math.sin(theta);
+      const spiralScale = .48 + .11 * Math.sin(theta);
       const spotlightIndex = PROJECTS.findIndex(project => project.image === index + 1);
       let carouselX, carouselY, carouselZ, carouselRotY, carouselScale, carouselOpacity;
       if (spotlightIndex >= 0) {
@@ -96,7 +96,9 @@ export default function ProjectsSequence() {
         carouselZ = -d * 155;
         carouselRotY = -Math.sign(dist) * Math.min(65, d * 23);
         carouselScale = 1 / (1 + d * .18);
-        carouselOpacity = clamp(1 - d * .20, .24, 1);
+        // Sheets at the far end of the carousel disappear *before* wrapping
+        // from one edge to the other, preventing a visible teleport.
+        carouselOpacity = Math.pow(clamp((3.55 - d) / 3.3), .7);
       } else {
         carouselX = spiralX * 1.38;
         carouselY = h * .8 + spiralY * .35;
