@@ -1,0 +1,20 @@
+/* The approved 3D head stays at z 11. Rear paper is alpha-occluded by
+   the head's permanently approved mask; front sheets render above at z 12.
+   During Home the canvas sits below all approved typography at z 1. */
+.jw-live-paper-canvas {
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  background: transparent;
+}
+.jw-live-paper-canvas.is-ready { opacity: 1; }
+/* The DOM card is only a WebGL/accessibility fallback. The SAME 21 approved
+   image sources remain in the GPU scene, with no double-visible cards. */
+body.jw-live-paper-ready .jw-projects-stage__card {
+  opacity: 0 !important;
+}
