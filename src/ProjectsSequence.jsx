@@ -324,10 +324,14 @@ export default function ProjectsSequence() {
       pinSpacing: true,
       anticipatePin: 1,
       invalidateOnRefresh: true,
-      onUpdate: self => timeline.progress(self.progress),
+      onUpdate: self => {
+        timeline.progress(clamp((window.scrollY - self.start) /
+          Math.max(self.end - self.start, 1)));
+      },
       onRefresh: self => {
         measure();
-        timeline.progress(self.progress);
+        timeline.progress(clamp((window.scrollY - self.start) /
+          Math.max(self.end - self.start, 1)));
         render();
       },
     });
@@ -337,7 +341,11 @@ export default function ProjectsSequence() {
       // head and gallery. Without this explicit refresh, the browser can
       // briefly display stale pin transforms on quick reverse or anchor jumps.
       pinned.update();
-      timeline.progress(pinned.progress);
+      // Seek from ACTUAL native scroll pixels, not ScrollTrigger's cached
+      // progress (which can trail wheel/touch events by a frame or more).
+      const exact = clamp((window.scrollY - pinned.start) /
+        Math.max(pinned.end - pinned.start, 1));
+      timeline.progress(exact);
       render();
     };
     const onResize = () => {
