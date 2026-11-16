@@ -84,7 +84,7 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
     get ready() { return Boolean(engineRef.current?.ready); },
     setPose(index, pose) {
       const e = engineRef.current;
-      if (e && e.poses[index]) e.poses[index] = pose;
+      if (e && index >= 0 && index < TOTAL) e.poses[index] = pose;
     },
     draw(progress) { engineRef.current?.draw(progress); },
   }), []);
