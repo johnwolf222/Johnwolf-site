@@ -10,35 +10,48 @@ const imageFor = index => '/new-homepage/approved-cards/' +
   String(index + 1).padStart(2, '0') + (index >= 13 ? '.avif' : '.webp');
 
 const VERTEX = `
+  attribute vec3 color;
   varying vec2 vUv;
+  varying vec3 vLight;
   void main() {
     vUv = uv;
-    gl_Position = vec4(position.xy, 0.0, 1.0);
+    vLight = color;
+    gl_Position = projectionMatrix * modelViewMatrix *
+      vec4(position, 1.0);
   }
 `;
-// The rear pass is composited WITHOUT covering the original GLB head. The
-// mask is the same approved permanent head silhouette as the headline ink.
-const COMPOSITE = `
+// A SINGLE render pass: every bendable paper mesh samples the GLB's
+// permanent alpha silhouette only when behind the head. Front papers pass
+// over it normally. Avoids two scene passes and an expensive framebuffer copy.
+const PAPER_FRAGMENT = `
   precision highp float;
   varying vec2 vUv;
-  uniform sampler2D uPaper;
+  varying vec3 vLight;
+  uniform sampler2D uTexture;
   uniform sampler2D uHead;
   uniform vec4 uHeadBounds;
   uniform float uHeadOpacity;
+  uniform float uBehind;
+  uniform float uOpacity;
+  uniform vec2 uResolution;
   void main() {
-    vec4 paper = texture2D(uPaper, vUv);
-    vec2 maskUV = (vUv - uHeadBounds.xy) /
-      max(uHeadBounds.zw, vec2(.0001));
-    float inside = step(0., maskUV.x) * step(0., maskUV.y) *
-      step(maskUV.x, 1.) * step(maskUV.y, 1.);
-    float silhouette = inside * texture2D(uHead, clamp(maskUV, 0., 1.)).a;
-    float alpha = paper.a * (1. - silhouette * uHeadOpacity);
-    gl_FragColor = vec4(paper.rgb, alpha);
+    vec4 paper = texture2D(uTexture, vUv);
+    float alpha = paper.a * uOpacity;
+    if (uBehind > .5) {
+      vec2 uvScreen = gl_FragCoord.xy / uResolution;
+      vec2 maskUV = (uvScreen - uHeadBounds.xy) /
+        max(uHeadBounds.zw, vec2(.0001));
+      float inside = step(0., maskUV.x) * step(0., maskUV.y) *
+        step(maskUV.x, 1.) * step(maskUV.y, 1.);
+      float maskAlpha = inside *
+        texture2D(uHead, clamp(maskUV, 0., 1.)).a;
+      alpha *= 1. - maskAlpha * uHeadOpacity;
+    }
+    gl_FragColor = vec4(paper.rgb * vLight, alpha);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
 `;
-
 function deform(item, curl, time) {
   const bend = Math.max(.001, Math.min(1.15, curl));
   const position = item.geometry.attributes.position;
@@ -108,26 +121,15 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
     renderer.toneMapping = THREE.NoToneMapping;
     let disposed = false;
     let ready = false;
-    const behind = new THREE.Scene();
-    const ahead = new THREE.Scene();
+    const world = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(42, 1, 1, 9000);
     camera.position.z = FOCAL;
-    const compositor = new THREE.Scene();
-    const compositeCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 2);
-    compositeCamera.position.z = 1;
-    const uniforms = {
-      uPaper: { value: null },
+    const sharedUniforms = {
       uHead: { value: null },
       uHeadBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
       uHeadOpacity: { value: 1 },
+      uResolution: { value: new THREE.Vector2(1, 1) },
     };
-    const compositeMaterial = new THREE.ShaderMaterial({
-      uniforms, vertexShader: VERTEX, fragmentShader: COMPOSITE,
-      depthTest: false, depthWrite: false, transparent: true,
-      toneMapped: false,
-    });
-    const compositeQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), compositeMaterial);
-    compositor.add(compositeQuad);
     const items = [];
     const poses = Array(TOTAL).fill(null);
     for (let index = 0; index < TOTAL; index++) {
@@ -136,24 +138,31 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
       const original = pos.array.slice();
       const colors = new Float32Array(pos.count * 3).fill(1);
       geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-      const material = new THREE.MeshBasicMaterial({
-        color: 0xffffff, side: THREE.DoubleSide,
-        transparent: true, depthWrite: false,
-        vertexColors: true, toneMapped: false, opacity: 0,
+      const material = new THREE.ShaderMaterial({
+        uniforms: {
+          ...sharedUniforms,
+          uTexture: { value: null },
+          uOpacity: { value: 0 },
+          uBehind: { value: 1 },
+        },
+        vertexShader: VERTEX,
+        fragmentShader: PAPER_FRAGMENT,
+        side: THREE.DoubleSide,
+        transparent: true,
+        depthWrite: false,
+        toneMapped: false,
       });
       const mesh = new THREE.Mesh(geometry, material);
       mesh.frustumCulled = false;
       mesh.visible = false;
       mesh.rotation.order = 'YXZ';
-      behind.add(mesh);
-      items.push({ index, geometry, material, mesh, original, front: false,
-        mapReady: false });
+      world.add(mesh);
+      items.push({ index, geometry, material, mesh, original, mapReady: false });
     }
 
     const loader = new THREE.TextureLoader();
     const textures = [];
     let maskTexture;
-    let rearTarget;
     let width = 1, height = 1, dpr = 1;
     let paperWidth = 270, paperHeight = 420;
     function resize() {
@@ -167,15 +176,7 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
         2 * Math.atan(height / (2 * FOCAL)));
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
-      rearTarget?.dispose();
-      rearTarget = new THREE.WebGLRenderTarget(
-        Math.max(1, Math.round(width * dpr)),
-        Math.max(1, Math.round(height * dpr)),
-        { format: THREE.RGBAFormat, depthBuffer: true },
-      );
-      rearTarget.texture.minFilter = THREE.LinearFilter;
-      rearTarget.texture.magFilter = THREE.LinearFilter;
-      uniforms.uPaper.value = rearTarget.texture;
+      sharedUniforms.uResolution.value.set(width * dpr, height * dpr);
       const card = document.querySelector('.jw-projects-stage__card');
       paperWidth = card?.offsetWidth ||
         (width <= 800 ? Math.min(width * .55, 285) : Math.min(width * .26, 370));
@@ -184,17 +185,17 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
     }
 
     function draw(progress) {
-      if (!ready || disposed || !rearTarget) return;
+      if (!ready || disposed) return;
       const head = document.querySelector('.jw-continuous-head');
       const surface = document.querySelector('.jw-new-home__head-canvas');
       if (surface) {
         const rect = surface.getBoundingClientRect();
-        uniforms.uHeadBounds.value.set(
+        sharedUniforms.uHeadBounds.value.set(
           rect.left / width, (height - rect.bottom) / height,
           rect.width / width, rect.height / height,
         );
       }
-      uniforms.uHeadOpacity.value =
+      sharedUniforms.uHeadOpacity.value =
         Math.max(0, Math.min(1, Number(head?.style.opacity || '1')));
       canvas.style.zIndex = progress < .275 ? '1' : '12';
       for (const item of items) {
@@ -204,12 +205,7 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
           continue;
         }
         item.mesh.visible = true;
-        if (pose.front !== item.front) {
-          if (item.front) ahead.remove(item.mesh);
-          else behind.remove(item.mesh);
-          (pose.front ? ahead : behind).add(item.mesh);
-          item.front = pose.front;
-        }
+        item.material.uniforms.uBehind.value = pose.front ? 0 : 1;
         item.mesh.position.set(pose.x, -pose.y, pose.z);
         item.mesh.scale.set(
           paperWidth * pose.scale, paperHeight * pose.scale,
@@ -221,19 +217,11 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
           -THREE.MathUtils.degToRad(pose.rz),
           'YXZ',
         );
-        item.material.opacity = pose.opacity;
+        item.material.uniforms.uOpacity.value = pose.opacity;
         deform(item, pose.curl, pose.time);
       }
-      renderer.setRenderTarget(rearTarget);
       renderer.clear();
-      renderer.render(behind, camera);
-      renderer.setRenderTarget(null);
-      renderer.clear();
-      renderer.render(compositor, compositeCamera);
-      renderer.autoClear = false;
-      renderer.clearDepth();
-      renderer.render(ahead, camera);
-      renderer.autoClear = true;
+      renderer.render(world, camera);
       if (!canvas.classList.contains('is-ready')) {
         canvas.classList.add('is-ready');
         document.body.classList.add('jw-live-paper-ready');
@@ -258,8 +246,7 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
         texture.minFilter = THREE.LinearMipmapLinearFilter;
         texture.magFilter = THREE.LinearFilter;
         texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-        item.material.map = texture;
-        item.material.needsUpdate = true;
+        item.material.uniforms.uTexture.value = texture;
         item.mapReady = true;
         textures.push(texture);
         resolve(true);
@@ -269,7 +256,7 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
       loader.load(HEAD_SILHOUETTE_MASK, texture => {
         if (disposed) { texture.dispose(); resolve(false); return; }
         maskTexture = texture;
-        uniforms.uHead.value = texture;
+        sharedUniforms.uHead.value = texture;
         resolve(true);
       }, undefined, () => resolve(false));
     });
@@ -295,9 +282,6 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
       });
       textures.forEach(texture => texture.dispose());
       maskTexture?.dispose();
-      rearTarget?.dispose();
-      compositeQuad.geometry.dispose();
-      compositeMaterial.dispose();
       renderer.dispose();
     };
   }, []);
