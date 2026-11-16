@@ -184,6 +184,18 @@ export default function ProjectsSequence() {
     }
     const onResize = () => measure();
     const onReduced = () => requestDraw();
+    const navigateToGallery = event => {
+      const anchor = event.target.closest?.('a[href="#work"]');
+      if (!anchor || event.defaultPrevented || event.button !== 0 ||
+          event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      window.history.replaceState(null, '', '#work');
+      window.scrollTo({
+        top: measuredTop + viewportHeight * landingVh,
+        behavior: reduced.matches ? 'instant' : 'smooth',
+      });
+    };
+    document.addEventListener('click', navigateToGallery);
     window.addEventListener('scroll', requestDraw, { passive: true });
     window.addEventListener('resize', onResize);
     reduced.addEventListener?.('change', onReduced);
@@ -194,6 +206,7 @@ export default function ProjectsSequence() {
       alive = false;
       cancelAnimationFrame(frame);
       observer.disconnect();
+      document.removeEventListener('click', navigateToGallery);
       window.removeEventListener('scroll', requestDraw);
       window.removeEventListener('resize', onResize);
       reduced.removeEventListener?.('change', onReduced);
