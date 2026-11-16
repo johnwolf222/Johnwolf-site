@@ -104,7 +104,21 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
       // The flat fallback is the same set of 21 approved DOM artworks.
       return undefined;
     }
-    renderer.setClearColor(0, 0);
+    // Two WebGL contexts (the permanent GLB head and paper) overwhelm
+    // software-only rasterizers. Preserve the same 21 DOM sheets/GSAP clock
+    // as an accessible fallback on SwiftShader/llvmpipe rather than freezing
+    // the page. Hardware accelerated browsers keep the fully bendable mesh.
+    const gl = renderer.getContext();
+    const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+    const gpuName = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) :
+      gl.getParameter(gl.RENDERER);
+    if (/swiftshader|llvmpipe|software renderer|software rasterizer/i.test(String(gpuName))) {
+      canvas.dataset.backend = 'software-fallback';
+      renderer.dispose();
+      return undefined;
+    }
+    canvas.dataset.backend = 'gpu-paper';
+        renderer.setClearColor(0, 0);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.NoToneMapping;
     let disposed = false;
