@@ -144,7 +144,10 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
             requestAnimationFrame(() => releaseMaskUrl(previous));
           });
         }
-      }, 'image/png');
+      // WebP retains the transparency silhouette, with a much smaller
+      // compressed mask than PNG. Browsers without WebP encoding fall back to
+      // PNG automatically according to the canvas API.
+      }, 'image/webp', 0.96);
     };
 
     const measure = () => {
