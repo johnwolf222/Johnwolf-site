@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import EmergingSubtitle from './EmergingSubtitle.jsx';
 import './NewHomepage.css';
 import RollingTitle from './RollingTitle.jsx';
@@ -141,7 +142,6 @@ export default function NewHomepage() {
       >
         {/* Shared cards render once outside Home and Work so they can cross both sections. */}
         <RollingTitle index={index} direction={rollDirection.current} reducedMotion={reduced} onRollComplete={titleHasSettled} />
-        <HomepageHead reducedMotion={reduced} onImpact={textImpact} />
         <img key={`outline-${scene.slug}`} className="jw-new-home__layer jw-new-home__outline" src={`${ART}outline-${scene.slug}.svg`} alt="" aria-hidden="true" draggable="false" />
         <EmergingSubtitle ref={subtitle} index={index} slug={scene.slug} reducedMotion={reduced} />
         <div className="jw-new-home__indicators" aria-label="Choose a featured discipline">
@@ -166,6 +166,16 @@ export default function NewHomepage() {
         <a className="jw-new-home__scroll" href="#work">Explore work ↓</a>
       </div>
       <h1 className="jw-new-home__sr-only">John Wolf — {scene.label}</h1>
+      {/* The *same* GLB canvas survives Home and the entire Projects journey.
+          A portal escapes the transformed homepage artboard's scroll clipping. */}
+      {createPortal(
+        <div className="jw-continuous-head" data-continuous-head="true">
+          <div className="jw-continuous-head__artboard">
+            <HomepageHead reducedMotion={reduced} onImpact={textImpact} />
+          </div>
+        </div>,
+        document.body,
+      )}
     </section>
   );
 }
