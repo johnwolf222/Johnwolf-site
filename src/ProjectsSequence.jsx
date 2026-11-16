@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import './ProjectsSequence.css';
-import PaperSurface, { PAPER_STRIPS } from './PaperSurface.jsx';
+import LivePaperRenderer from './LivePaperRenderer.jsx';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -55,6 +55,7 @@ export default function ProjectsSequence() {
   const sectionRef = useRef(null);
   const stageRef = useRef(null);
   const cardRefs = useRef([]);
+  const gpuPaperRef = useRef(null);
   const copyRef = useRef(null);
   const activeRef = useRef(0);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -129,48 +130,6 @@ export default function ProjectsSequence() {
         opacity: smooth(age, .035, .145) *
           (1 - smooth(age, .865, .998)),
       };
-    }
-
-    // The approved older WebGL motion used curved, subdivided meshes rather
-    // than flat postcards. Here connected DOM strips reproduce that surface
-    // bend while preserving the ONE controllable element per artwork, and
-    // avoid creating a competing WebGL context with the original GLB head.
-    function deformCard(card, index, bend, time) {
-      if (reduced.matches) return;
-      const strips = card._paperStrips ||
-        (card._paperStrips = [...card.querySelectorAll('.jw-paper-sheet__strip')]);
-      if (!strips.length) return;
-      const image = card.querySelector('.jw-paper-sheet__fallback');
-      if (!image?.complete || !image.naturalWidth) return;
-      if (!card.dataset.deformed) card.dataset.deformed = 'true';
-
-      const W = card._paperWidth || (card._paperWidth = card.offsetWidth);
-      const strength = clamp(bend, 0, 1.12);
-      const safe = Math.max(.0001, strength);
-      const R = W / (2 * safe);
-      const front = Math.sin(time * 1.13 + index * .42) * .74;
-      for (let part = 0; part < strips.length; part++) {
-        const strip = strips[part];
-        const u = (part + .5) / PAPER_STRIPS - .5;
-        const theta = 2 * u * strength;
-        const nominalX = u * W;
-        const bentX = R * Math.sin(theta);
-        const dx = bentX - nominalX;
-        const edge = Math.pow(Math.abs(u) * 2, 1.3);
-        const ripple = Math.sin(u * 13.5 - time * 2.4 +
-          index * .77) * strength * W * .032 * (.28 + edge * .72);
-        const dz = front * R * (1 - Math.cos(theta)) + ripple;
-        const dy = Math.sin(u * 8.1 + time * 2.8 + index * .23) *
-          strength * W * .023 * edge;
-        const tangent = -theta * front * 180 / Math.PI;
-        const flick = Math.cos(u * 9.6 + time * 2.1 + index * .38) *
-          strength * 5.0;
-        strip.style.transform = 'translate3d(' +
-          dx.toFixed(2) + 'px,' + dy.toFixed(2) + 'px,' +
-          dz.toFixed(2) + 'px) rotateY(' + tangent.toFixed(2) +
-          'deg) rotateX(' + flick.toFixed(2) + 'deg)';
-      }
-      card.dataset.curvature = strength.toFixed(3);
     }
 
     function targetForCard(id, galleryFocus) {
@@ -321,19 +280,22 @@ export default function ProjectsSequence() {
         'deg) scale(' + finalScale.toFixed(4) + ')';
       card.style.opacity = String(opacity);
       card.style.visibility = opacity < .008 ? 'hidden' : 'visible';
-      if (opacity > .009) {
-        // Flutter remains tied to the SAME home clock. Scroll reverses the
-        // waveform deterministically, rather than starting a new animation.
-        const t = (capturedClock ?? homeClock) -
-          smooth(phase, .01, .272) * 2.4 +
-          smooth(phase, .304, .806) * 4.8 +
-          smooth(phase, .806, .992) * 1.6;
-        const flutter = Math.sin(t * 2.7 + index * .73) * .28 +
-          Math.sin(t * 4.4 + index * 1.14) * .13;
-        const flattened = 1 - smooth(phase, .835, .995);
-        const curl = (0.64 + flutter) * flattened;
-        deformCard(card, index, curl, t);
-      }
+      // One clock controls the GPU bend AND its world-space trajectory.
+      // The paper fully flattens as each project settles into its gallery.
+      const time = (capturedClock ?? homeClock) -
+        smooth(phase, .01, .272) * 2.4 +
+        smooth(phase, .304, .806) * 4.8 +
+        smooth(phase, .806, .992) * 1.6;
+      const flutter = Math.sin(time * 2.7 + index * .73) * .28 +
+        Math.sin(time * 4.4 + index * 1.14) * .13;
+      const curl = (0.64 + flutter) *
+        (1 - smooth(phase, .835, .995));
+      gpuPaperRef.current?.setPose(index, {
+        x: finalX, y: finalY, z: finalZ,
+        rx: rotX, ry: rotY, rz: rotZ,
+        scale: finalScale, opacity,
+        front: card.style.zIndex === '12', curl, time,
+      });
       card.dataset.phase = phase === 0 ? 'home-current' :
         phase < .272 ? 'rewind' :
           phase < releaseStart ? 'behind-head' :
@@ -396,6 +358,7 @@ export default function ProjectsSequence() {
           positionCard(cardRefs.current[i], i, p, galleryFocus, exitFade);
         }
       }
+      gpuPaperRef.current?.draw(p);
 
       const nextActive = Math.round(galleryFocus);
       if (nextActive !== active) {
@@ -580,12 +543,13 @@ export default function ProjectsSequence() {
         </div>
       </div>
     </section>
+    <LivePaperRenderer ref={gpuPaperRef} />
     {CARD_IDS.map((id, index) => createPortal(
       <div className="jw-projects-stage__card" key={id}
         ref={node => { cardRefs.current[index] = node; }}
         data-artwork={id} data-phase="scatter"
         style={{ opacity: 0, visibility: 'hidden', zIndex: 10 }}>
-        <PaperSurface src={fileFor(id)} />
+        <img src={fileFor(id)} alt="" draggable="false" />
       </div>, document.body, 'project-sheet-' + id
     ))}
   </>
