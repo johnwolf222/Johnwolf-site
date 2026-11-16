@@ -142,7 +142,6 @@ export default function NewHomepage() {
       >
         {/* Shared cards render once outside Home and Work so they can cross both sections. */}
         <RollingTitle index={index} direction={rollDirection.current} reducedMotion={reduced} onRollComplete={titleHasSettled} />
-        <img key={`outline-${scene.slug}`} className="jw-new-home__layer jw-new-home__outline" src={`${ART}outline-${scene.slug}.svg`} alt="" aria-hidden="true" draggable="false" />
         <EmergingSubtitle ref={subtitle} index={index} slug={scene.slug} reducedMotion={reduced} />
         <div className="jw-new-home__indicators" aria-label="Choose a featured discipline">
           {SCENES.map((item, i) => (
