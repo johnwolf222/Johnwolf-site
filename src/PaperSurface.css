@@ -1,0 +1,58 @@
+/* A physically coherent, subdivided sheet. The same artwork and DOM node
+   live from Home to Projects. Never replace this with a second animation. */
+.jw-paper-sheet {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+.jw-paper-sheet__fallback {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  -webkit-user-drag: none;
+}
+.jw-paper-sheet__ribbon {
+  display: none;
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  filter: drop-shadow(0 9px 10px rgba(25, 17, 37, .13));
+  pointer-events: none;
+}
+.jw-projects-stage__card[data-deformed="true"] .jw-paper-sheet__ribbon {
+  display: block;
+}
+.jw-projects-stage__card[data-deformed="true"] .jw-paper-sheet__fallback {
+  visibility: hidden;
+}
+.jw-paper-sheet__strip {
+  display: block;
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background-repeat: no-repeat;
+  transform-style: preserve-3d;
+  transform-origin: center center;
+  backface-visibility: visible;
+  -webkit-backface-visibility: visible;
+  pointer-events: none;
+}
+.jw-paper-sheet__strip::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+    rgba(23, 10, 39, .09), transparent 38%,
+    rgba(255,255,255,.13) 75%, rgba(23,10,39,.035));
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .jw-projects-stage__card[data-deformed="true"] .jw-paper-sheet__ribbon { display: none; }
+  .jw-projects-stage__card[data-deformed="true"] .jw-paper-sheet__fallback { visibility: visible; }
+}
