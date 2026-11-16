@@ -22,6 +22,10 @@ const smooth = (n, a = 0, b = 1) => {
   return t * t * (3 - 2 * t);
 };
 const mix = (a, b, t) => a + (b - a) * t;
+const cubic = (a, b, c, d, t) => {
+  const n = 1 - t;
+  return n * n * n * a + 3 * n * n * t * b + 3 * n * t * t * c + t * t * t * d;
+};
 const vhStep = 0.78;
 const landingVh = 0.88;
 const getSectionTop = node => window.scrollY + node.getBoundingClientRect().top;
@@ -36,7 +40,6 @@ export default function ProjectsSequence() {
   const sectionRef = useRef(null);
   const stageRef = useRef(null);
   const cardRefs = useRef([]);
-  const headRef = useRef(null);
   const copyRef = useRef(null);
   const currentRef = useRef(0);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -45,8 +48,11 @@ export default function ProjectsSequence() {
   useEffect(() => {
     const section = sectionRef.current;
     const stage = stageRef.current;
-    const head = headRef.current;
     const copy = copyRef.current;
+    // This is the SAME persistent HomepageHead GLB canvas, portaled out of Home.
+    // No duplicate portrait exists in the Projects markup.
+    const headLayer = document.querySelector('.jw-continuous-head');
+    const homeLayer = document.querySelector('.jw-new-home');
     const videoStage = document.querySelector('.jw-floating-card-stage');
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (!section || !stage) return undefined;
@@ -71,12 +77,15 @@ export default function ProjectsSequence() {
 
     function positionCard(card, index, entry, focus, blend, w, h) {
       const phase = index / ARTWORK_COUNT;
-      const theta = phase * Math.PI * 5.2 + entry * Math.PI * 2.9;
+      // Freeze the final spiral pose before landing, so the curved transfer
+      // starts at precisely the last orbit position without teleporting.
+      const spiralProgress = Math.min(entry, .62);
+      const theta = phase * Math.PI * 5.2 + spiralProgress * Math.PI * 2.9;
       const radialX = Math.min(w * 0.40, 600);
       const spiralX = Math.cos(theta) * radialX;
       // Offset each consecutive sheet vertically: a descending helical stair.
       const spiralY = (phase - .5) * h * 1.24 +
-        Math.sin(theta) * h * .13 + (entry - .32) * h * .52;
+        Math.sin(theta) * h * .13 + (spiralProgress - .32) * h * .52;
       const spiralZ = Math.sin(theta) * 260 - 140;
       const spiralRotY = Math.cos(theta) * 56;
       const spiralRotZ = Math.sin(theta) * 17;
@@ -107,13 +116,27 @@ export default function ProjectsSequence() {
         carouselScale = .2;
         carouselOpacity = 0;
       }
-      const x = mix(spiralX, carouselX, blend);
-      const y = mix(spiralY, carouselY, blend);
+      // Cubic control points curve each sheet tangentially out of the orbit,
+      // downward and around the persistent head to its carousel destination.
+      // This replaces the visibly straight line from spiral to the card row.
+      const tangentX = -Math.sin(theta);
+      const tangentY = Math.cos(theta);
+      const tangentDistance = Math.min(w * .23, 260);
+      const x = cubic(spiralX,
+        spiralX + tangentX * tangentDistance,
+        carouselX + Math.sign(spiralX || 1) * Math.min(w * .12, 160),
+        carouselX, blend);
+      const y = cubic(spiralY,
+        spiralY + tangentY * h * .21 + h * .07,
+        carouselY - h * .15,
+        carouselY, blend);
       const z = mix(spiralZ, carouselZ, blend);
       const ry = mix(spiralRotY, carouselRotY, blend);
       const rz = spiralRotZ * (1 - blend);
       const scale = mix(spiralScale, carouselScale, blend);
-      const appear = smooth(entry, .035, .21);
+      // Dissolve the pre-rendered, approved Home video into its 21
+      // independently moving card counterparts, not a sudden cut.
+      const appear = smooth(entry, .14, .42);
       const opacity = appear * mix(1, carouselOpacity, blend);
       card.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' +
         y.toFixed(1) + 'px,' + z.toFixed(1) + 'px) rotateY(' +
@@ -138,28 +161,39 @@ export default function ProjectsSequence() {
       const land = measuredTop + h * landingVh;
       const entry = highPrecision ? (scrollPosition >= measuredTop ? 1 : 0) :
         clamp((scrollPosition - start) / (land - start));
-      const blend = highPrecision ? 1 : smooth(entry, .66, 1);
+      const blend = highPrecision ? 1 : smooth(entry, .62, 1);
       const focus = clamp((scrollPosition - land) / (h * vhStep), 0, PROJECTS.length - 1);
       const active = Math.round(focus);
       const exitStart = measuredTop + sectionHeight - h * 1.18;
       const exitFade = 1 - smooth(scrollPosition, exitStart, exitStart + h * .65);
       const stageShown = scrollPosition >= (highPrecision ? measuredTop : start) &&
         scrollPosition < measuredTop + sectionHeight - h * .2;
-      const alpha = (highPrecision ? 1 : smooth(entry, .01, .16)) * exitFade;
+      const alpha = (highPrecision ? 1 : smooth(entry, .12, .37)) * exitFade;
       // Only the departure from Home fades its video. Scroll back and the exact
       // approved 21-sheet export returns at full opacity, unmodified.
       if (videoStage) {
-        const fadeVideo = 1 - smooth(scrollPosition, start, measuredTop + h * .15);
+        const fadeVideo = highPrecision ? (scrollPosition < measuredTop ? 1 : 0) :
+          1 - smooth(entry, .14, .51);
         videoStage.style.opacity = String(fadeVideo);
       }
       stage.style.opacity = String(stageShown ? alpha : 0);
       stage.style.visibility = stageShown ? 'visible' : 'hidden';
       stage.style.backgroundColor = 'rgba(255,255,255,' +
         (highPrecision ? 1 : smooth(entry, .08, .42)).toFixed(3) + ')';
-      if (head) {
-        const centerY = mix(h * .46, h * .18, smooth(entry, .35, .88));
-        head.style.top = centerY.toFixed(1) + 'px';
-        head.style.opacity = String(smooth(entry, .15, .42) * exitFade);
+      // Keep the *original* GLB alive in fixed screen coordinates for Home,
+      // the complete descending helix, and all seven project selections.
+      // Its only movement is a deliberate, visible rise to the upper center.
+      if (headLayer) {
+        const rise = highPrecision ? (scrollPosition >= measuredTop ? 1 : 0) :
+          smooth(entry, .27, .92);
+        headLayer.style.setProperty('--jw-head-shift', (-h * .305 * rise).toFixed(1) + 'px');
+        headLayer.style.setProperty('--jw-head-scale', (1 - .16 * rise).toFixed(4));
+        headLayer.style.opacity = String(exitFade);
+        headLayer.style.visibility = exitFade < .008 ? 'hidden' : 'visible';
+      }
+      if (homeLayer) {
+        const blow = highPrecision ? 0 : smooth(scrollPosition, start + h * .05, measuredTop + h * .06);
+        homeLayer.style.setProperty('--jw-home-blow', blow.toFixed(4));
       }
       if (copy) copy.style.opacity = String(blend * exitFade);
       for (let i = 0; i < ARTWORK_COUNT; i++) {
@@ -211,6 +245,13 @@ export default function ProjectsSequence() {
       window.removeEventListener('resize', onResize);
       reduced.removeEventListener?.('change', onReduced);
       if (videoStage) videoStage.style.opacity = '';
+      if (headLayer) {
+        headLayer.style.removeProperty('--jw-head-shift');
+        headLayer.style.removeProperty('--jw-head-scale');
+        headLayer.style.opacity = '';
+        headLayer.style.visibility = '';
+      }
+      if (homeLayer) homeLayer.style.removeProperty('--jw-home-blow');
     };
   }, []);
 
@@ -237,10 +278,6 @@ export default function ProjectsSequence() {
     <section id="work" ref={sectionRef} className="jw-projects-journey" aria-labelledby="jw-projects-heading">
       <div ref={stageRef} className={'jw-projects-stage' + (visible ? ' is-visible' : '')}
         style={{ opacity: 0, visibility: 'hidden' }}>
-        <div className="jw-projects-stage__head" ref={headRef} aria-hidden="true">
-          <img className="jw-projects-stage__head-source"
-            src="/new-homepage/head-placeholder.svg" alt="" draggable="false" />
-        </div>
         <div className="jw-projects-stage__scene" aria-hidden="true">
           {CARD_IDS.map((id, index) => (
             <div className="jw-projects-stage__card" key={id}
