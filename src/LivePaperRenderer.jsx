@@ -9,16 +9,16 @@ const FOCAL = 1350;
 const imageFor = index => '/new-homepage/approved-cards/' +
   String(index + 1).padStart(2, '0') + (index >= 13 ? '.avif' : '.webp');
 
-const VERTEX = \`
+const VERTEX = `
   varying vec2 vUv;
   void main() {
     vUv = uv;
     gl_Position = vec4(position.xy, 0.0, 1.0);
   }
-\`;
+`;
 // The rear pass is composited WITHOUT covering the original GLB head. The
 // mask is the same approved permanent head silhouette as the headline ink.
-const COMPOSITE = \`
+const COMPOSITE = `
   precision highp float;
   varying vec2 vUv;
   uniform sampler2D uPaper;
@@ -37,7 +37,7 @@ const COMPOSITE = \`
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
-\`;
+`;
 
 function deform(item, curl, time) {
   const bend = Math.max(.001, Math.min(1.15, curl));
