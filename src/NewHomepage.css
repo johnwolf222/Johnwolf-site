@@ -247,43 +247,69 @@
   }
 }
 
-/* The page title and supporting type leave like loose wind-blown lettering.
-   CSS individual translate/rotate properties preserve the GSAP transforms
-   driving the approved homepage title and subtitle animations. */
+/* The roll's exact twin exists above every page layer. Until the original
+   3D head supplies its alpha silhouette, the mask is completely transparent:
+   no stray outline can ever appear across the rest of the giant title. */
+.jw-title-head-ink {
+  position: fixed;
+  inset: 0;
+  z-index: 31;
+  overflow: hidden;
+  pointer-events: none;
+  isolation: isolate;
+  mask-image: linear-gradient(transparent, transparent);
+  -webkit-mask-image: linear-gradient(transparent, transparent);
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+}
+.jw-title-head-ink__artboard {
+  position: absolute;
+  perspective: 900px;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+.jw-title-head-ink .jw-roll-scene {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+.jw-title-head-ink .jw-roll-glyph--head-ink {
+  transform-origin: 50% 50% -55px;
+  will-change: transform, opacity;
+}
+.jw-title-head-ink .jw-roll-glyph--head-ink svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+/* Normal upward page travel, not the previously implemented sideways gust.
+   Scrolling already raises the Home artboard; these small upward offsets merely
+   emphasize that natural departure without unhooking any GSAP glyph motion. */
 #root .jw-new-home__rolling-title {
-  translate: calc(var(--jw-home-blow, 0) * 145vw)
-             calc(var(--jw-home-blow, 0) * -17vh);
-  rotate: calc(var(--jw-home-blow, 0) * 8deg);
-  opacity: calc(1 - var(--jw-home-blow, 0));
+  translate: 0 calc(var(--jw-home-blow, 0) * -8vh);
+  rotate: none;
+  opacity: 1;
 }
 #root .jw-new-home__subtitle-clip {
-  translate: calc(var(--jw-home-blow, 0) * -118vw)
-             calc(var(--jw-home-blow, 0) * -26vh);
-  rotate: calc(var(--jw-home-blow, 0) * -13deg);
-  opacity: calc(1 - var(--jw-home-blow, 0));
-}
-#root .jw-new-home__outline {
-  translate: calc(var(--jw-home-blow, 0) * 140vw)
-             calc(var(--jw-home-blow, 0) * -15vh);
-  opacity: calc(1 - var(--jw-home-blow, 0));
+  translate: 0 calc(var(--jw-home-blow, 0) * -8vh);
+  rotate: none;
+  opacity: 1;
 }
 #root .jw-new-home__indicators {
-  translate: calc(var(--jw-home-blow, 0) * -65vw)
-             calc(var(--jw-home-blow, 0) * 65vh);
-  opacity: calc(1 - var(--jw-home-blow, 0));
-  pointer-events: auto;
+  translate: 0 calc(var(--jw-home-blow, 0) * -5vh);
+  opacity: 1;
 }
 #root .jw-new-home__bottom-bar {
-  translate: 0 calc(var(--jw-home-blow, 0) * 34vh);
-  opacity: calc(1 - var(--jw-home-blow, 0));
+  translate: 0 calc(var(--jw-home-blow, 0) * -5vh);
+  opacity: 1;
 }
 @media (prefers-reduced-motion: reduce) {
   #root .jw-new-home__rolling-title,
   #root .jw-new-home__subtitle-clip,
-  #root .jw-new-home__outline,
   #root .jw-new-home__indicators,
-  #root .jw-new-home__bottom-bar {
-    translate: 0 0;
-    rotate: none;
-  }
+  #root .jw-new-home__bottom-bar { translate: 0 0; }
 }
