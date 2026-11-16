@@ -1,38 +1,77 @@
 import React, { useLayoutEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
 import { rollingGlyphs } from './rollingTitleGlyphs.js';
 
+const glyphPosition = glyph => ({
+  left: (glyph.x / 1440 * 100) + '%',
+  top: (glyph.y / 810 * 100) + '%',
+  width: (glyph.w / 1440 * 100) + '%',
+  height: (225 / 810 * 100) + '%',
+});
+
 /**
- * A per-glyph, 3D rolling title adapted from GSAP's Rolling Text demo.
- * Each glyph is an original vector outline, extracted from the supplied Canva
- * SVG artboards rather than being re-typeset in a different font. The HTML
- * wrappers provide consistent 3D rotations across browser SVG engines.
+ * ONE GSAP clock drives the purple text and its thin white companion outline.
+ * The outline is portaled above the 3D head, but a real-time alpha mask from
+ * that SAME head's renderer clips it to the head silhouette; it cannot appear
+ * over any other part of the title or over a card.
  */
 export default function RollingTitle({ index, direction = 1, reducedMotion = false, onRollComplete }) {
   const scenes = useRef([]);
-  const current = useRef(index);
+  const outlineScenes = useRef([]);
+  const titleRoot = useRef(null);
+  const outlineRoot = useRef(null);
   const motion = useRef(null);
+  const current = useRef(index);
   const initialized = useRef(false);
   const settledCallback = useRef(onRollComplete);
   settledCallback.current = onRollComplete;
 
+  // Keep the portaled outlines in *exactly* the same physical artboard
+  // coordinates as the original glyphs, including natural vertical scrolling.
+  useLayoutEffect(() => {
+    const title = titleRoot.current;
+    const overlay = outlineRoot.current;
+    if (!title || !overlay) return undefined;
+    const position = () => {
+      const r = title.getBoundingClientRect();
+      overlay.style.left = r.left + 'px';
+      overlay.style.top = r.top + 'px';
+      overlay.style.width = r.width + 'px';
+      overlay.style.height = r.height + 'px';
+    };
+    const observer = new ResizeObserver(position);
+    observer.observe(title);
+    window.addEventListener('scroll', position, { passive: true });
+    window.addEventListener('resize', position);
+    position();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', position);
+      window.removeEventListener('resize', position);
+    };
+  }, []);
+
   useLayoutEffect(() => {
     const panels = scenes.current;
-    if (!panels.every(Boolean)) return undefined;
+    const outlines = outlineScenes.current;
+    if (panels.length !== rollingGlyphs.length || !panels.every(Boolean) ||
+        outlines.length !== rollingGlyphs.length || !outlines.every(Boolean)) return undefined;
 
-    // Finish any interrupted roll before accepting another input, so rapid
-    // arrows, dots, and swipes never leave stray letters on screen.
-    const previousMotion = motion.current;
-    if (previousMotion) {
+    if (motion.current) {
+      const interrupted = motion.current;
       motion.current = null;
-      previousMotion.progress(1);
-      previousMotion.kill();
+      interrupted.progress(1);
+      interrupted.kill();
     }
 
     if (!initialized.current) {
-      panels.forEach((panel, panelIndex) => {
-        gsap.set(panel, { autoAlpha: panelIndex === index ? 1 : 0 });
-        gsap.set(panel.querySelectorAll('.jw-roll-glyph'), { rotationX: 0, autoAlpha: 1 });
+      panels.forEach((panel, i) => {
+        gsap.set([panel, outlines[i]], { autoAlpha: i === index ? 1 : 0 });
+        gsap.set([...panel.querySelectorAll('.jw-roll-glyph'),
+          ...outlines[i].querySelectorAll('.jw-roll-glyph')], {
+          rotationX: 0, autoAlpha: 1,
+        });
       });
       initialized.current = true;
       current.current = index;
@@ -44,81 +83,111 @@ export default function RollingTitle({ index, direction = 1, reducedMotion = fal
     current.current = index;
 
     const previous = panels[fromIndex];
+    const previousOutline = outlines[fromIndex];
     const incoming = panels[index];
+    const incomingOutline = outlines[index];
     const oldChars = previous.querySelectorAll('.jw-roll-glyph');
+    const oldOutlineChars = previousOutline.querySelectorAll('.jw-roll-glyph');
     const newChars = incoming.querySelectorAll('.jw-roll-glyph');
+    const newOutlineChars = incomingOutline.querySelectorAll('.jw-roll-glyph');
 
-    panels.forEach((panel, panelIndex) => {
-      if (panelIndex !== fromIndex && panelIndex !== index) gsap.set(panel, { autoAlpha: 0 });
+    panels.forEach((panel, i) => {
+      if (i !== fromIndex && i !== index) {
+        gsap.set([panel, outlines[i]], { autoAlpha: 0 });
+      }
     });
-    gsap.set([previous, incoming], { autoAlpha: 1 });
-    gsap.set(oldChars, { rotationX: 0, autoAlpha: 1 });
+    gsap.set([previous, previousOutline, incoming, incomingOutline], { autoAlpha: 1 });
+    gsap.set([...oldChars, ...oldOutlineChars], { rotationX: 0, autoAlpha: 1 });
 
     if (reducedMotion) {
-      gsap.set(previous, { autoAlpha: 0 });
-      gsap.set(newChars, { rotationX: 0, autoAlpha: 1 });
+      gsap.set([previous, previousOutline], { autoAlpha: 0 });
+      gsap.set([...newChars, ...newOutlineChars], { rotationX: 0, autoAlpha: 1 });
       settledCallback.current?.();
       return undefined;
     }
 
     const clockwise = direction >= 0;
-    gsap.set(newChars, { rotationX: clockwise ? -90 : 90, autoAlpha: 0 });
-    const tl = gsap.timeline({
-      onComplete: () => {
-        gsap.set(previous, { autoAlpha: 0 });
-        gsap.set(oldChars, { rotationX: 0, autoAlpha: 1 });
-        motion.current = null;
-        settledCallback.current?.();
-      },
+    gsap.set([...newChars, ...newOutlineChars], {
+      rotationX: clockwise ? -90 : 90, autoAlpha: 0,
     });
     const staggerFrom = clockwise ? 'start' : 'end';
-    tl.to(oldChars, {
+    const exit = {
       rotationX: clockwise ? 90 : -90,
       autoAlpha: 0,
       duration: 0.82,
       stagger: { each: 0.065, from: staggerFrom },
       ease: 'power2.inOut',
-    }, 0);
-    tl.to(newChars, {
+    };
+    const enter = {
       rotationX: 0,
       autoAlpha: 1,
       duration: 0.9,
       stagger: { each: 0.065, from: staggerFrom },
       ease: 'power2.out',
-    }, 0.22);
+    };
+    const tl = gsap.timeline({
+      onComplete: () => {
+        gsap.set([previous, previousOutline], { autoAlpha: 0 });
+        gsap.set([...oldChars, ...oldOutlineChars], {
+          rotationX: 0, autoAlpha: 1,
+        });
+        motion.current = null;
+        settledCallback.current?.();
+      },
+    });
+    // These pairs start at identical timeline positions and use identical
+    // staggering. There is no secondary timer and no independent approximation.
+    tl.to(oldChars, exit, 0);
+    tl.to(oldOutlineChars, { ...exit, stagger: { ...exit.stagger } }, 0);
+    tl.to(newChars, enter, 0.22);
+    tl.to(newOutlineChars, { ...enter, stagger: { ...enter.stagger } }, 0.22);
     motion.current = tl;
     return undefined;
   }, [index, direction, reducedMotion]);
 
   useLayoutEffect(() => () => motion.current?.kill(), []);
 
-  return (
-    <div className="jw-new-home__layer jw-new-home__rolling-title" aria-hidden="true">
-      {rollingGlyphs.map((glyphs, sceneIndex) => (
-        <div
-          key={sceneIndex}
-          className="jw-roll-scene"
-          ref={element => { scenes.current[sceneIndex] = element; }}
-          style={{ visibility: sceneIndex === 0 ? 'visible' : 'hidden' }}
-        >
-          {glyphs.map((glyph, glyphIndex) => (
-            <span
-              key={glyphIndex}
-              className="jw-roll-glyph"
-              style={{
-                left: `${(glyph.x / 1440) * 100}%`,
-                top: `${(glyph.y / 810) * 100}%`,
-                width: `${(glyph.w / 1440) * 100}%`,
-                height: `${(225 / 810) * 100}%`,
-              }}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox={`-7 -195 ${glyph.w} 225`} preserveAspectRatio="none" focusable="false" aria-hidden="true">
-                <path d={glyph.d} fill="#8a4cf3" />
-              </svg>
-            </span>
-          ))}
-        </div>
+  const renderScenes = outline => rollingGlyphs.map((glyphs, sceneIndex) => (
+    <div
+      key={sceneIndex}
+      className={'jw-roll-scene' + (outline ? ' jw-roll-scene--head-ink' : '')}
+      ref={node => {
+        if (outline) outlineScenes.current[sceneIndex] = node;
+        else scenes.current[sceneIndex] = node;
+      }}
+      style={{ visibility: sceneIndex === 0 ? 'visible' : 'hidden' }}
+    >
+      {glyphs.map((glyph, glyphIndex) => (
+        <span key={glyphIndex}
+          className={'jw-roll-glyph' + (outline ? ' jw-roll-glyph--head-ink' : '')}
+          style={glyphPosition(glyph)}>
+          <svg xmlns="http://www.w3.org/2000/svg"
+            viewBox={`-7 -195 ${glyph.w} 225`}
+            preserveAspectRatio="none" focusable="false" aria-hidden="true">
+            <path d={glyph.d}
+              fill={outline ? 'none' : '#8a4cf3'}
+              stroke={outline ? '#ffffff' : 'none'}
+              strokeWidth={outline ? 2.4 : undefined}
+              strokeLinejoin={outline ? 'round' : undefined} />
+          </svg>
+        </span>
       ))}
     </div>
+  ));
+
+  return (
+    <>
+      <div ref={titleRoot}
+        className="jw-new-home__layer jw-new-home__rolling-title"
+        aria-hidden="true">
+        {renderScenes(false)}
+      </div>
+      {createPortal(
+        <div className="jw-title-head-ink" aria-hidden="true">
+          <div ref={outlineRoot} className="jw-title-head-ink__artboard">
+            {renderScenes(true)}
+          </div>
+        </div>, document.body)}
+    </>
   );
 }
