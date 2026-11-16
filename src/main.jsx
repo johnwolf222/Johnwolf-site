@@ -3,7 +3,6 @@ import {createRoot} from 'react-dom/client';
 import './style.css';
 import NewHomepage from './NewHomepage.jsx';
 import ProjectsSequence from './ProjectsSequence.jsx';
-import FloatingCards from './FloatingCards.jsx';
 import VisualContinuity from './VisualContinuity.jsx';
 
 function PurpleCursor(){
@@ -83,7 +82,6 @@ function App(){
    </nav>
   </header>
   <main id="top">
-   <FloatingCards/>
    <NewHomepage/>
    <ProjectsSequence/>
    <section id="about" className="about"><span className="kicker">CREATIVE PRACTICE</span><h2>Design is how<br/>I make ideas <i>felt.</i></h2><p>I'm John Wolf. My work connects logo design, brand identity, and digital experiences through clarity and purpose.</p><a href="#contact" className="contact-note">Let’s work together ↗</a></section>
