@@ -59,6 +59,10 @@ export default function RollingTitle({ index, direction = 1, reducedMotion = fal
     // The MutationObserver below repositions again after Projects changes
     // Home/head CSS variables, before the browser paints the new scroll frame.
     const syncPosition = () => position();
+    // A passive scroll event can arrive after a composited scroll frame.
+    // The GSAP ticker is already driving the original title; sampling its
+    // position on that SAME clock prevents a frame of misalignment without
+    // creating a second timeline or touching the 21-card transition.
     // Projects updates its vertical-scroll CSS variable in the same scroll
     // event. Read the *final* geometry only after that update, never before:
     // otherwise the white outline trails the purple text by several pixels.
@@ -71,8 +75,10 @@ export default function RollingTitle({ index, direction = 1, reducedMotion = fal
     observer.observe(title);
     window.addEventListener('scroll', syncPosition, { passive: true });
     window.addEventListener('resize', syncPosition);
+    gsap.ticker.add(syncPosition);
     position();
     return () => {
+      gsap.ticker.remove(syncPosition);
       styles.disconnect();
       observer.disconnect();
       window.removeEventListener('scroll', syncPosition);
