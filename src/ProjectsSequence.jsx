@@ -230,8 +230,16 @@ export default function ProjectsSequence() {
         behavior: reduced.matches ? 'instant' : 'smooth',
       });
     };
+    // A passive scroll event can update the 21 cheap DOM transforms directly.
+    // Waiting for a second animation-frame queue occasionally left the head at
+    // an older scroll position under WebGL load, even after removing damping.
+    const onScroll = () => {
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      draw(performance.now());
+    };
     document.addEventListener('click', navigateToGallery);
-    window.addEventListener('scroll', requestDraw, { passive: true });
+    window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);
     reduced.addEventListener?.('change', onReduced);
     const observer = new ResizeObserver(measure);
@@ -242,7 +250,7 @@ export default function ProjectsSequence() {
       cancelAnimationFrame(frame);
       observer.disconnect();
       document.removeEventListener('click', navigateToGallery);
-      window.removeEventListener('scroll', requestDraw);
+      window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
       reduced.removeEventListener?.('change', onReduced);
       if (videoStage) videoStage.style.opacity = '';
