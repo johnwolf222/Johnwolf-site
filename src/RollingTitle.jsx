@@ -40,15 +40,31 @@ export default function RollingTitle({ index, direction = 1, reducedMotion = fal
       overlay.style.width = r.width + 'px';
       overlay.style.height = r.height + 'px';
     };
-    const observer = new ResizeObserver(position);
+    let syncFrame = 0;
+    const syncPosition = () => {
+      if (syncFrame) cancelAnimationFrame(syncFrame);
+      syncFrame = requestAnimationFrame(() => {
+        syncFrame = 0;
+        position();
+      });
+    };
+    // Projects updates its vertical-scroll CSS variable in the same scroll
+    // event. Read the *final* geometry only after that update, never before:
+    // otherwise the white outline trails the purple text by several pixels.
+    const home = title.closest('.jw-new-home');
+    const styles = new MutationObserver(syncPosition);
+    if (home) styles.observe(home, { attributes: true, attributeFilter: ['style'] });
+    const observer = new ResizeObserver(syncPosition);
     observer.observe(title);
-    window.addEventListener('scroll', position, { passive: true });
-    window.addEventListener('resize', position);
+    window.addEventListener('scroll', syncPosition, { passive: true });
+    window.addEventListener('resize', syncPosition);
     position();
     return () => {
+      cancelAnimationFrame(syncFrame);
+      styles.disconnect();
       observer.disconnect();
-      window.removeEventListener('scroll', position);
-      window.removeEventListener('resize', position);
+      window.removeEventListener('scroll', syncPosition);
+      window.removeEventListener('resize', syncPosition);
     };
   }, []);
 
