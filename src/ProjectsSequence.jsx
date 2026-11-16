@@ -336,17 +336,30 @@ export default function ProjectsSequence() {
       },
     });
 
-    const onScroll = () => {
-      // Read the *current* native scroll position before updating the pin,
-      // head and gallery. Without this explicit refresh, the browser can
-      // briefly display stale pin transforms on quick reverse or anchor jumps.
-      pinned.update();
-      // Seek from ACTUAL native scroll pixels, not ScrollTrigger's cached
-      // progress (which can trail wheel/touch events by a frame or more).
-      const exact = clamp((window.scrollY - pinned.start) /
+    let lastNativePosition = NaN;
+    let lastPinStart = NaN;
+    let lastPinEnd = NaN;
+    let syncFrame = 0;
+    const syncFromScroll = () => {
+      if (disposed) return;
+      const y = window.scrollY;
+      if (y === lastNativePosition && pinned.start === lastPinStart &&
+        pinned.end === lastPinEnd) return;
+      lastNativePosition = y;
+      lastPinStart = pinned.start;
+      lastPinEnd = pinned.end;
+      const exact = clamp((y - pinned.start) /
         Math.max(pinned.end - pinned.start, 1));
       timeline.progress(exact);
       render();
+    };
+    const frameSync = () => {
+      syncFromScroll();
+      syncFrame = requestAnimationFrame(frameSync);
+    };
+    const onScroll = () => {
+      pinned.update();
+      syncFromScroll();
     };
     const onResize = () => {
       measure();
@@ -381,10 +394,12 @@ export default function ProjectsSequence() {
     // Create the pin before measuring the gallery's document coordinates.
     ScrollTrigger.refresh();
     measure();
-    render();
+    syncFromScroll();
+    syncFrame = requestAnimationFrame(frameSync);
 
     return () => {
       disposed = true;
+      cancelAnimationFrame(syncFrame);
       observer.disconnect();
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
