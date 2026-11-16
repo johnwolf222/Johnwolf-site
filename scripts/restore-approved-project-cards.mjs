@@ -20,6 +20,12 @@ for (let offset = 0; offset + 512 <= tar.length;) {
     throw new Error('Unexpected approved artwork archive entry');
   }
   const from = offset + 512;
+  const type = String.fromCharCode(header[156]);
+  if (type === 'x' || type === 'g' || name === '././@PaxHeader') {
+    // Tar PAX metadata is not artwork; the following member owns the payload.
+    offset = from + 512 * Math.ceil(size / 512);
+    continue;
+  }
   if (/^new-cards\/(?:1[4-9]|2[01])\.avif$/.test(name)) {
     files.set(name.slice(-7), Buffer.from(tar.subarray(from, from + size)));
   } else if (name === 'new-cards/manifest.json') {
