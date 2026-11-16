@@ -216,3 +216,74 @@
 /* The navigation must remain legible against the white homepage. */
 #root .header{color:#191919;background:#fff;z-index:30}
 #root .header a{color:inherit}
+
+
+/* One permanent GLB layer, not a Projects duplicate. The artboard dimensions
+   are identical to Home's approved 16:9 head coordinates at rest. */
+.jw-continuous-head {
+  position: fixed;
+  inset: 0;
+  z-index: 11;
+  pointer-events: none;
+  overflow: visible;
+  opacity: 1;
+  isolation: isolate;
+}
+.jw-continuous-head__artboard {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(100vw, calc(100svh * 16 / 9));
+  aspect-ratio: 16 / 9;
+  transform: translate(-50%, -50%)
+    translate3d(0, var(--jw-head-shift, 0px), 0)
+    scale(var(--jw-head-scale, 1));
+  transform-origin: center center;
+  will-change: transform;
+}
+@media (max-width: 700px) {
+  .jw-continuous-head__artboard {
+    width: min(150vw, calc(100svh * 16 / 9));
+  }
+}
+
+/* The page title and supporting type leave like loose wind-blown lettering.
+   CSS individual translate/rotate properties preserve the GSAP transforms
+   driving the approved homepage title and subtitle animations. */
+#root .jw-new-home__rolling-title {
+  translate: calc(var(--jw-home-blow, 0) * 145vw)
+             calc(var(--jw-home-blow, 0) * -17vh);
+  rotate: calc(var(--jw-home-blow, 0) * 8deg);
+  opacity: calc(1 - var(--jw-home-blow, 0));
+}
+#root .jw-new-home__subtitle-clip {
+  translate: calc(var(--jw-home-blow, 0) * -118vw)
+             calc(var(--jw-home-blow, 0) * -26vh);
+  rotate: calc(var(--jw-home-blow, 0) * -13deg);
+  opacity: calc(1 - var(--jw-home-blow, 0));
+}
+#root .jw-new-home__outline {
+  translate: calc(var(--jw-home-blow, 0) * 140vw)
+             calc(var(--jw-home-blow, 0) * -15vh);
+  opacity: calc(1 - var(--jw-home-blow, 0));
+}
+#root .jw-new-home__indicators {
+  translate: calc(var(--jw-home-blow, 0) * -65vw)
+             calc(var(--jw-home-blow, 0) * 65vh);
+  opacity: calc(1 - var(--jw-home-blow, 0));
+  pointer-events: auto;
+}
+#root .jw-new-home__bottom-bar {
+  translate: 0 calc(var(--jw-home-blow, 0) * 34vh);
+  opacity: calc(1 - var(--jw-home-blow, 0));
+}
+@media (prefers-reduced-motion: reduce) {
+  #root .jw-new-home__rolling-title,
+  #root .jw-new-home__subtitle-clip,
+  #root .jw-new-home__outline,
+  #root .jw-new-home__indicators,
+  #root .jw-new-home__bottom-bar {
+    translate: 0 0;
+    rotate: none;
+  }
+}
