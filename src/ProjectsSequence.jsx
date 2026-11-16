@@ -100,46 +100,56 @@ export default function ProjectsSequence() {
     const TAU = Math.PI * 2;
     const GOLDEN_ANGLE = 2.399963229728653;
     const HOME_PERIOD = 12;
-    // A SINGLE outward helical paper current. The 21 phase offsets are
-    // evenly spaced (the 8-step permutation prevents related brand images
-    // appearing in a cluster). No random stationary card positions.
+    // Evenly stagger births around the 12-second loop; successive cards
+    // launch along distinct golden-angle rays. Shuffling the birth order
+    // caused whole quadrants to empty at once instead of a balanced field.
     function homeAge(index, time) {
-      const slot = ((index * 8) % CARD_COUNT) / CARD_COUNT;
-      const age = time / HOME_PERIOD - slot;
+      const birth = index / CARD_COUNT;
+      const age = time / HOME_PERIOD - birth;
       return ((age % 1) + 1) % 1;
     }
     function homePose(index, age) {
-      // Home-only visual reconstruction of the approved Hole 01 paper
-      // current. Keep each sheet on ONE smooth outward-winding path rather
-      // than blowing it into giant edge-clipped postcards. Twenty-one evenly
-      // phased live cards still share the original 12-second circulation.
-      const expansion = smooth(age, .03, .95);
-      const theta = -Math.PI * .68 + age * TAU * 1.90 +
-        Math.sin(age * TAU * .85 + index * .23) * .07;
-      const radiusX = width * (.035 + .58 * expansion);
-      const radiusY = height * (.045 + .59 * expansion);
-      const sway = Math.sin(age * 13 + index * .7) *
-        Math.sin(age * Math.PI) * Math.min(width, height) * .012;
-      const x = Math.cos(theta) * radiusX - Math.sin(theta) * sway;
-      const y = Math.sin(theta) * radiusY + Math.cos(theta) * sway;
-      const sizeVariation = .93 + .11 * Math.sin(index * 2.18);
-      // The old scale reached .81 (+ perspective), producing cards several
-      // times larger than the approved paper. Target roughly 40–120px in a
-      // desktop viewport, while retaining natural perspective variation.
-      const scale = mix(.15, .33, smooth(age, .03, .90)) *
+      // Homepage only: paper leaving a central ring, NOT an orbit. Each sheet
+      // takes its own fixed golden-angle lane, with soft crosswind and tumble.
+      // The staggered launch is the architectural distinction of Hole 01.
+      const angle = index * GOLDEN_ANGLE +
+        Math.sin(index * 12.1) * .075;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const halfW = width * .5, halfH = height * .5;
+      const edgeMargin = Math.min(width, height) * .14;
+      // Per-lane flight distance ends just outside the actual viewport,
+      // avoiding oversized cards pinned to the edges.
+      const reach = Math.min(
+        (halfW + edgeMargin) / Math.max(.075, Math.abs(cos)),
+        (halfH + edgeMargin) / Math.max(.075, Math.abs(sin)),
+      );
+      const travel = smooth(age, .12, .84);
+      const ringOrigin = Math.min(width, height) * .104;
+      const radius = mix(ringOrigin, reach, travel);
+      const windEnvelope = smooth(age, .15, .52);
+      const crosswind = (
+        Math.sin(age * TAU * 1.17 + index * .73) * .61 +
+        Math.sin(age * TAU * 2.80 + index * 1.13) * .39
+      ) * Math.min(width, height) * .050 * windEnvelope;
+      const x = radius * cos - crosswind * sin;
+      const y = radius * sin + crosswind * cos;
+      const sizeVariation = .90 + .13 * Math.sin(index * 2.18);
+      const scale = mix(.14, .32, smooth(age, .12, .84)) *
         sizeVariation;
+      // A sheet tumbles and drifts, but never stretches its source image.
+      // Actual curl/flutter remain on the live tessellated GPU surface.
+      const tumble = age * TAU;
       return {
         x, y,
-        z: mix(-620, 160, smooth(age, .03, .93)),
+        z: mix(-580, 140, smooth(age, .10, .85)),
         scale,
-        rx: Math.sin(theta * 1.36 + index * .37) * 20,
-        ry: Math.sin(theta * .83 + index * .29) * 36,
-        rz: Math.sin(theta + index * .16) * 19,
-        // Hide the birth behind the head and soften the exit at the edge.
-        // At any moment about 15–17 individually controllable sheets are
-        // visible, never 21 oversized layers fighting the Home title.
-        opacity: smooth(age, .11, .245) *
-          (1 - smooth(age, .825, .975)),
+        rx: Math.sin(tumble * 1.25 + index * .56) * 29,
+        ry: Math.sin(tumble * .93 + index * .77) * 52,
+        rz: 90 - angle * 180 / Math.PI +
+          Math.sin(tumble * 1.12 + index * .31) * 24,
+        opacity: smooth(age, .08, .22) *
+          (1 - smooth(age, .79, .94)),
       };
     }
 
@@ -308,9 +318,9 @@ export default function ProjectsSequence() {
       // Curl and flutter breathe while the Home current loops. The first
       // sliver of scrolling blends back to the existing spiral physics;
       // neither the scroll timeline nor its geometry is edited here.
-      const homeCurl = Math.max(.18, .49 +
-        .20 * Math.sin(initialAge * TAU * 2.0 + index * .25) +
-        flutter * .22);
+      const homeCurl = Math.max(.18, .59 +
+        .21 * Math.sin(initialAge * TAU * 2.05 + index * .34) +
+        flutter * .24);
       const transitionCurl = Math.max(.10, .48 + flutter * .68) *
         (1 - smooth(phase, .835, .995));
       const curl = mix(homeCurl, transitionCurl,
