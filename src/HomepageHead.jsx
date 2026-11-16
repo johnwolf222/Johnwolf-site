@@ -73,6 +73,51 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
     let lastFrame = 0;
     let geometry = null;
     let scale = 1;
+    // Capture the real model's transparent silhouette into the front-most
+    // outline mask. No hand-drawn oval or static substitute can track yaw,
+    // blinking and cursor-following geometry accurately.
+    const alphaMaskCanvas = document.createElement('canvas');
+    const alphaMaskContext = alphaMaskCanvas.getContext('2d', { willReadFrequently: true });
+    let lastMaskFrame = -Infinity;
+    const refreshOutlineMask = (now, force = false) => {
+      if (!alphaMaskContext || (!force && now - lastMaskFrame < 80)) return;
+      const outline = document.querySelector('.jw-title-head-ink');
+      const text = document.querySelector('.jw-title-head-ink__artboard');
+      if (!outline || !text) return;
+      const bounds = text.getBoundingClientRect();
+      if (bounds.bottom < 0 || bounds.top > window.innerHeight) return;
+      lastMaskFrame = now;
+      const vw = Math.max(1, window.innerWidth);
+      const vh = Math.max(1, window.innerHeight);
+      const width = Math.min(700, Math.max(390, Math.round(vw * .75)));
+      const height = Math.max(1, Math.round(width * vh / vw));
+      if (alphaMaskCanvas.width !== width || alphaMaskCanvas.height !== height) {
+        alphaMaskCanvas.width = width;
+        alphaMaskCanvas.height = height;
+      }
+      const ratio = width / vw;
+      const rect = surface.getBoundingClientRect();
+      try {
+        alphaMaskContext.clearRect(0, 0, width, height);
+        // This runs IMMEDIATELY after the Three.js renderer finishes its
+        // frame, while the WebGL framebuffer still contains the head.
+        alphaMaskContext.drawImage(surface,
+          rect.left * ratio, rect.top * ratio,
+          rect.width * ratio, rect.height * ratio);
+        const rgba = alphaMaskContext.getImageData(0, 0, width, height).data;
+        let covered = 0;
+        for (let i = 3; i < rgba.length; i += 20) {
+          if (rgba[i] > 20) covered += 1;
+        }
+        if (!covered) return; // Never show unmasked outline on WebGL failure.
+        const src = 'url("' + alphaMaskCanvas.toDataURL('image/png') + '")';
+        outline.style.maskImage = src;
+        outline.style.webkitMaskImage = src;
+        outline.dataset.maskReady = 'true';
+      } catch (error) {
+        // Keep the last valid frame; never replace it with unmasked letters.
+      }
+    };
 
     const measure = () => {
       if (!live) return;
@@ -153,6 +198,7 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
         mesh.morphTargetInfluences[index] = motion.blink;
       }
       renderer.render(scene, camera);
+      refreshOutlineMask(now);
       frameId = requestAnimationFrame(animate);
     };
     const start = () => {
@@ -212,6 +258,7 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
       }
       if (!live) return;
       renderer.render(scene, camera);
+      refreshOutlineMask(performance.now(), true);
       loaded = true;
       setReady(true);
       start();
