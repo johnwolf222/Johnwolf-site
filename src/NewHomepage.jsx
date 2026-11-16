@@ -169,18 +169,3 @@ export default function NewHomepage() {
     </section>
   );
 }
-
-// Dedicated home for the forthcoming floating-card gallery. This deliberately
-// does not re-introduce the removed Logo Creations/Brand Guidelines components.
-export function FloatingWorkSection() {
-  return (
-    <section id="work" className="jw-floating-work" aria-labelledby="jw-work-heading">
-      <div className="jw-floating-work__intro">
-        <span className="jw-floating-work__eyebrow">JOHN WOLF / SELECTED WORK</span>
-        <h2 id="jw-work-heading">Work in motion.</h2>
-        <p>From first impression to selected work, the visuals move with you.</p>
-      </div>
-      {/* The six main cards arrive here from the homepage; no duplicate collage. */}
-    </section>
-  );
-}
