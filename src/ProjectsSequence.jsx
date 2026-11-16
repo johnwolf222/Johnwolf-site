@@ -270,16 +270,22 @@ export default function ProjectsSequence() {
       // On Home the paper layer stays behind the approved headline (z=2).
       // During the spiral each card can pass in front of / behind the head
       // using the same DOM node, never a replacement image.
-      card.style.zIndex = String(phase === 0 ? 1 :
-        (inFront || (enteredSweep && !onGallery && rank >= 0) ? 12 : 10));
-      card.style.transform = 'perspective(1350px) translate3d(' +
-        finalX.toFixed(2) + 'px,' + finalY.toFixed(2) + 'px,' +
-        finalZ.toFixed(2) + 'px) rotateY(' +
-        rotY.toFixed(2) + 'deg) rotateX(' + rotX.toFixed(2) +
-        'deg) rotateZ(' + rotZ.toFixed(2) +
-        'deg) scale(' + finalScale.toFixed(4) + ')';
-      card.style.opacity = String(opacity);
-      card.style.visibility = opacity < .008 ? 'hidden' : 'visible';
+      const front = inFront ||
+        (enteredSweep && !onGallery && rank >= 0);
+      // Skip the duplicate DOM rasterization work while our ONE GPU surface
+      // is running. The original DOM images remain a ready fallback, and are
+      // re-synchronized on the next frame if WebGL is lost or unsupported.
+      if (!gpuPaperRef.current?.ready) {
+        card.style.zIndex = String(phase === 0 ? 1 : (front ? 12 : 10));
+        card.style.transform = 'perspective(1350px) translate3d(' +
+          finalX.toFixed(2) + 'px,' + finalY.toFixed(2) + 'px,' +
+          finalZ.toFixed(2) + 'px) rotateY(' +
+          rotY.toFixed(2) + 'deg) rotateX(' + rotX.toFixed(2) +
+          'deg) rotateZ(' + rotZ.toFixed(2) +
+          'deg) scale(' + finalScale.toFixed(4) + ')';
+        card.style.opacity = String(opacity);
+        card.style.visibility = opacity < .008 ? 'hidden' : 'visible';
+      }
       // One clock controls the GPU bend AND its world-space trajectory.
       // The paper fully flattens as each project settles into its gallery.
       const time = (capturedClock ?? homeClock) -
@@ -294,7 +300,7 @@ export default function ProjectsSequence() {
         x: finalX, y: finalY, z: finalZ,
         rx: rotX, ry: rotY, rz: rotZ,
         scale: finalScale, opacity,
-        front: card.style.zIndex === '12', curl, time,
+        front, curl, time,
       });
       card.dataset.phase = phase === 0 ? 'home-current' :
         phase < .272 ? 'rewind' :
