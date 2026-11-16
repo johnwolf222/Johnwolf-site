@@ -77,16 +77,28 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
     // outline mask. No hand-drawn oval or static substitute can track yaw,
     // blinking and cursor-following geometry accurately.
     const alphaMaskCanvas = document.createElement('canvas');
-    const alphaMaskContext = alphaMaskCanvas.getContext('2d', { willReadFrequently: true });
+    // We do not read the mask back to JS. That forced a GPU readback stall
+    // on every update, interrupting the rolling letters and cursor-following head.
+    const alphaMaskContext = alphaMaskCanvas.getContext('2d');
     let lastMaskFrame = -Infinity;
+    let maskEncoding = false;
+    let currentMaskUrl = null;
+    const retiredMaskUrls = new Set();
+    let maskGeneration = 0;
+    const releaseMaskUrl = url => {
+      if (!url) return;
+      retiredMaskUrls.delete(url);
+      URL.revokeObjectURL(url);
+    };
     const refreshOutlineMask = (now, force = false) => {
-      if (!alphaMaskContext || (!force && now - lastMaskFrame < 80)) return;
+      if (!alphaMaskContext || maskEncoding ||
+          (!force && now - lastMaskFrame < 38)) return;
       const outline = document.querySelector('.jw-title-head-ink');
       const text = document.querySelector('.jw-title-head-ink__artboard');
       if (!outline || !text) return;
       const bounds = text.getBoundingClientRect();
       if (bounds.bottom < 0 || bounds.top > window.innerHeight) return;
-      lastMaskFrame = now;
+
       const vw = Math.max(1, window.innerWidth);
       const vh = Math.max(1, window.innerHeight);
       const width = Math.min(700, Math.max(390, Math.round(vw * .75)));
@@ -97,26 +109,42 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
       }
       const ratio = width / vw;
       const rect = surface.getBoundingClientRect();
+      alphaMaskContext.clearRect(0, 0, width, height);
+      // Called immediately after the GLB render, while the original
+      // transparent silhouette is available in the WebGL framebuffer.
       try {
-        alphaMaskContext.clearRect(0, 0, width, height);
-        // This runs IMMEDIATELY after the Three.js renderer finishes its
-        // frame, while the WebGL framebuffer still contains the head.
         alphaMaskContext.drawImage(surface,
           rect.left * ratio, rect.top * ratio,
           rect.width * ratio, rect.height * ratio);
-        const rgba = alphaMaskContext.getImageData(0, 0, width, height).data;
-        let covered = 0;
-        for (let i = 3; i < rgba.length; i += 20) {
-          if (rgba[i] > 20) covered += 1;
-        }
-        if (!covered) return; // Never show unmasked outline on WebGL failure.
-        const src = 'url("' + alphaMaskCanvas.toDataURL('image/png') + '")';
-        outline.style.maskImage = src;
-        outline.style.webkitMaskImage = src;
-        outline.dataset.maskReady = 'true';
-      } catch (error) {
-        // Keep the last valid frame; never replace it with unmasked letters.
+      } catch {
+        return; // Retain the previous valid mask.
       }
+
+      lastMaskFrame = now;
+      maskEncoding = true;
+      const generation = ++maskGeneration;
+      // toBlob moves PNG encoding off the critical animation frame. Keep one
+      // request in flight; never queue copies when a slower device is busy.
+      alphaMaskCanvas.toBlob(blob => {
+        maskEncoding = false;
+        if (!live || generation !== maskGeneration || !blob?.size ||
+            !outline.isConnected) return;
+        const nextMaskUrl = URL.createObjectURL(blob);
+        const previous = currentMaskUrl;
+        currentMaskUrl = nextMaskUrl;
+        const maskValue = 'url("' + nextMaskUrl + '")';
+        outline.style.maskImage = maskValue;
+        outline.style.webkitMaskImage = maskValue;
+        outline.dataset.maskReady = 'true';
+        if (previous) {
+          retiredMaskUrls.add(previous);
+          // Retain the prior frame until the new blob-backed mask has reached
+          // the compositor; revoking it immediately can flash blank in Safari.
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => releaseMaskUrl(previous));
+          });
+        }
+      }, 'image/png');
     };
 
     const measure = () => {
@@ -270,6 +298,10 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
 
     return () => {
       live = false;
+      maskGeneration += 1; // Discard any encoding callback finishing after unmount.
+      if (currentMaskUrl) URL.revokeObjectURL(currentMaskUrl);
+      for (const url of retiredMaskUrls) URL.revokeObjectURL(url);
+      retiredMaskUrls.clear();
       stop();
       triggerRef.current = null;
       observer.disconnect();
