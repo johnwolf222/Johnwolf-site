@@ -152,9 +152,10 @@ export default function ProjectsSequence() {
       if (!alive) return;
       const yTarget = window.scrollY;
       const highPrecision = reduced.matches;
-      // Gentle catch-up prevents sharp snapping when a wheel emits large deltas.
-      scrollPosition += (yTarget - scrollPosition) * (highPrecision ? 1 : .28);
-      if (Math.abs(yTarget - scrollPosition) < .35) scrollPosition = yTarget;
+      // Use one clock: actual browser scroll. The browser already handles smooth
+      // navigation; applying a second easing here caused the cards/head to lag
+      // seconds behind touch scroll on mobile and miss the landing position.
+      scrollPosition = yTarget;
       const w = viewportWidth || window.innerWidth;
       const h = viewportHeight || window.innerHeight;
       const start = measuredTop - h * .55;
@@ -210,7 +211,7 @@ export default function ProjectsSequence() {
         setVisible(stageShown);
       }
       lastScroll = scrollPosition;
-      if (Math.abs(yTarget - scrollPosition) > .35) frame = requestAnimationFrame(draw);
+
     }
 
     function requestDraw() {
