@@ -158,14 +158,15 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
       mesh.visible = false;
       mesh.rotation.order = 'YXZ';
       world.add(mesh);
-      items.push({ index, geometry, material, mesh, mapReady: false });
+      items.push({ index, geometry, material, mesh,
+        widthFactor: 1, heightFactor: 1, mapReady: false });
     }
 
     const loader = new THREE.TextureLoader();
     const textures = [];
     let maskTexture;
     let width = 1, height = 1, dpr = 1;
-    let paperWidth = 270, paperHeight = 420;
+    let paperWidth = 270;
     function resize() {
       if (disposed) return;
       width = Math.max(1, window.innerWidth);
@@ -183,8 +184,8 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
       const card = document.querySelector('.jw-projects-stage__card');
       paperWidth = card?.offsetWidth ||
         (width <= 800 ? Math.min(width * .55, 285) : Math.min(width * .26, 370));
-      paperHeight = card?.offsetHeight ||
-        (width <= 800 ? Math.min(height * .43, 390) : Math.min(height * .55, 495));
+      // Natural card aspect is taken from EACH loaded texture, never from
+      // the generic DOM card's rectangular layout box.
     }
 
     let scheduled = 0;
@@ -223,9 +224,11 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
         item.mesh.visible = true;
         item.material.uniforms.uBehind.value = pose.front ? 0 : 1;
         item.mesh.position.set(pose.x, -pose.y, pose.z);
+        const sheetSize = paperWidth * pose.scale;
         item.mesh.scale.set(
-          paperWidth * pose.scale, paperHeight * pose.scale,
-          paperWidth * pose.scale,
+          sheetSize * item.widthFactor,
+          sheetSize * item.heightFactor,
+          sheetSize,
         );
         item.mesh.rotation.set(
           -THREE.MathUtils.degToRad(pose.rx),
@@ -259,7 +262,15 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
     const texturePromises = items.map(item => new Promise(resolve => {
       loader.load(imageFor(item.index), texture => {
         if (disposed) { texture.dispose(); resolve(false); return; }
-        texture.colorSpace = THREE.SRGBColorSpace;
+        // Approved Hole 01: Card aspect = Natural. Normalize each sheet
+        // inside a square bounding size without ever stretching its artwork.
+        const image = texture.image;
+        const intrinsicW = image?.naturalWidth || image?.width || 1;
+        const intrinsicH = image?.naturalHeight || image?.height || 1;
+        const aspect = Math.max(.08, Math.min(12, intrinsicW / intrinsicH));
+        item.widthFactor = Math.min(1, aspect);
+        item.heightFactor = Math.min(1, 1 / aspect);
+                texture.colorSpace = THREE.SRGBColorSpace;
         texture.minFilter = THREE.LinearMipmapLinearFilter;
         texture.magFilter = THREE.LinearFilter;
         texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
