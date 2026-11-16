@@ -184,7 +184,20 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
         (width <= 800 ? Math.min(height * .43, 390) : Math.min(height * .55, 495));
     }
 
+    let scheduled = 0;
+    let pendingProgress = 0;
     function draw(progress) {
+      pendingProgress = progress;
+      if (!ready || disposed || scheduled) return;
+      // ScrollTrigger, resizing and the Home clock may all request a render
+      // in the same animation frame. Collapse them into ONE GPU draw with the
+      // newest 21 poses, rather than rendering the entire scene repeatedly.
+      scheduled = requestAnimationFrame(() => {
+        scheduled = 0;
+        renderNow(pendingProgress);
+      });
+    }
+    function renderNow(progress) {
       if (!ready || disposed) return;
       const head = document.querySelector('.jw-continuous-head');
       const surface = document.querySelector('.jw-new-home__head-canvas');
@@ -271,6 +284,7 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
 
     return () => {
       disposed = true;
+      cancelAnimationFrame(scheduled);
       engineRef.current = null;
       canvas.classList.remove('is-ready');
       document.body.classList.remove('jw-live-paper-ready');
