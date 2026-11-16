@@ -2,6 +2,7 @@ import React, { useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
 import { rollingGlyphs } from './rollingTitleGlyphs.js';
+import { HEAD_SILHOUETTE_MASK } from './approvedHeadSilhouetteMask.js';
 
 const glyphPosition = glyph => ({
   left: (glyph.x / 1440 * 100) + '%',
@@ -12,9 +13,9 @@ const glyphPosition = glyph => ({
 
 /**
  * ONE GSAP clock drives the purple text and its thin white companion outline.
- * The outline is portaled above the 3D head, but a real-time alpha mask from
- * that SAME head's renderer clips it to the head silhouette; it cannot appear
- * over any other part of the title or over a card.
+ * The outline is portaled above the 3D head, with a pre-approved alpha
+ * silhouette bundled into the first paint. No URL swapping or image loading
+ * can interrupt the glyphs. Its position follows the SAME head canvas.
  */
 export default function RollingTitle({ index, direction = 1, reducedMotion = false, onRollComplete }) {
   const scenes = useRef([]);
@@ -39,6 +40,18 @@ export default function RollingTitle({ index, direction = 1, reducedMotion = fal
       overlay.style.top = r.top + 'px';
       overlay.style.width = r.width + 'px';
       overlay.style.height = r.height + 'px';
+      const headSurface = document.querySelector('.jw-new-home__head-canvas');
+      if (headSurface) {
+        // The mask is a snapshot in the *original head canvas coordinates*.
+        // Moving just its CSS geometry keeps it over the one persistent head
+        // through Home, scrolling and Projects, without replacing any image.
+        const head = headSurface.getBoundingClientRect();
+        const mask = overlay.parentElement;
+        mask.style.maskSize = head.width + 'px ' + head.height + 'px';
+        mask.style.webkitMaskSize = mask.style.maskSize;
+        mask.style.maskPosition = head.left + 'px ' + head.top + 'px';
+        mask.style.webkitMaskPosition = mask.style.maskPosition;
+      }
     };
     let syncFrame = 0;
     const syncPosition = () => {
@@ -54,6 +67,8 @@ export default function RollingTitle({ index, direction = 1, reducedMotion = fal
     const home = title.closest('.jw-new-home');
     const styles = new MutationObserver(syncPosition);
     if (home) styles.observe(home, { attributes: true, attributeFilter: ['style'] });
+    const movingHead = document.querySelector('.jw-continuous-head__artboard');
+    if (movingHead) styles.observe(movingHead, { attributes: true, attributeFilter: ['style'] });
     const observer = new ResizeObserver(syncPosition);
     observer.observe(title);
     window.addEventListener('scroll', syncPosition, { passive: true });
@@ -199,7 +214,13 @@ export default function RollingTitle({ index, direction = 1, reducedMotion = fal
         {renderScenes(false)}
       </div>
       {createPortal(
-        <div className="jw-title-head-ink" aria-hidden="true">
+        <div className="jw-title-head-ink" aria-hidden="true"
+          style={{
+            maskImage: `url("${HEAD_SILHOUETTE_MASK}")`,
+            WebkitMaskImage: `url("${HEAD_SILHOUETTE_MASK}")`,
+            maskRepeat: 'no-repeat',
+            WebkitMaskRepeat: 'no-repeat',
+          }}>
           <div ref={outlineRoot} className="jw-title-head-ink__artboard">
             {renderScenes(true)}
           </div>
