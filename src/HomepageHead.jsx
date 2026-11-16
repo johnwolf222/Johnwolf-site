@@ -120,6 +120,28 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
         return; // Retain the previous valid mask.
       }
 
+      // Show the first accurate silhouette immediately. Waiting for the
+      // asynchronous encoder can leave the title without its outlined layer
+      // during the initial roll on slower devices. This is a ONE-TIME PNG;
+      // subsequent live updates remain off the animation frame.
+      if (!outline.dataset.maskReady) {
+        try {
+          const firstMask = alphaMaskCanvas.toDataURL('image/png');
+          // An empty transparent canvas encodes to a tiny image. Never present
+          // that as a valid head silhouette or let the mask escape its bounds.
+          if (firstMask.length > 2000) {
+            const initialValue = 'url("' + firstMask + '")';
+            outline.style.maskImage = initialValue;
+            outline.style.webkitMaskImage = initialValue;
+            outline.dataset.maskReady = 'true';
+            lastMaskFrame = now;
+            return;
+          }
+        } catch {
+          // Try the async encoder on a later frame if the fast path fails.
+        }
+      }
+
       lastMaskFrame = now;
       maskEncoding = true;
       const generation = ++maskGeneration;
