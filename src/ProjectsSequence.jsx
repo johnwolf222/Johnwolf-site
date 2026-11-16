@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import './ProjectsSequence.css';
+import PaperSurface, { PAPER_STRIPS } from './PaperSurface.jsx';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -98,30 +99,78 @@ export default function ProjectsSequence() {
     const TAU = Math.PI * 2;
     const GOLDEN_ANGLE = 2.399963229728653;
     const HOME_PERIOD = 12;
+    // A SINGLE outward helical paper current. The 21 phase offsets are
+    // evenly spaced (the 8-step permutation prevents related brand images
+    // appearing in a cluster). No random stationary card positions.
     function homeAge(index, time) {
-      return ((time / HOME_PERIOD + index * 0.618033988749895) % 1 + 1) % 1;
+      const slot = ((index * 8) % CARD_COUNT) / CARD_COUNT;
+      const age = time / HOME_PERIOD - slot;
+      return ((age % 1) + 1) % 1;
     }
     function homePose(index, age) {
-      // The geometry of the Home flight is now a live, reversible function.
-      // Rewind by decreasing age, not by swapping or guessing positions.
-      const angle = index * GOLDEN_ANGLE - Math.PI * .48 +
-        Math.sin(age * TAU * .9 + index * .31) * .23;
-      const r = smooth(age, 0, 1);
-      const radiusX = width * (.055 + .62 * r);
-      const radiusY = height * (.09 + .57 * r);
-      const wind = Math.sin(age * TAU * 1.85 + index * .53) *
-        Math.sin(age * Math.PI) * Math.min(width, height) * .045;
-      const dx = Math.cos(angle);
-      const dy = Math.sin(angle);
+      // All sheets originate behind the same head, circle it, then drift out
+      // through the edges. The first/last 10% is feathered for a seamless
+      // return to the origin, with no visible pop when the 12s cycle wraps.
+      const theta = -Math.PI * .64 + age * TAU * 1.61 +
+        Math.sin(age * TAU * 1.4 + index * .17) * .055;
+      const radiusX = width * (.035 + .68 * smooth(age, 0, 1));
+      const radiusY = height * (.045 + .65 * smooth(age, 0, 1));
+      const lateral = Math.sin(age * 8.3 + index * .43) *
+        Math.sin(age * Math.PI) * Math.min(width, height) * .029;
+      const x = Math.cos(theta) * radiusX - Math.sin(theta) * lateral;
+      const y = Math.sin(theta) * radiusY + Math.cos(theta) * lateral;
       return {
-        x: dx * radiusX - dy * wind,
-        y: dy * radiusY + dx * wind,
-        z: mix(-710, 345, age),
-        scale: mix(.09, .55 + (index % 4) * .025, smooth(age, .02, .85)),
-        ry: Math.sin(age * TAU * .86 + index * .71) * 65,
-        rz: Math.cos(age * TAU * .65 + index * .48) * 27,
-        opacity: smooth(age, .02, .15) * (1 - smooth(age, .87, 1)),
+        x, y,
+        z: mix(-810, 285, smooth(age, .02, .89)),
+        scale: mix(.095, .81, smooth(age, .045, .92)),
+        rx: Math.sin(theta * 1.42 + index * .39) * 23,
+        ry: Math.sin(theta * .85 + index * .27) * 49,
+        rz: Math.sin(theta + index * .19) * 24,
+        opacity: smooth(age, .035, .145) *
+          (1 - smooth(age, .865, .998)),
       };
+    }
+
+    // The approved older WebGL motion used curved, subdivided meshes rather
+    // than flat postcards. Here connected DOM strips reproduce that surface
+    // bend while preserving the ONE controllable element per artwork, and
+    // avoid creating a competing WebGL context with the original GLB head.
+    function deformCard(card, index, bend, time) {
+      if (reduced.matches) return;
+      const strips = card._paperStrips ||
+        (card._paperStrips = [...card.querySelectorAll('.jw-paper-sheet__strip')]);
+      if (!strips.length) return;
+      const image = card.querySelector('.jw-paper-sheet__fallback');
+      if (!image?.complete || !image.naturalWidth) return;
+      if (!card.dataset.deformed) card.dataset.deformed = 'true';
+
+      const W = card._paperWidth || (card._paperWidth = card.offsetWidth);
+      const strength = clamp(bend, 0, 1.12);
+      const safe = Math.max(.0001, strength);
+      const R = W / (2 * safe);
+      const front = Math.sin(time * 1.13 + index * .42) * .74;
+      for (let part = 0; part < strips.length; part++) {
+        const strip = strips[part];
+        const u = (part + .5) / PAPER_STRIPS - .5;
+        const theta = 2 * u * strength;
+        const nominalX = u * W;
+        const bentX = R * Math.sin(theta);
+        const dx = bentX - nominalX;
+        const edge = Math.pow(Math.abs(u) * 2, 1.3);
+        const ripple = Math.sin(u * 13.5 - time * 2.4 +
+          index * .77) * strength * W * .032 * (.28 + edge * .72);
+        const dz = front * R * (1 - Math.cos(theta)) + ripple;
+        const dy = Math.sin(u * 8.1 + time * 2.8 + index * .23) *
+          strength * W * .023 * edge;
+        const tangent = -theta * front * 180 / Math.PI;
+        const flick = Math.cos(u * 9.6 + time * 2.1 + index * .38) *
+          strength * 5.0;
+        strip.style.transform = 'translate3d(' +
+          dx.toFixed(2) + 'px,' + dy.toFixed(2) + 'px,' +
+          dz.toFixed(2) + 'px) rotateY(' + tangent.toFixed(2) +
+          'deg) rotateX(' + flick.toFixed(2) + 'deg)';
+      }
+      card.dataset.curvature = strength.toFixed(3);
     }
 
     function targetForCard(id, galleryFocus) {
@@ -162,6 +211,7 @@ export default function ProjectsSequence() {
       const originZ = flight.z;
       const originScale = flight.scale;
       const originRotY = flight.ry;
+      const originRotX = flight.rx;
       const originRotZ = flight.rz;
 
       // PHASE 2 · The trail follows the SAME winding helical curve. Each
@@ -179,6 +229,7 @@ export default function ProjectsSequence() {
       const ringY = stairHeight * radius;
       const ringZ = mix(-710, Math.sin(headAngle) * 350 - 135, orbit);
       const ringScale = mix(.09, .53 + Math.sin(headAngle) * .09, orbit);
+      const ringRotX = Math.sin(headAngle * 1.46 + index * .23) * 23 * radius;
       const ringRotY = Math.cos(headAngle) * 58 * radius;
       const ringRotZ = Math.sin(headAngle) * 16 * radius;
       const orbitStarted = phase >= releaseStart;
@@ -186,6 +237,7 @@ export default function ProjectsSequence() {
       const baseY = orbitStarted ? ringY : originY;
       const baseZ = orbitStarted ? ringZ : originZ;
       const baseScale = orbitStarted ? ringScale : originScale;
+      const baseRX = orbitStarted ? ringRotX : originRotX;
       const baseRY = orbitStarted ? ringRotY : originRotY;
       const baseRZ = orbitStarted ? ringRotZ : originRotZ;
 
@@ -235,6 +287,7 @@ export default function ProjectsSequence() {
       const finalY = enteredSweep ? (phase < .893 ? sweepY : y) : y;
       const finalZ = enteredSweep ? (phase < .893 ? sweepZ : z) : z;
       const finalScale = enteredSweep ? (phase < .893 ? sweepScale : scale) : scale;
+      const rotX = enteredSweep ? ringRotX * (1 - landing) : baseRX;
       const rotY = enteredSweep ?
         mix(ringRotY, target.ry, landing) : baseRY;
       const rotZ = enteredSweep ? ringRotZ * (1 - landing) : baseRZ;
@@ -263,10 +316,24 @@ export default function ProjectsSequence() {
       card.style.transform = 'perspective(1350px) translate3d(' +
         finalX.toFixed(2) + 'px,' + finalY.toFixed(2) + 'px,' +
         finalZ.toFixed(2) + 'px) rotateY(' +
-        rotY.toFixed(2) + 'deg) rotateZ(' + rotZ.toFixed(2) +
+        rotY.toFixed(2) + 'deg) rotateX(' + rotX.toFixed(2) +
+        'deg) rotateZ(' + rotZ.toFixed(2) +
         'deg) scale(' + finalScale.toFixed(4) + ')';
       card.style.opacity = String(opacity);
       card.style.visibility = opacity < .008 ? 'hidden' : 'visible';
+      if (opacity > .009) {
+        // Flutter remains tied to the SAME home clock. Scroll reverses the
+        // waveform deterministically, rather than starting a new animation.
+        const t = (capturedClock ?? homeClock) -
+          smooth(phase, .01, .272) * 2.4 +
+          smooth(phase, .304, .806) * 4.8 +
+          smooth(phase, .806, .992) * 1.6;
+        const flutter = Math.sin(t * 2.7 + index * .73) * .28 +
+          Math.sin(t * 4.4 + index * 1.14) * .13;
+        const flattened = 1 - smooth(phase, .835, .995);
+        const curl = (0.64 + flutter) * flattened;
+        deformCard(card, index, curl, t);
+      }
       card.dataset.phase = phase === 0 ? 'home-current' :
         phase < .272 ? 'rewind' :
           phase < releaseStart ? 'behind-head' :
@@ -518,7 +585,7 @@ export default function ProjectsSequence() {
         ref={node => { cardRefs.current[index] = node; }}
         data-artwork={id} data-phase="scatter"
         style={{ opacity: 0, visibility: 'hidden', zIndex: 10 }}>
-        <img src={fileFor(id)} alt="" draggable="false" />
+        <PaperSurface src={fileFor(id)} />
       </div>, document.body, 'project-sheet-' + id
     ))}
   </>
