@@ -224,7 +224,15 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
         item.mesh.visible = true;
         item.material.uniforms.uBehind.value = pose.front ? 0 : 1;
         item.mesh.position.set(pose.x, -pose.y, pose.z);
-        const sheetSize = paperWidth * pose.scale;
+        // The locked Hole 01 card size is 390px on desktop; the Gallery's
+        // established cards use their own width. Ease between those sizes
+        // during scroll, without changing the transition's choreography.
+        const homeSize = width > 800 ?
+          Math.min(390, paperWidth * 1.25) : paperWidth;
+        const blendT = Math.max(0, Math.min(1, progress / .14));
+        const eased = blendT * blendT * (3 - 2 * blendT);
+        const sheetExtent = paperWidth + (homeSize - paperWidth) * (1 - eased);
+        const sheetSize = sheetExtent * pose.scale;
         item.mesh.scale.set(
           sheetSize * item.widthFactor,
           sheetSize * item.heightFactor,
