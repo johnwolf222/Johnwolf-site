@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "predev": "node scripts/restore-approved-project-cards.mjs",
+    "prebuild": "node scripts/restore-approved-project-cards.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",
