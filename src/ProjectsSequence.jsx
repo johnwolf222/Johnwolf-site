@@ -219,34 +219,36 @@ export default function ProjectsSequence() {
     // ONE GSAP ScrollTrigger pins Home while the text disappears and the
     // 21 cards travel. Pin spacing lets Projects follow naturally after the
     // choreographed transition, without scrolling the Home artboard away.
-    const timeline = gsap.timeline({
-      defaults: { ease: 'none' },
-      scrollTrigger: {
-        id: 'jw-home-to-projects',
-        trigger: home,
-        start: 'top top',
-        end: () => '+=' + Math.round(window.innerHeight * 2.85),
-        pin: true,
-        pinSpacing: true,
-        anticipatePin: 1,
-        // The scroll position is the single source of truth: do not add a
-        // second 280ms lag that leaves Home/cards in the wrong state on reverse.
-        scrub: true,
-        invalidateOnRefresh: true,
-        onRefresh: () => {
-          measure();
-          render();
-        },
+    // The timeline remains paused; ScrollTrigger pins Home and directly
+    // seeks that ONE choreography from the native scroll position. This
+    // avoids asynchronous scrub tweens and missed reverse/anchor positions.
+    const timeline = gsap.timeline({ paused: true, defaults: { ease: 'none' } });
+    timeline.to(travel, {
+      progress: 1, duration: 1, ease: 'none', onUpdate: render,
+    }, 0);
+    const pinned = ScrollTrigger.create({
+      id: 'jw-home-to-projects',
+      trigger: home,
+      start: 'top top',
+      end: () => '+=' + Math.round(window.innerHeight * 2.85),
+      pin: true,
+      pinSpacing: true,
+      anticipatePin: 1,
+      invalidateOnRefresh: true,
+      onUpdate: self => timeline.progress(self.progress),
+      onRefresh: self => {
+        measure();
+        timeline.progress(self.progress);
+        render();
       },
     });
-    timeline.to(travel, { progress: 1, duration: 1,
-      ease: 'none', onUpdate: render }, 0);
 
     const onScroll = () => {
       // Read the *current* native scroll position before updating the pin,
       // head and gallery. Without this explicit refresh, the browser can
       // briefly display stale pin transforms on quick reverse or anchor jumps.
-      ScrollTrigger.update();
+      pinned.update();
+      timeline.progress(pinned.progress);
       render();
     };
     const onResize = () => {
@@ -291,7 +293,7 @@ export default function ProjectsSequence() {
       window.removeEventListener('resize', onResize);
       document.removeEventListener('click', navigateToGallery);
       reduced.removeEventListener?.('change', onReduced);
-      timeline.scrollTrigger?.kill();
+      pinned.kill();
       timeline.kill();
       for (const el of [title, ink, subtitle, indicators, bottom, video]) {
         if (el) el.style.opacity = '';
