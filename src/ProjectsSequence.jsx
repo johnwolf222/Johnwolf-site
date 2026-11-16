@@ -127,12 +127,16 @@ export default function ProjectsSequence() {
       // sweeps LEFT, curves TOWARD the viewer, then fans to its assigned
       // seven-card position. Stagger is preserved all the way to landing.
       const land = smooth(phase, .713 + order * .048, .941 + order * .059);
-      const x = cubic(orbitX, orbitX - width * .32,
-        -width * .29 + target.x * .18, target.x, land);
-      const y = cubic(orbitY, orbitY + height * .15,
-        target.y - height * .28, target.y, land);
+      const x = cubic(orbitX, orbitX - width * (.24 + .08 * order),
+        -width * .18 + target.x * .68 + (order - .5) * width * .22,
+        target.x, land);
+      const y = cubic(orbitY,
+        orbitY + height * (.14 + .13 * order),
+        target.y - height * .24 + (order - .5) * height * .21,
+        target.y, land);
       const z = cubic(orbitZ, orbitZ + 220,
-        475 - Math.abs(target.x) * .13, target.z, land);
+        475 - Math.abs(target.x) * .13 + Math.sin(theta) * 110,
+        target.z, land);
       const scale = cubic(orbitScale, orbitScale * 1.13,
         Math.max(1.08, target.scale * 1.18), target.scale, land);
       const rotY = mix(Math.cos(theta) * 56, target.ry, land);
