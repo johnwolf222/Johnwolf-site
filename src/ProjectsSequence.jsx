@@ -47,8 +47,8 @@ const focusOf = (index, scrollY, top, h) =>
  * (3) The same sheets curve towards the left edge and towards the viewer.
  * (4) The seven featured sheets slide into gallery positions LEFT TO RIGHT.
  *
- * The locked 21-sheet Premotio MP4 is untouched. At handoff the MP4 dissolves
- * into exactly 21 individually driven DOM sheets, never duplicated.
+ * The SAME twenty-one controllable paper elements render on Home and Projects.
+ * No MP4, no crossfade, and no substitution of cards during the transition.
  */
 export default function ProjectsSequence() {
   const sectionRef = useRef(null);
@@ -64,7 +64,6 @@ export default function ProjectsSequence() {
     const section = sectionRef.current;
     const stage = stageRef.current;
     const head = document.querySelector('.jw-continuous-head');
-    const video = document.querySelector('.jw-floating-card-stage');
     const title = document.querySelector('.jw-new-home__rolling-title');
     const ink = document.querySelector('.jw-title-head-ink');
     const subtitle = document.querySelector('.jw-new-home__subtitle-clip');
@@ -82,13 +81,47 @@ export default function ProjectsSequence() {
     let showing = false;
     let disposed = false;
     const travel = { progress: 0 };
-    let ticker = null;
+    // The live Home current has an actual clock. Scrolling freezes it, so
+    // each sheet rewinds from its exact visible state along its own path.
+    let homeClock = 3.45;
+    let capturedClock = null;
+    let lastAnimationFrame = 0;
 
     function measure() {
       sectionTop = docTop(section);
       sectionHeight = section.getBoundingClientRect().height;
       width = window.innerWidth;
       height = window.innerHeight;
+    }
+
+
+    const TAU = Math.PI * 2;
+    const GOLDEN_ANGLE = 2.399963229728653;
+    const HOME_PERIOD = 12;
+    function homeAge(index, time) {
+      return ((time / HOME_PERIOD + index * 0.618033988749895) % 1 + 1) % 1;
+    }
+    function homePose(index, age) {
+      // The geometry of the Home flight is now a live, reversible function.
+      // Rewind by decreasing age, not by swapping or guessing positions.
+      const angle = index * GOLDEN_ANGLE - Math.PI * .48 +
+        Math.sin(age * TAU * .9 + index * .31) * .23;
+      const r = smooth(age, 0, 1);
+      const radiusX = width * (.055 + .62 * r);
+      const radiusY = height * (.09 + .57 * r);
+      const wind = Math.sin(age * TAU * 1.85 + index * .53) *
+        Math.sin(age * Math.PI) * Math.min(width, height) * .045;
+      const dx = Math.cos(angle);
+      const dy = Math.sin(angle);
+      return {
+        x: dx * radiusX - dy * wind,
+        y: dy * radiusY + dx * wind,
+        z: mix(-710, 345, age),
+        scale: mix(.09, .55 + (index % 4) * .025, smooth(age, .02, .85)),
+        ry: Math.sin(age * TAU * .86 + index * .71) * 65,
+        rz: Math.cos(age * TAU * .65 + index * .48) * 27,
+        opacity: smooth(age, .02, .15) * (1 - smooth(age, .87, 1)),
+      };
     }
 
     function targetForCard(id, galleryFocus) {
@@ -119,21 +152,17 @@ export default function ProjectsSequence() {
       const spotlight = PROJECTS.findIndex(project => project.image === id);
       const rank = spotlight < 0 ? -1 : ENTRY_ORDER.indexOf(spotlight);
 
-      // PHASE 1 · All cards visibly REWIND from their scattered paper-field
-      // positions to the exact common point behind the head, together.
-      const goldenAngle = 2.399963229728653;
-      const scatterAngle = index * goldenAngle - Math.PI * .5;
-      const scatterRadius = Math.sqrt((index + .8) / CARD_COUNT);
-      const scatterX = Math.cos(scatterAngle) * width * .48 * scatterRadius;
-      const scatterY = Math.sin(scatterAngle) * height * .50 * scatterRadius;
-      const scatterZ = -130 - (index % 5) * 58;
-      const scatterScale = .41 + (index % 4) * .035;
-      const rewind = smooth(phase, .085, .268);
-      const originX = mix(scatterX, 0, rewind);
-      const originY = mix(scatterY, 0, rewind);
-      const originZ = mix(scatterZ, -710, rewind);
-      const originScale = mix(scatterScale, .09, rewind);
-      const originRotY = mix(Math.sin(scatterAngle) * 48, 0, rewind);
+      // PHASE 1 · Reverse the ACTUAL moving Home cards into their shared
+      // origin. A captured clock means no flicker or discontinuity at handoff.
+      const initialAge = homeAge(index, capturedClock ?? homeClock);
+      const rewind = smooth(phase, .012, .272);
+      const flight = homePose(index, initialAge * (1 - rewind));
+      const originX = flight.x;
+      const originY = flight.y;
+      const originZ = flight.z;
+      const originScale = flight.scale;
+      const originRotY = flight.ry;
+      const originRotZ = flight.rz;
 
       // PHASE 2 · The trail follows the SAME winding helical curve. Each
       // sheet begins behind the head, one after another, spaced on the clock.
@@ -158,7 +187,7 @@ export default function ProjectsSequence() {
       const baseZ = orbitStarted ? ringZ : originZ;
       const baseScale = orbitStarted ? ringScale : originScale;
       const baseRY = orbitStarted ? ringRotY : originRotY;
-      const baseRZ = orbitStarted ? ringRotZ : Math.cos(scatterAngle) * 12 * (1 - rewind);
+      const baseRZ = orbitStarted ? ringRotZ : originRotZ;
 
       // PHASE 3 · A common swooping turn, from the completed helical
       // arrangement TOWARDS THE LEFT EDGE. The curve travels forwards in
@@ -210,15 +239,14 @@ export default function ProjectsSequence() {
         mix(ringRotY, target.ry, landing) : baseRY;
       const rotZ = enteredSweep ? ringRotZ * (1 - landing) : baseRZ;
 
-      // Crossfade the immutable Home video into these distinct artworks
-      // during the return motion; all sheets then disappear into the origin
-      // before the one-by-one release, and exit as 7 featured pieces.
-      const rewindReveal = smooth(phase, .085, .14) *
-        (1 - smooth(phase, .205, .278));
+      // Each card remains the SAME element, including its original image.
+      // It is visible in the Home current, winds down into the head, and
+      // reappears individually in the helical trail.
       const emerging = smooth(phase, releaseStart + .006, releaseStart + .075);
+      const rewindOpacity = phase < .304 ? flight.opacity : 0;
       const unfeaturedFade = rank < 0 ?
         1 - smooth(phase, .834, .921) : 1;
-      const opacity = Math.max(rewindReveal, emerging) *
+      const opacity = (orbitStarted ? emerging : rewindOpacity) *
         mix(1, target.opacity, landing) * unfeaturedFade * exitFade;
 
       // The 21 cards live as SINGLE document-level elements, not inside
@@ -227,8 +255,11 @@ export default function ProjectsSequence() {
       const inFront = orbitStarted && phase < .89 &&
         Math.sin(headAngle) > .13 && radius > .46;
       const onGallery = rank >= 0 && phase >= landingEnd;
-      card.style.zIndex = String(inFront || (enteredSweep && !onGallery &&
-        rank >= 0) ? 12 : 10);
+      // On Home the paper layer stays behind the approved headline (z=2).
+      // During the spiral each card can pass in front of / behind the head
+      // using the same DOM node, never a replacement image.
+      card.style.zIndex = String(phase === 0 ? 1 :
+        (inFront || (enteredSweep && !onGallery && rank >= 0) ? 12 : 10));
       card.style.transform = 'perspective(1350px) translate3d(' +
         finalX.toFixed(2) + 'px,' + finalY.toFixed(2) + 'px,' +
         finalZ.toFixed(2) + 'px) rotateY(' +
@@ -236,8 +267,8 @@ export default function ProjectsSequence() {
         'deg) scale(' + finalScale.toFixed(4) + ')';
       card.style.opacity = String(opacity);
       card.style.visibility = opacity < .008 ? 'hidden' : 'visible';
-      card.dataset.phase = phase < .085 ? 'scatter' :
-        phase < .268 ? 'rewind' :
+      card.dataset.phase = phase === 0 ? 'home-current' :
+        phase < .272 ? 'rewind' :
           phase < releaseStart ? 'behind-head' :
             phase < .806 ? 'spiral' :
               phase < .893 ? 'left-sweep' :
@@ -248,6 +279,14 @@ export default function ProjectsSequence() {
       if (disposed) return;
       const p = reduced.matches ? (travel.progress < .5 ? 0 : 1) :
         travel.progress;
+      if (p > .0001 && capturedClock === null) {
+        capturedClock = homeClock;
+      } else if (p <= .0001 && capturedClock !== null) {
+        // Scrolling all the way back resumes the original clock exactly
+        // where the full rewind started, with no visual jump.
+        homeClock = capturedClock;
+        capturedClock = null;
+      }
       const scrollY = window.scrollY;
       const galleryFocus = focusOf(0, scrollY, sectionTop, height);
       const galleryActive = scrollY >= sectionTop - height * .25;
@@ -260,7 +299,6 @@ export default function ProjectsSequence() {
       const textFade = 1 - smooth(p, .035, .252);
       const subFade = 1 - smooth(p, .050, .250);
       const bottomFade = 1 - smooth(p, .018, .210);
-      const videoFade = 1 - smooth(p, .085, .225);
       const headRise = smooth(p, .803, .993);
 
       // Fade all Home lettering IN PLACE. Do not move any text off the page,
@@ -272,7 +310,6 @@ export default function ProjectsSequence() {
       if (bottom) bottom.style.opacity = String(bottomFade);
       home.style.setProperty('--jw-home-blow', '0');
 
-      if (video) video.style.opacity = String(videoFade);
       const headOpacity = exitFade;
       head.style.opacity = String(headOpacity);
       head.style.visibility = headOpacity < .005 ? 'hidden' : 'visible';
@@ -353,8 +390,18 @@ export default function ProjectsSequence() {
       timeline.progress(exact);
       render();
     };
-    const frameSync = () => {
+    const frameSync = now => {
+      const dt = lastAnimationFrame ?
+        Math.min(.05, Math.max(0, (now - lastAnimationFrame) / 1000)) : 0;
+      lastAnimationFrame = now;
       syncFromScroll();
+      // Idle motion is live (and pause-able), even before scrolling begins.
+      // The same 21 card elements are then controlled by ScrollTrigger.
+      if (capturedClock === null && travel.progress < .0001 &&
+          window.scrollY <= pinned.start + 1 && !document.hidden) {
+        if (!reduced.matches) homeClock += dt;
+        render();
+      }
       syncFrame = requestAnimationFrame(frameSync);
     };
     const onScroll = () => {
@@ -407,7 +454,7 @@ export default function ProjectsSequence() {
       reduced.removeEventListener?.('change', onReduced);
       pinned.kill();
       timeline.kill();
-      for (const el of [title, ink, subtitle, indicators, bottom, video]) {
+      for (const el of [title, ink, subtitle, indicators, bottom]) {
         if (el) el.style.opacity = '';
       }
       home.style.removeProperty('--jw-home-blow');
