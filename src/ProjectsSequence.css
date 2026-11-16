@@ -26,8 +26,10 @@
   transform-style: preserve-3d;
   pointer-events: none;
 }
+/* Each artwork is one body-level card, so its real z-index alternates
+   IN FRONT of / BEHIND the original 3D head throughout the staircase. */
 .jw-projects-stage__card {
-  position: absolute;
+  position: fixed;
   left: 50%;
   top: 50%;
   translate: -50% -50%;
@@ -42,6 +44,7 @@
   justify-content: center;
   will-change: transform, opacity;
   pointer-events: none;
+  overflow: visible;
 }
 .jw-projects-stage__card img {
   display: block;
