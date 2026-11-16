@@ -109,34 +109,37 @@ export default function ProjectsSequence() {
       return ((age % 1) + 1) % 1;
     }
     function homePose(index, age) {
-      // All sheets originate behind the same head, circle it, then drift out
-      // through the edges. The first/last 10% is feathered for a seamless
-      // return to the origin, with no visible pop when the 12s cycle wraps.
-      const theta = -Math.PI * .64 + age * TAU * 1.61 +
-        Math.sin(age * TAU * 1.4 + index * .17) * .055;
-      const radiusX = width * (.035 + .68 * smooth(age, 0, 1));
-      const radiusY = height * (.045 + .65 * smooth(age, 0, 1));
-      const lateral = Math.sin(age * 8.3 + index * .43) *
-        Math.sin(age * Math.PI) * Math.min(width, height) * .029;
-      let x = Math.cos(theta) * radiusX - Math.sin(theta) * lateral;
-      let y = Math.sin(theta) * radiusY + Math.cos(theta) * lateral;
-      // Push the visible paper current around the giant outlined Home title,
-      // not through its main reading zone. Each sheet stays on its continuous
-      // helical trajectory; this is a smooth radial deflection, not a jump.
-      const titleClearance = smooth(age, .10, .30) *
-        (1 - smooth(Math.abs(x), width * .23, width * .53)) *
-        (1 - smooth(Math.abs(y), height * .10, height * .31));
-      x += Math.cos(theta) * width * .125 * titleClearance;
-      y += Math.sin(theta) * height * .225 * titleClearance;
+      // Home-only visual reconstruction of the approved Hole 01 paper
+      // current. Keep each sheet on ONE smooth outward-winding path rather
+      // than blowing it into giant edge-clipped postcards. Twenty-one evenly
+      // phased live cards still share the original 12-second circulation.
+      const expansion = smooth(age, .03, .95);
+      const theta = -Math.PI * .68 + age * TAU * 1.90 +
+        Math.sin(age * TAU * .85 + index * .23) * .07;
+      const radiusX = width * (.035 + .58 * expansion);
+      const radiusY = height * (.045 + .59 * expansion);
+      const sway = Math.sin(age * 13 + index * .7) *
+        Math.sin(age * Math.PI) * Math.min(width, height) * .012;
+      const x = Math.cos(theta) * radiusX - Math.sin(theta) * sway;
+      const y = Math.sin(theta) * radiusY + Math.cos(theta) * sway;
+      const sizeVariation = .93 + .11 * Math.sin(index * 2.18);
+      // The old scale reached .81 (+ perspective), producing cards several
+      // times larger than the approved paper. Target roughly 40–120px in a
+      // desktop viewport, while retaining natural perspective variation.
+      const scale = mix(.15, .33, smooth(age, .03, .90)) *
+        sizeVariation;
       return {
         x, y,
-        z: mix(-810, 285, smooth(age, .02, .89)),
-        scale: mix(.095, .81, smooth(age, .045, .92)),
-        rx: Math.sin(theta * 1.42 + index * .39) * 23,
-        ry: Math.sin(theta * .85 + index * .27) * 49,
-        rz: Math.sin(theta + index * .19) * 24,
-        opacity: smooth(age, .035, .145) *
-          (1 - smooth(age, .865, .998)),
+        z: mix(-620, 160, smooth(age, .03, .93)),
+        scale,
+        rx: Math.sin(theta * 1.36 + index * .37) * 20,
+        ry: Math.sin(theta * .83 + index * .29) * 36,
+        rz: Math.sin(theta + index * .16) * 19,
+        // Hide the birth behind the head and soften the exit at the edge.
+        // At any moment about 15–17 individually controllable sheets are
+        // visible, never 21 oversized layers fighting the Home title.
+        opacity: smooth(age, .11, .245) *
+          (1 - smooth(age, .825, .975)),
       };
     }
 
@@ -302,9 +305,16 @@ export default function ProjectsSequence() {
         smooth(phase, .806, .992) * 1.6;
       const flutter = Math.sin(time * 2.7 + index * .73) * .28 +
         Math.sin(time * 4.4 + index * 1.14) * .13;
-      // Small elastic bend: sheets flex but their artwork stays legible.
-      const curl = Math.max(.10, .48 + flutter * .68) *
+      // Curl and flutter breathe while the Home current loops. The first
+      // sliver of scrolling blends back to the existing spiral physics;
+      // neither the scroll timeline nor its geometry is edited here.
+      const homeCurl = Math.max(.18, .49 +
+        .20 * Math.sin(initialAge * TAU * 2.0 + index * .25) +
+        flutter * .22);
+      const transitionCurl = Math.max(.10, .48 + flutter * .68) *
         (1 - smooth(phase, .835, .995));
+      const curl = mix(homeCurl, transitionCurl,
+        smooth(phase, .012, .085));
       gpuPaperRef.current?.setPose(index, {
         x: finalX, y: finalY, z: finalZ,
         rx: rotX, ry: rotY, rz: rotZ,
