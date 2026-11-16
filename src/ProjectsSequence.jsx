@@ -164,7 +164,7 @@ export default function ProjectsSequence() {
       // arrangement TOWARDS THE LEFT EDGE. The curve travels forwards in
       // perspective instead of cutting straight to the gallery.
       const sweep = smooth(phase, .806, .893);
-      const edgeX = -width * (.545 + (1 - order) * .086);
+      const edgeX = -width * (.425 + (1 - order) * .060);
       const edgeY = height * .235 + (order - .5) * height * .25;
       const edgeZ = 310 + Math.sin(headAngle) * 92;
       const edgeScale = .55;
@@ -217,7 +217,7 @@ export default function ProjectsSequence() {
         (1 - smooth(phase, .205, .278));
       const emerging = smooth(phase, releaseStart + .006, releaseStart + .075);
       const unfeaturedFade = rank < 0 ?
-        1 - smooth(phase, .853, .94) : 1;
+        1 - smooth(phase, .834, .921) : 1;
       const opacity = Math.max(rewindReveal, emerging) *
         mix(1, target.opacity, landing) * unfeaturedFade * exitFade;
 
@@ -260,7 +260,7 @@ export default function ProjectsSequence() {
       const textFade = 1 - smooth(p, .035, .252);
       const subFade = 1 - smooth(p, .050, .250);
       const bottomFade = 1 - smooth(p, .018, .210);
-      const videoFade = 1 - smooth(p, .10, .275);
+      const videoFade = 1 - smooth(p, .085, .225);
       const headRise = smooth(p, .803, .993);
 
       // Fade all Home lettering IN PLACE. Do not move any text off the page,
@@ -285,7 +285,7 @@ export default function ProjectsSequence() {
       stage.style.visibility = isShown ? 'visible' : 'hidden';
       stage.style.backgroundColor = 'rgba(255,255,255,' +
         smooth(p, .30, .65).toFixed(3) + ')';
-      if (copy) copy.style.opacity = String(smooth(p, .936, 1) * exitFade);
+      if (copy) copy.style.opacity = String(smooth(p, .922, .992) * exitFade);
 
       for (let i = 0; i < CARD_COUNT; i++) {
         if (cardRefs.current[i]) {
