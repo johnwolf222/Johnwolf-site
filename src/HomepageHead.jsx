@@ -73,104 +73,9 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
     let lastFrame = 0;
     let geometry = null;
     let scale = 1;
-    // Capture the real model's transparent silhouette into the front-most
-    // outline mask. No hand-drawn oval or static substitute can track yaw,
-    // blinking and cursor-following geometry accurately.
-    const alphaMaskCanvas = document.createElement('canvas');
-    // We do not read the mask back to JS. That forced a GPU readback stall
-    // on every update, interrupting the rolling letters and cursor-following head.
-    const alphaMaskContext = alphaMaskCanvas.getContext('2d');
-    let lastMaskFrame = -Infinity;
-    let maskEncoding = false;
-    let currentMaskUrl = null;
-    const retiredMaskUrls = new Set();
-    let maskGeneration = 0;
-    const releaseMaskUrl = url => {
-      if (!url) return;
-      retiredMaskUrls.delete(url);
-      URL.revokeObjectURL(url);
-    };
-    const refreshOutlineMask = (now, force = false) => {
-      if (!alphaMaskContext || maskEncoding ||
-          (!force && now - lastMaskFrame < 38)) return;
-      const outline = document.querySelector('.jw-title-head-ink');
-      const text = document.querySelector('.jw-title-head-ink__artboard');
-      if (!outline || !text) return;
-      const bounds = text.getBoundingClientRect();
-      if (bounds.bottom < 0 || bounds.top > window.innerHeight) return;
-
-      const vw = Math.max(1, window.innerWidth);
-      const vh = Math.max(1, window.innerHeight);
-      const width = Math.min(700, Math.max(390, Math.round(vw * .75)));
-      const height = Math.max(1, Math.round(width * vh / vw));
-      if (alphaMaskCanvas.width !== width || alphaMaskCanvas.height !== height) {
-        alphaMaskCanvas.width = width;
-        alphaMaskCanvas.height = height;
-      }
-      const ratio = width / vw;
-      const rect = surface.getBoundingClientRect();
-      alphaMaskContext.clearRect(0, 0, width, height);
-      // Called immediately after the GLB render, while the original
-      // transparent silhouette is available in the WebGL framebuffer.
-      try {
-        alphaMaskContext.drawImage(surface,
-          rect.left * ratio, rect.top * ratio,
-          rect.width * ratio, rect.height * ratio);
-      } catch {
-        return; // Retain the previous valid mask.
-      }
-
-      // Show the first accurate silhouette immediately. Waiting for the
-      // asynchronous encoder can leave the title without its outlined layer
-      // during the initial roll on slower devices. This is a ONE-TIME PNG;
-      // subsequent live updates remain off the animation frame.
-      if (!outline.dataset.maskReady) {
-        try {
-          const firstMask = alphaMaskCanvas.toDataURL('image/png');
-          // An empty transparent canvas encodes to a tiny image. Never present
-          // that as a valid head silhouette or let the mask escape its bounds.
-          if (firstMask.length > 2000) {
-            const initialValue = 'url("' + firstMask + '")';
-            outline.style.maskImage = initialValue;
-            outline.style.webkitMaskImage = initialValue;
-            outline.dataset.maskReady = 'true';
-            lastMaskFrame = now;
-            return;
-          }
-        } catch {
-          // Try the async encoder on a later frame if the fast path fails.
-        }
-      }
-
-      lastMaskFrame = now;
-      maskEncoding = true;
-      const generation = ++maskGeneration;
-      // toBlob moves PNG encoding off the critical animation frame. Keep one
-      // request in flight; never queue copies when a slower device is busy.
-      alphaMaskCanvas.toBlob(blob => {
-        maskEncoding = false;
-        if (!live || generation !== maskGeneration || !blob?.size ||
-            !outline.isConnected) return;
-        const nextMaskUrl = URL.createObjectURL(blob);
-        const previous = currentMaskUrl;
-        currentMaskUrl = nextMaskUrl;
-        const maskValue = 'url("' + nextMaskUrl + '")';
-        outline.style.maskImage = maskValue;
-        outline.style.webkitMaskImage = maskValue;
-        outline.dataset.maskReady = 'true';
-        if (previous) {
-          retiredMaskUrls.add(previous);
-          // Retain the prior frame until the new blob-backed mask has reached
-          // the compositor; revoking it immediately can flash blank in Safari.
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => releaseMaskUrl(previous));
-          });
-        }
-      // WebP retains the transparency silhouette, with a much smaller
-      // compressed mask than PNG. Browsers without WebP encoding fall back to
-      // PNG automatically according to the canvas API.
-      }, 'image/webp', 0.96);
-    };
+    // The outline uses an approved, pre-rendered alpha silhouette embedded
+    // with the title on first paint. Never recapture/replace CSS mask URLs here:
+    // that GPU readback and image decode caused visible blinking.
 
     const measure = () => {
       if (!live) return;
@@ -251,7 +156,6 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
         mesh.morphTargetInfluences[index] = motion.blink;
       }
       renderer.render(scene, camera);
-      refreshOutlineMask(now);
       frameId = requestAnimationFrame(animate);
     };
     const start = () => {
@@ -311,7 +215,6 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
       }
       if (!live) return;
       renderer.render(scene, camera);
-      refreshOutlineMask(performance.now(), true);
       loaded = true;
       setReady(true);
       start();
@@ -323,10 +226,6 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
 
     return () => {
       live = false;
-      maskGeneration += 1; // Discard any encoding callback finishing after unmount.
-      if (currentMaskUrl) URL.revokeObjectURL(currentMaskUrl);
-      for (const url of retiredMaskUrls) URL.revokeObjectURL(url);
-      retiredMaskUrls.clear();
       stop();
       triggerRef.current = null;
       observer.disconnect();
