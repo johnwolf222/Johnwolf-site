@@ -118,8 +118,16 @@ export default function ProjectsSequence() {
       const radiusY = height * (.045 + .65 * smooth(age, 0, 1));
       const lateral = Math.sin(age * 8.3 + index * .43) *
         Math.sin(age * Math.PI) * Math.min(width, height) * .029;
-      const x = Math.cos(theta) * radiusX - Math.sin(theta) * lateral;
-      const y = Math.sin(theta) * radiusY + Math.cos(theta) * lateral;
+      let x = Math.cos(theta) * radiusX - Math.sin(theta) * lateral;
+      let y = Math.sin(theta) * radiusY + Math.cos(theta) * lateral;
+      // Push the visible paper current around the giant outlined Home title,
+      // not through its main reading zone. Each sheet stays on its continuous
+      // helical trajectory; this is a smooth radial deflection, not a jump.
+      const titleClearance = smooth(age, .10, .30) *
+        (1 - smooth(Math.abs(x), width * .23, width * .53)) *
+        (1 - smooth(Math.abs(y), height * .10, height * .31));
+      x += Math.cos(theta) * width * .125 * titleClearance;
+      y += Math.sin(theta) * height * .225 * titleClearance;
       return {
         x, y,
         z: mix(-810, 285, smooth(age, .02, .89)),
@@ -294,7 +302,8 @@ export default function ProjectsSequence() {
         smooth(phase, .806, .992) * 1.6;
       const flutter = Math.sin(time * 2.7 + index * .73) * .28 +
         Math.sin(time * 4.4 + index * 1.14) * .13;
-      const curl = (0.64 + flutter) *
+      // Small elastic bend: sheets flex but their artwork stays legible.
+      const curl = Math.max(.10, .48 + flutter * .68) *
         (1 - smooth(phase, .835, .995));
       gpuPaperRef.current?.setPose(index, {
         x: finalX, y: finalY, z: finalZ,
