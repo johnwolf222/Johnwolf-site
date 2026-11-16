@@ -135,7 +135,7 @@ export default function ProjectsSequence() {
       const x = radius * cos - crosswind * sin;
       const y = radius * sin + crosswind * cos;
       const sizeVariation = .90 + .13 * Math.sin(index * 2.18);
-      const scale = mix(.14, .32, smooth(age, .12, .84)) *
+      const scale = mix(.17, .39, smooth(age, .12, .84)) *
         sizeVariation;
       // A sheet tumbles and drifts, but never stretches its source image.
       // Actual curl/flutter remain on the live tessellated GPU surface.
