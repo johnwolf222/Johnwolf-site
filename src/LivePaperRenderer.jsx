@@ -10,14 +10,38 @@ const imageFor = index => '/new-homepage/approved-cards/' +
   String(index + 1).padStart(2, '0') + (index >= 13 ? '.avif' : '.webp');
 
 const VERTEX = `
-  attribute vec3 color;
   varying vec2 vUv;
-  varying vec3 vLight;
+  varying float vLight;
+  uniform float uCurl;
+  uniform float uTime;
+  uniform float uSeed;
   void main() {
     vUv = uv;
-    vLight = color;
+    vec3 p = position;
+    float bend = max(.001, min(1.15, uCurl));
+    float axis = .28 + uSeed * .027;
+    float ca = cos(axis), sa = sin(axis);
+    float across = p.x * ca + p.y * sa;
+    float along = p.y * ca - p.x * sa;
+    float angle = across * bend * 1.8;
+    float curved = sin(angle) / (bend * 1.8);
+    float depth = (1. - cos(angle)) / (bend * 1.8);
+    float edge = .38 + .62 *
+      pow(min(1., abs(across) * 2.), 1.35);
+    float flutter = uCurl * .067 * edge *
+      sin(along * 12.2 - uTime * 2.8 + uSeed * .73);
+    float torsion = uCurl * .021 *
+      sin(along * 5.1 + uTime * 3.4 + uSeed * .38) *
+      abs(across);
+    p = vec3(
+      curved * ca - (along + torsion) * sa,
+      curved * sa + (along + torsion) * ca,
+      depth * .83 + flutter
+    );
+    vLight = 1. - .19 * abs(sin(angle)) -
+      .12 * min(1., abs(flutter) * 5.);
     gl_Position = projectionMatrix * modelViewMatrix *
-      vec4(position, 1.0);
+      vec4(p, 1.0);
   }
 `;
 // A SINGLE render pass: every bendable paper mesh samples the GLB's
@@ -26,7 +50,7 @@ const VERTEX = `
 const PAPER_FRAGMENT = `
   precision highp float;
   varying vec2 vUv;
-  varying vec3 vLight;
+  varying float vLight;
   uniform sampler2D uTexture;
   uniform sampler2D uHead;
   uniform vec4 uHeadBounds;
@@ -52,43 +76,7 @@ const PAPER_FRAGMENT = `
     #include <colorspace_fragment>
   }
 `;
-function deform(item, curl, time) {
-  const bend = Math.max(.001, Math.min(1.15, curl));
-  const position = item.geometry.attributes.position;
-  const color = item.geometry.attributes.color;
-  const original = item.original;
-  const axis = .28 + item.index * .027;
-  const ca = Math.cos(axis), sa = Math.sin(axis);
-  for (let i = 0; i < position.count; i++) {
-    const p = i * 3;
-    const sx = original[p], sy = original[p + 1];
-    const across = sx * ca + sy * sa;
-    const along = sy * ca - sx * sa;
-    const angle = across * bend * 1.8;
-    const curved = Math.sin(angle) / (bend * 1.8);
-    const depth = (1 - Math.cos(angle)) / (bend * 1.8);
-    const edge = .38 + .62 * Math.pow(Math.min(1, Math.abs(across) * 2), 1.35);
-    const flutter = curl * .067 * edge *
-      Math.sin(along * 12.2 - time * 2.8 + item.index * .73);
-    const torsion = curl * .021 * Math.sin(along * 5.1 +
-      time * 3.4 + item.index * .38) * Math.abs(across);
-    const px = curved * ca - (along + torsion) * sa;
-    const py = curved * sa + (along + torsion) * ca;
-    position.setXYZ(i, px, py, depth * .83 + flutter);
-    const shade = 1 - .19 * Math.abs(Math.sin(angle)) -
-      .12 * Math.min(1, Math.abs(flutter) * 5);
-    color.setXYZ(i, shade, shade, shade);
-  }
-  position.needsUpdate = true;
-  color.needsUpdate = true;
-}
-
-/**
- * The one continuous card renderer. Exactly 21 meshes, each containing the
- * approved image on one bendable tessellated surface. No video, no duplicate
- * scene, no DOM-strip layers. The original GLB head keeps its renderer and
- * is occluded in the paper's single GPU composite using its locked mask.
- */
+/** Render all 21 cards from the same continuous GPU geometry/clock. */
 const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
   const canvasRef = useRef(null);
   const engineRef = useRef(null);
@@ -133,17 +121,16 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
     const items = [];
     const poses = Array(TOTAL).fill(null);
     for (let index = 0; index < TOTAL; index++) {
-      const geometry = new THREE.PlaneGeometry(1, 1, 14, 18);
-      const pos = geometry.attributes.position;
-      const original = pos.array.slice();
-      const colors = new Float32Array(pos.count * 3).fill(1);
-      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      const geometry = new THREE.PlaneGeometry(1, 1, 12, 14);
       const material = new THREE.ShaderMaterial({
         uniforms: {
           ...sharedUniforms,
           uTexture: { value: null },
           uOpacity: { value: 0 },
           uBehind: { value: 1 },
+          uCurl: { value: 0 },
+          uTime: { value: 0 },
+          uSeed: { value: index },
         },
         vertexShader: VERTEX,
         fragmentShader: PAPER_FRAGMENT,
@@ -157,7 +144,7 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
       mesh.visible = false;
       mesh.rotation.order = 'YXZ';
       world.add(mesh);
-      items.push({ index, geometry, material, mesh, original, mapReady: false });
+      items.push({ index, geometry, material, mesh, mapReady: false });
     }
 
     const loader = new THREE.TextureLoader();
@@ -169,7 +156,9 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
       if (disposed) return;
       width = Math.max(1, window.innerWidth);
       height = Math.max(1, window.innerHeight);
-      dpr = Math.min(window.devicePixelRatio || 1, width < 700 ? 1 : 1.5);
+      // The original head uses its own canvas; cap the independent paper
+      // raster at native pixel density to avoid doubling GPU fill pressure.
+      dpr = Math.min(window.devicePixelRatio || 1, 1);
       renderer.setPixelRatio(dpr);
       renderer.setSize(width, height, false);
       camera.fov = THREE.MathUtils.radToDeg(
@@ -231,7 +220,8 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
           'YXZ',
         );
         item.material.uniforms.uOpacity.value = pose.opacity;
-        deform(item, pose.curl, pose.time);
+        item.material.uniforms.uCurl.value = pose.curl;
+        item.material.uniforms.uTime.value = pose.time;
       }
       renderer.clear();
       renderer.render(world, camera);
