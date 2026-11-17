@@ -201,8 +201,12 @@ function createLane(index, width, height, config) {
       clamp(.10 + .92 * pressure + .16 * rush, .05, 1.07);
     const flutter = releaseBlend *
       clamp(.12 + rush * .60 + .20 * pressure, .08, .98);
+    // A card physically conforms to the curved opening before releasing.
+    // This drives geometry directly, rather than a separate "flutter" layer.
+    const ringWrap = 1 - ease(t,
+      releaseTime - .12, releaseTime + .48);
     frames.push({ x, y, z, rx, ry, rz, scale, opacity,
-      curl, flutter, time: t,
+      curl, flutter, ringWrap, time: t,
       q: [q.x, q.y, q.z, q.w] });
   }
   return frames;
@@ -248,6 +252,7 @@ export function createHomePaperMotion(width, height, config = HOME_PAPER_PRESET)
         opacity: lerp(a.opacity, b.opacity, frac),
         curl: lerp(a.curl, b.curl, frac),
         flutter: lerp(a.flutter, b.flutter, frac),
+        ringWrap: lerp(a.ringWrap, b.ringWrap, frac),
         time: life,
         q: interpolatedQ.toArray(),
       };
