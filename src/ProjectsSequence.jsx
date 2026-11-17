@@ -290,6 +290,7 @@ export default function ProjectsSequence() {
         scale: finalScale, opacity,
         front, curl, time,
         flutter: mix(flight.flutter, 1, smooth(phase, .012, .085)),
+        wrap: flight.wrap * (1 - smooth(phase, .012, .085)),
       });
       card.dataset.phase = phase === 0 ? 'home-current' :
         phase < .272 ? 'rewind' :
