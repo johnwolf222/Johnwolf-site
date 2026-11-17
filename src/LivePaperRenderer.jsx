@@ -16,6 +16,7 @@ const VERTEX = `
   uniform float uFlutter;
   uniform float uTime;
   uniform float uSeed;
+  uniform float uExitWrap;
   void main() {
     vUv = uv;
     vec3 pos = position;
@@ -24,7 +25,9 @@ const VERTEX = `
     // separately by its 3D pose so the fold follows the paper naturally.
     float across = pos.y;
     float along = pos.x;
-    float bend = max(.0001, uCurl * 2.12);
+    // Fold the sheet around the ring lip during departure. This shapes
+    // individual vertices but does not move or rearrange card centers.
+    float bend = max(.0001, uCurl * 2.12 + uExitWrap * 2.0);
     float phi = across * bend;
     float bentAcross = sin(phi) / bend;
     float bulge = (1. - cos(phi)) / bend;
@@ -38,7 +41,12 @@ const VERTEX = `
     float paperRipple = uFlutter * .042 * sin(ripplePhase);
     float rippleSlope = uFlutter * .042 * 3.14159 * cos(ripplePhase);
     pos.xy = vec2(along, bentAcross);
-    pos.z = bulge * .72 + paperRipple;
+    float leadingEdge = smoothstep(.02, .5, across);
+    float trailingEdge = smoothstep(.02, .5, -across);
+    float ringLipArc = uExitWrap *
+      (.24 * leadingEdge * leadingEdge -
+       .38 * trailingEdge * trailingEdge);
+    pos.z = bulge * .72 + paperRipple + ringLipArc;
     // Fold and flutter affect the surface normal independently.
     float lightFacing = .5 + .5 * cos(phi + .4 + rippleSlope);
     vLight = clamp(.79 + .26 * lightFacing -
@@ -78,6 +86,80 @@ const PAPER_FRAGMENT = `
     gl_FragColor = vec4(paper.rgb * vLight, alpha);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
+  }
+`;
+
+// Radial color separation belongs to the paper image, not to the title
+// or 3D head. It is a second pass over this SAME renderer/canvas.
+const RAYS_VERTEX = `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = vec4(position.xy, 0.0, 1.0);
+  }
+`;
+const RAYS_FRAGMENT = `
+  precision highp float;
+  varying vec2 vUv;
+  uniform sampler2D uPaper;
+  uniform vec2 uSize;
+  uniform float uRingRadius;
+  uniform float uNearRays;
+  uniform float uEdgeRays;
+  uniform float uRayStrength;
+
+  void main() {
+    vec4 original = texture2D(uPaper, vUv);
+    vec2 fromCenter = (vUv - .5) * uSize;
+    float radialDistance = length(fromCenter);
+    vec2 outward = fromCenter / max(1.0, radialDistance);
+    float ringThickness = max(1.0, uRingRadius * .34);
+    float ringDistance = (radialDistance - uRingRadius) / ringThickness;
+    float holeWeight = uNearRays *
+      exp(-pow((ringDistance + .88) / .72, 2.0));
+    vec2 edges = abs(vUv * 2.0 - 1.0);
+    float edgeWeight = uEdgeRays *
+      smoothstep(.78, 1.0, max(edges.x, edges.y));
+    float reach = uRayStrength * (
+      ringThickness * holeWeight * .45 +
+      min(uSize.x, uSize.y) * edgeWeight * .055);
+    reach = min(48.0, reach);
+
+    if (reach < .6) {
+      gl_FragColor = original;
+      return;
+    }
+
+    // Color channels pull from different points along a radial streak.
+    // The tinted ghost fades wherever there is no sheet coverage.
+    vec3 light = vec3(0.0);
+    vec3 cover = vec3(0.0);
+    vec3 weights = vec3(0.0);
+    for (int i = 0; i < 9; i++) {
+      float t = (float(i) + .5) / 9.0;
+      vec2 sampleUV = vUv + outward * (t - .5) * reach / uSize;
+      vec4 sampleColor = texture2D(uPaper, sampleUV);
+      vec3 spectrum = vec3(
+        smoothstep(.15, .82, 1.0 - t),
+        1.0 - .72 * abs(t * 2.0 - 1.0),
+        smoothstep(.15, .82, t)
+      );
+      light += sampleColor.rgb * sampleColor.a * spectrum;
+      cover += sampleColor.a * spectrum;
+      weights += spectrum;
+    }
+
+    vec3 chromatic = light / max(weights, vec3(.0001));
+    vec3 channelCover = cover / max(weights, vec3(.0001));
+    float haloAlpha = max(channelCover.r,
+      max(channelCover.g, channelCover.b));
+    vec3 haloColor = chromatic / max(haloAlpha, .0001);
+    float blendAmount = clamp(
+      uRayStrength * (holeWeight + edgeWeight * .78), 0.0, 1.0);
+    float outputAlpha = max(original.a,
+      haloAlpha * blendAmount * .80);
+    vec3 outputColor = mix(original.rgb, haloColor, blendAmount);
+    gl_FragColor = vec4(outputColor, outputAlpha);
   }
 `;
 /** Render all 21 cards from the same continuous GPU geometry/clock. */
@@ -128,6 +210,36 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
     let disposed = false;
     let ready = false;
     const world = new THREE.Scene();
+    // Render the existing paper objects to an offscreen texture before
+    // their radial chromatic trail is composited to the same canvas.
+    const paperTarget = new THREE.WebGLRenderTarget(1, 1, {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat,
+      depthBuffer: true,
+      stencilBuffer: false,
+    });
+    const raysScene = new THREE.Scene();
+    const raysCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const raysGeometry = new THREE.PlaneGeometry(2, 2);
+    const raysMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        uPaper: { value: paperTarget.texture },
+        uSize: { value: new THREE.Vector2(1, 1) },
+        uRingRadius: { value: 1 },
+        uNearRays: { value: 1 },
+        uEdgeRays: { value: 1 },
+        uRayStrength: { value: 1 },
+      },
+      vertexShader: RAYS_VERTEX,
+      fragmentShader: RAYS_FRAGMENT,
+      depthTest: false,
+      depthWrite: false,
+      blending: THREE.NoBlending,
+      transparent: false,
+      toneMapped: false,
+    });
+    raysScene.add(new THREE.Mesh(raysGeometry, raysMaterial));
     const camera = new THREE.PerspectiveCamera(42, 1, 1, 9000);
     camera.position.z = FOCAL;
     const sharedUniforms = {
@@ -148,6 +260,7 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
           uBehind: { value: 1 },
           uCurl: { value: 0 },
           uFlutter: { value: 0 },
+          uExitWrap: { value: 0 },
           uTime: { value: 0 },
           uSeed: { value: index },
         },
@@ -186,6 +299,10 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       sharedUniforms.uResolution.value.set(width * dpr, height * dpr);
+      paperTarget.setSize(width * dpr, height * dpr);
+      raysMaterial.uniforms.uSize.value.set(width * dpr, height * dpr);
+      raysMaterial.uniforms.uRingRadius.value =
+        Math.min(width, height) * .31 * dpr;
       const card = document.querySelector('.jw-projects-stage__card');
       paperWidth = card?.offsetWidth ||
         (width <= 800 ? Math.min(width * .55, 285) : Math.min(width * .26, 370));
@@ -252,10 +369,20 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
         item.material.uniforms.uOpacity.value = pose.opacity;
         item.material.uniforms.uCurl.value = pose.curl;
         item.material.uniforms.uFlutter.value = pose.flutter ?? 1;
+        item.material.uniforms.uExitWrap.value = pose.wrap ?? 0;
         item.material.uniforms.uTime.value = pose.time;
       }
+      // The optical rays belong to Home. Fade them away as the existing
+      // scroll sequence hands sheets into the Projects gallery.
+      const rayFade = Math.max(0, Math.min(1, 1 - progress / .18));
+      raysMaterial.uniforms.uRayStrength.value =
+        rayFade * rayFade * (3 - 2 * rayFade);
+      renderer.setRenderTarget(paperTarget);
       renderer.clear();
       renderer.render(world, camera);
+      renderer.setRenderTarget(null);
+      renderer.clear();
+      renderer.render(raysScene, raysCamera);
       if (!canvas.classList.contains('is-ready')) {
         canvas.classList.add('is-ready');
         document.body.classList.add('jw-live-paper-ready');
@@ -325,6 +452,9 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
       });
       textures.forEach(texture => texture.dispose());
       maskTexture?.dispose();
+      paperTarget.dispose();
+      raysGeometry.dispose();
+      raysMaterial.dispose();
       renderer.dispose();
     };
   }, []);
