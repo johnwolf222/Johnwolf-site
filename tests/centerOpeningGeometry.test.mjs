@@ -7,32 +7,30 @@ const source = readFileSync(
 const vertex = source.split('const VERTEX = \`')[1]?.split('\`;')[0];
 const fragment = source.split('const PAPER_FRAGMENT = \`')[1]?.split('\`;')[0];
 
-test('only the paper center-opening geometry gets a rim surface', () => {
+test('the center opening feeds each vertex over a curved physical rim', () => {
   assert.ok(vertex && fragment);
-  assert.match(vertex, /float toroidY = rimRadius \*/);
-  assert.match(vertex, /float toroidZ = rimRadius \*/);
-  assert.match(vertex, /float rimAngle = mix\(3\.141593, \.872665, emergence\)/);
-  assert.match(source, /uRimRadius: \{ value: 1 \}/);
-  assert.match(source, /uExitWrap\.value = pose\.wrap \?\? 0/);
-  assert.match(source, /Math\.min\(width, height\) \* \.33 \* \(\.11 \/ \.312\)/);
+  assert.match(vertex, /vec2 openingCurve\(float s, float radius\)/);
+  assert.match(vertex, /float limit = radius \* \(3\.141593 - \.872665\)/);
+  assert.match(vertex, /vec2 centerOnRim = openingCurve\(centerTravel, arcRadius\)/);
+  assert.match(vertex, /vec2 vertexOnRim = openingCurve\(distance, arcRadius\)/);
+  assert.match(vertex, /vec3 rimWorld = uCardCenter \+/);
+  assert.match(source, /uArcRadius: \{ value: 1 \}/);
+  assert.match(source, /uOutward: \{ value: new THREE\.Vector2\(1, 0\) \}/);
 });
 
-test('outer edge reveals first while still crossing the hole', () => {
-  assert.match(vertex, /float acrossRim = emergence \+ across \* \.52;/);
-  assert.match(vertex, /float visibleFraction = smoothstep\(\.28, \.56, acrossRim\);/);
+test('the trailing paper reveals only after crossing the inner lip', () => {
+  assert.match(vertex, /float visibleFraction = smoothstep\(0\.0,/);
+  assert.match(vertex, /arcRadius \* \.42 \* 1\.570796, distance\)/);
   assert.match(vertex, /vOpeningReveal = mix\(1\.0, visibleFraction, rimGate\);/);
   assert.match(fragment, /float alpha = paper\.a \* uOpacity \* vOpeningReveal;/);
-  // The original white/clear alpha mask must remain in place.
   assert.match(fragment, /alpha \*= 1\. - maskAlpha \* uHeadOpacity;/);
 });
 
-test('free-flight geometry and alpha are unmodified after rimGate becomes zero', () => {
-  assert.match(vertex, /float rimGate = clamp\(uExitWrap, 0\.0, 1\.0\);/);
-  assert.match(vertex, /pos\.xy = vec2\(along, mix\(bentAcross, toroidY, rimGate\)\);/);
-  assert.match(vertex, /pos\.z = mix\(originalZ, toroidZ \+ paperRipple, rimGate\);/);
-  assert.match(vertex, /vOpeningReveal = mix\(1\.0, visibleFraction, rimGate\);/);
-  // The pre-existing paper behavior must remain the neutral component.
-  assert.match(vertex, /float originalZ = bulge \* \.72 \+ paperRipple \+ ringLipArc;/);
+test('free flight uses the exact unchanged projection branch', () => {
+  assert.match(vertex, /if \(rimGate > \.0001\) \{/);
+  assert.match(vertex, /gl_Position = projectionMatrix \* modelViewMatrix \*/);
+  assert.match(vertex, /vec4\(pos, 1\.0\);/);
+  assert.match(vertex, /vOpeningReveal = 1\.0;/);
 });
 
 import { createHomePaperMotion } from '../src/HomePaperMotion.js';
