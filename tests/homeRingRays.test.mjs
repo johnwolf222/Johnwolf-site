@@ -37,3 +37,14 @@ test('optical effect fades before paper enters the projects gallery', () => {
   assert.match(source, /1 - progress \/ \.18/);
   assert.match(source, /raysMaterial\.uniforms\.uRayStrength\.value/);
 });
+
+
+test('color separation is confined to ring crossing and section exit', () => {
+  assert.match(post, /float ringDistance = abs\(radialDistance - uRingRadius\)/);
+  assert.match(post, /float edgeInset = min\(/);
+  assert.match(post, /smoothstep\(shortSide \* \.025, shortSide \* \.16, edgeInset\)/);
+  assert.match(post, /float effect = clamp\(max\(holeWeight, edgeWeight\) \* uRayStrength/);
+  assert.match(post, /if \(effect < \.006\) \{\s*gl_FragColor = original;/);
+  assert.match(post, /float reach = effect \* \(3\.0 \+ shortSide \* \.024\)/);
+  assert.doesNotMatch(post, /reach = min\(48\.0/);
+});
