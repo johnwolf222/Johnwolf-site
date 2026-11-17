@@ -107,7 +107,12 @@ function createLane(index, width, height, config) {
       }
       // Damped freedom of rotation: orientation is related to velocity,
       // gently turning with the current rather than spinning in-place.
-      const travelDirection = Math.atan2(vy, vx);
+      const direction = Math.atan2(vy, vx);
+      // Unwrap the heading around the birth direction. Otherwise later
+      // golden-angle lanes rotate through multiple unwanted revolutions at
+      // the moment of release because atan2 always returns [-PI, PI].
+      const travelDirection = direction +
+        Math.round((angle - direction) / TAU) * TAU;
       const air = Math.sin(flightT * 1.8 + wobble) +
         .48 * Math.sin(flightT * 3.5 + tilt);
       x = px;
