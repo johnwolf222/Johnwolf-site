@@ -71,7 +71,7 @@ const VERTEX = `
       // its paper inside the empty hole and washed it out.
       float arcRadius = max(8.0, uArcRadius);
       float arcEnd = arcRadius * (3.141593 - .872665);
-      float advance = smoothstep(.08, 1.60, uTime);
+      float advance = smoothstep(.42, 2.76, uTime);
       float halfHeight = 0.5 * uSheetExtent;
       float centerTravel = mix(-halfHeight - arcRadius * .10,
         arcEnd + halfHeight, advance);
@@ -455,10 +455,15 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
         item.material.uniforms.uOuterRim.value = ringOuter;
         item.material.uniforms.uArcRadius.value =
           ringOuter * (.11 / .312);
+        // A partly hidden sheet retains its physical size while
+        // wrapping the rim. Its approved flight scale is unaffected
+        // because the rim uniform is ignored after release.
+        const openingSheetSize = Math.min(390,
+          Math.min(width, height) * .55);
         item.material.uniforms.uSheetExtent.value =
-          item.mesh.scale.y;
+          openingSheetSize * item.heightFactor;
         item.material.uniforms.uSheetWidth.value =
-          item.mesh.scale.x;
+          openingSheetSize * item.widthFactor;
         const radialLength = Math.max(1, Math.hypot(pose.x, pose.y));
         item.material.uniforms.uOutward.value.set(
           pose.x / radialLength, -pose.y / radialLength);
