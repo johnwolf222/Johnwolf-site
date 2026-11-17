@@ -154,6 +154,10 @@ function createLane(index, width, height, preset) {
     }
 
     const release = smooth(time, passTime, passTime + .64);
+    // Ring-specific vertex wrapping is strongest as the sheet clears
+    // the curved lip, then disappears without changing its center path.
+    const wrap = smooth(time, .22, .87) *
+      (1 - smooth(time, passTime - .16, passTime + .78));
     const visibility = smooth(time, .12, .96) *
       (1 - smooth(time, preset.flight - 1.20, preset.flight - .10));
     const scale = mix(.20, .43, smooth(time, .18, preset.flight - .38)) *
@@ -175,7 +179,7 @@ function createLane(index, width, height, preset) {
       (.38 + .62 * windLoading) * release * preset.flutter, 0, 1.20);
     frames.push({
       x: px, y: py, z: pz, rx, ry, rz,
-      scale, opacity: visibility, curl, flutter, time,
+      scale, opacity: visibility, curl, flutter, wrap, time,
     });
   }
   return frames;
@@ -213,6 +217,7 @@ export function createHomePaperMotion(width, height, config = HOME_PAPER_PRESET)
         opacity: mix(before.opacity, after.opacity, fraction),
         curl: mix(before.curl, after.curl, fraction),
         flutter: mix(before.flutter, after.flutter, fraction),
+        wrap: mix(before.wrap, after.wrap, fraction),
         time: life,
       };
     },
