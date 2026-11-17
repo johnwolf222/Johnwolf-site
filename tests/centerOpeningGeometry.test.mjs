@@ -81,6 +81,27 @@ test('inner rim projects to the opening instead of the card center', () => {
       'hole throat should appear on the same visible rim across viewports');
   }
   assert.match(vertex, /if \(s < 0\.0\) return vec2\(uOuterRim - radius, s\);/);
-  assert.match(source, /item\.material\.uniforms\.uSheetExtent\.value =\s*item\.mesh\.scale\.y;/);
-  assert.match(source, /item\.material\.uniforms\.uSheetWidth\.value =\s*item\.mesh\.scale\.x;/);
+  assert.match(source, /const openingSheetSize = Math\.min\(390,/);
+  assert.match(source, /Math\.min\(width, height\) \* \.55\)/);
+  assert.match(source, /openingSheetSize \* item\.heightFactor;/);
+  assert.match(source, /openingSheetSize \* item\.widthFactor;/);
+});
+
+test('the paper presents its narrow rim-facing edge before its printed face', () => {
+  assert.match(vertex, /float advance = smoothstep\(\.42, 2\.76, uTime\);/);
+  const ease = t => {
+    const p = Math.max(0, Math.min(1, (t - .42) / (2.76 - .42)));
+    return p * p * (3 - 2 * p);
+  };
+  const short = 414, sheet = Math.min(390, short * .55);
+  const rim = short * .33 / .55 * (.11 / .312);
+  const start = -sheet / 2 - .1 * rim;
+  const end = rim * (Math.PI - .872665) + sheet / 2;
+  const at = t => start + (end - start) * ease(t);
+  // In the early entry only the leading part of the sheet has
+  // crossed the lip; the wide printed face stays hidden.
+  assert.ok(at(.9) < 0);
+  assert.ok(at(1.6) > 0);
+  assert.ok(at(2.25) > rim);
+  assert.match(vertex, /float visibleFraction = smoothstep\(0\.0,/);
 });
