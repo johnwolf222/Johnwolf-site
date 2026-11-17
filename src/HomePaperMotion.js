@@ -1,13 +1,13 @@
+import { Euler, Quaternion, Vector3 } from 'three';
+
 /**
- * Homepage-only paper current, inspired by the observable behavior of
- * Premotio's Hole 01 preset. This is an independent implementation.
+ * One deterministic, integrated airflow simulation for each live artwork.
+ * Position, 3D orientation and mesh pressure all respond to the SAME wind.
  *
- * Each artwork owns a deterministic, reversible nine-second journey:
- * central ring -> curved release -> inertial wind-driven free flight.
- * All 21 journeys are staggered around one 12-second clock.
+ * The ring path is a short initial constraint, followed by free-flight.
+ * No independent sinusoidal "card spinning" or decorative flutter.
  *
- * Every transform/rotation/curl sample is reproducible. Scrolling can seek
- * each unique sheet backwards without changing the card or swapping media.
+ * The complete flight is cached in advance so GSAP can seek it in reverse.
  */
 export const HOME_PAPER_PRESET = Object.freeze({
   count: 21,
@@ -19,9 +19,10 @@ export const HOME_PAPER_PRESET = Object.freeze({
   flutter: 1,
   seed: 1,
 });
-const TAU = 2 * Math.PI;
+const TAU = Math.PI * 2;
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
-const STEP = 1 / 60;
+const DEG = 180 / Math.PI;
+const STEP = 1 / 90;
 const clamp = (n, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, n));
 const lerp = (a, b, t) => a + (b - a) * t;
 const ease = (t, a, b) => {
@@ -35,129 +36,187 @@ function random(seed) {
     return state / 4294967296;
   };
 }
+function alignedRotation(rx, ry, rz) {
+  // World/screen coordinates have opposite Y directions. Match the render
+  // orientation, not the unprojected DOM Euler values.
+  return new Quaternion().setFromEuler(
+    new Euler(-rx / DEG, ry / DEG, -rz / DEG, 'YXZ'));
+}
+function unwrapDegrees(current, previous) {
+  if (!Number.isFinite(previous)) return current;
+  return current + 360 * Math.round((previous - current) / 360);
+}
 function createLane(index, width, height, config) {
   const noise = random(config.seed * 4099 + (index + 1) * 10007);
-  const angle = index * GOLDEN + (noise() - .5) * .20;
-  const xRay = Math.cos(angle);
-  const yRay = Math.sin(angle);
-  const acrossX = -yRay;
-  const acrossY = xRay;
+  const heading = index * GOLDEN + (noise() - .5) * .20;
+  const dx = Math.cos(heading), dy = Math.sin(heading);
+  const sideX = -dy, sideY = dx;
   const shortest = Math.min(width, height);
-  const ring = shortest * config.ring;
-  const body = shortest * .135;
-  const screenExit = Math.min(
-    (width * .5 + shortest * .12) / Math.max(.12, Math.abs(xRay)),
-    (height * .5 + shortest * .12) / Math.max(.12, Math.abs(yRay)),
+  const ringR = shortest * config.ring;
+  const innerR = shortest * .135;
+  const exitR = Math.max(
+    ringR + shortest * .20,
+    Math.min(
+      (width * .5 + shortest * .12) / Math.max(.12, Math.abs(dx)),
+      (height * .5 + shortest * .12) / Math.max(.12, Math.abs(dy))
+    )
   );
-  const reach = Math.max(ring + shortest * .20, screenExit);
-  const release = 1.52 + (noise() - .5) * .19;
-  const wander = .8 + noise() * .45;
-  const tilt = noise() * TAU;
-  const wobble = noise() * TAU;
-  const roll = noise() * TAU;
-  const spin = (noise() < .5 ? -1 : 1) * (.16 + noise() * .27);
-  const baseSpeed = (reach - ring * .98) / (config.flight - release);
-  const drift = (noise() - .5) * 13;
-  const gustPhase = [noise() * TAU, noise() * TAU, noise() * TAU];
+  const releaseTime = 1.52 + (noise() - .5) * .19;
+  const freeDuration = config.flight - releaseTime;
+  const radialVelocity = (exitR - ringR) / freeDuration;
+  const sideVelocity = (noise() - .5) * 18;
+  const phases = Array.from({ length: 6 }, () => noise() * TAU);
+  const gustGain = .82 + noise() * .42;
+  const releaseRoll = (noise() - .5) * 23;
+  const wobbleBias = (noise() - .5) * 2;
+  const spinSign = noise() < .5 ? -1 : 1;
   const frames = [];
-  let px = xRay * ring;
-  let py = yRay * ring;
-  let vx = xRay * baseSpeed + acrossX * drift;
-  let vy = yRay * baseSpeed + acrossY * drift;
+  const q = new Quaternion();
+  const delta = new Quaternion();
+  const localAxis = new Vector3();
+  const facing = new Vector3();
+  const airVector = new Vector3();
+  const torque = new Vector3();
+  const angVel = new Vector3(
+    (noise() - .5) * .60,
+    (noise() - .5) * .66,
+    spinSign * (.30 + noise() * .30),
+  );
+  const euler = new Euler(0, 0, 0, 'YXZ');
+  let x = dx * ringR, y = dy * ringR, z = -280;
+  let vx = dx * radialVelocity + sideX * sideVelocity;
+  let vy = dy * radialVelocity + sideY * sideVelocity;
+  let prevEuler = null;
+  let released = false;
+  let pressure = 0, rush = 0;
 
-  for (let i = 0; i <= Math.ceil(config.flight / STEP); i++) {
-    const t = Math.min(config.flight, i * STEP);
-    const out = t > release;
-    let x, y, z, rx, ry, rz, curl, flutter, scale;
-
-    if (!out) {
-      // Paper follows the inside of a three-dimensional curved ring before
-      // its free-flight release; the bend is in the radial-depth cross-section.
-      const u = ease(t, 0, release);
-      const phi = Math.PI * (1 - u) * .82;
-      const r = body + (ring - body) * ease(u, .12, .96);
-      x = xRay * r;
-      y = yRay * r;
-      z = -690 + 410 * u + 85 * Math.sin(phi);
-      const ringTilt = (1 - u) * 47;
-      rx = ringTilt * yRay + 9 * Math.sin(tilt + u * 4);
-      ry = ringTilt * xRay + 13 * Math.cos(wobble + u * 3);
-      rz = angle * 180 / Math.PI + 90 +
-        12 * Math.sin(roll + u * 2.5);
+  for (let frame = 0; frame <= Math.ceil(config.flight / STEP); frame++) {
+    const t = Math.min(config.flight, frame * STEP);
+    let rx, ry, rz;
+    if (t <= releaseTime) {
+      // Constrain the surface to the curved mouth until it reaches the
+      // tangent release point. Rotation follows the curved surface.
+      const u = ease(t, 0, releaseTime);
+      const radius = lerp(innerR, ringR, ease(u, .12, .96));
+      const arc = Math.PI * (1 - u) * .82;
+      x = dx * radius;
+      y = dy * radius;
+      z = -690 + 410 * u + 85 * Math.sin(arc);
+      const sideTilt = (1 - u) * 47;
+      rx = sideTilt * dy + (1 - u) * 9 * Math.sin(phases[0] + u * 4);
+      ry = sideTilt * dx + (1 - u) * 13 * Math.cos(phases[1] + u * 3);
+      rz = heading * DEG + 90 + releaseRoll * (1 - u);
+      q.copy(alignedRotation(rx, ry, rz));
+      pressure = 0;
+      rush = 0;
+      if (frame === 0) prevEuler = [rx, ry, rz];
     } else {
-      const flightT = t - release;
-      const u = clamp(flightT / (config.flight - release));
-      if (i > 0) {
-        // Inertial advection through a bounded, multi-frequency wind field.
-        // Gusts depend on position and time, not random frame changes.
-        const wave1 = Math.sin(
-          (px * .0038 + py * .0021) + flightT * .97 + gustPhase[0]);
-        const wave2 = Math.cos(
-          (py * .0048 - px * .0016) - flightT * 1.43 + gustPhase[1]);
-        const wave3 = Math.sin(flightT * 2.12 + gustPhase[2]);
-        const sideways = (wave1 * 26 + wave2 * 17 + wave3 * 9) * wander;
-        const flow = 1 + .11 * Math.sin(flightT * 1.04 + tilt);
-        const goalVX = xRay * baseSpeed * flow + acrossX * sideways;
-        const goalVY = yRay * baseSpeed * flow + acrossY * sideways;
-        const inertia = Math.min(1, STEP * 1.28);
-        vx = lerp(vx, goalVX, inertia);
-        vy = lerp(vy, goalVY, inertia);
-        px += vx * STEP;
-        py += vy * STEP;
+      if (!released) {
+        // Maintain the exact contact position/orientation as the card leaves
+        // the ring. Air pressure takes over smoothly rather than resetting
+        // an independent rotation animation.
+        released = true;
+        x = dx * ringR;
+        y = dy * ringR;
+        z = -280;
       }
-      // Damped freedom of rotation: orientation is related to velocity,
-      // gently turning with the current rather than spinning in-place.
-      const direction = Math.atan2(vy, vx);
-      // Unwrap the heading around the birth direction. Otherwise later
-      // golden-angle lanes rotate through multiple unwanted revolutions at
-      // the moment of release because atan2 always returns [-PI, PI].
-      const travelDirection = direction +
-        Math.round((angle - direction) / TAU) * TAU;
-      const air = Math.sin(flightT * 1.8 + wobble) +
-        .48 * Math.sin(flightT * 3.5 + tilt);
-      x = px;
-      y = py;
-      const releaseBlend = ease(flightT, 0, .48);
+      const flightT = t - releaseTime;
+      const u = clamp(flightT / freeDuration);
+      const entrain = ease(flightT, 0, .6);
+      const wave1 = Math.sin(x * .0040 + y * .0021 +
+        flightT * 1.08 + phases[0]);
+      const wave2 = Math.cos(y * .0047 - x * .0019 -
+        flightT * 1.37 + phases[1]);
+      const wave3 = Math.sin(flightT * 2.12 + phases[2]);
+      const sideways = gustGain * (wave1 * 46 + wave2 * 31 +
+        wave3 * 16);
+      const pulse = 1 + .12 * Math.sin(flightT * 1.02 + phases[3]);
+      const flowX = dx * radialVelocity * pulse + sideX * sideways;
+      const flowY = dy * radialVelocity * pulse + sideY * sideways;
+      // A slowly changing out-of-plane gust is essential: flat 2D motion
+      // cannot produce convincing aerodynamic flipping and bending.
+      const verticalGust = (
+        Math.sin(x * .0047 + flightT * 1.31 + phases[4]) * 49 +
+        Math.cos(y * .0038 - flightT * 1.86 + phases[5]) * 34);
+      facing.set(0, 0, 1).applyQuaternion(q);
+      airVector.set(flowX - vx + dx * 45,
+        -(flowY - vy + dy * 45), verticalGust);
+      const relSpeed = Math.max(.001, airVector.length());
+      const windDirection = airVector.clone().multiplyScalar(1 / relSpeed);
+      const normalImpact = Math.abs(facing.dot(windDirection));
+      // Orientation determines lift, and airflow produces a torque around
+      // the card's actual 3D face normal. A damped angular velocity carries
+      // momentum through gusts instead of jumping between Euler keyframes.
+      const lift = entrain * 22 * normalImpact;
+      const inertia = .84;
+      vx += ((flowX - vx) * inertia + facing.x * lift) * STEP;
+      vy += ((flowY - vy) * inertia - facing.y * lift) * STEP;
+      x += vx * STEP;
+      y += vy * STEP;
+      torque.crossVectors(facing, windDirection);
+      const swirl = new Vector3(
+        Math.sin(x * .006 + flightT * 1.23 + phases[0]),
+        Math.cos(y * .005 - flightT * 1.11 + phases[1]),
+        Math.sin(flightT * 1.50 + phases[2]));
+      angVel.addScaledVector(torque, (1.9 + normalImpact * 1.4) * STEP);
+      angVel.addScaledVector(swirl, gustGain * .53 * STEP);
+      angVel.multiplyScalar(Math.exp(-.72 * STEP));
+      const rotationSpeed = Math.min(3.4, angVel.length());
+      if (rotationSpeed > .001) {
+        localAxis.copy(angVel).normalize();
+        delta.setFromAxisAngle(localAxis, rotationSpeed * STEP);
+        q.premultiply(delta).normalize();
+      }
+      pressure = lerp(pressure, normalImpact,
+        clamp(STEP * 3.3));
+      rush = lerp(rush,
+        clamp((relSpeed + 35 * angVel.length()) / 180),
+        clamp(STEP * 4.8));
+      // The free sheet can drift in depth as air gets under its surface.
       z = lerp(-280, 165, ease(u, 0, .94)) +
-        Math.sin(flightT * 1.12 + roll) * 33 * releaseBlend;
-      const ringRx = 9 * Math.sin(tilt + 4);
-      const ringRy = 13 * Math.cos(wobble + 3);
-      const ringRz = angle * 180 / Math.PI + 90 +
-        12 * Math.sin(roll + 2.5);
-      rx = lerp(ringRx, Math.sin(flightT * 1.12 + tilt) * 28 +
-        Math.cos(flightT * 2.2 + roll) * 8, releaseBlend);
-      ry = lerp(ringRy, Math.sin(flightT * 1.3 + wobble) * 44 +
-        9 * Math.sin(flightT * 2.8 + tilt), releaseBlend);
-      rz = lerp(ringRz,
-        (travelDirection + Math.PI / 2) * 180 / Math.PI +
-        13 * air + spin * flightT * 18, releaseBlend);
-    }
+        (normalImpact * 46 + Math.sin(flightT * 1.12 +
+          phases[3]) * 26) * entrain;
 
-    const show = ease(t, .16, 1.13) *
-      (1 - ease(t, config.flight - 1.24, config.flight - .12));
-    // A shallow natural swing in apparent size, never a bounce or scale pop.
-    scale = lerp(.185, .405, ease(t, .20, config.flight - .32)) *
+      euler.setFromQuaternion(q, 'YXZ');
+      rx = -euler.x * DEG;
+      ry = euler.y * DEG;
+      rz = -euler.z * DEG;
+      if (prevEuler) {
+        rx = unwrapDegrees(rx, prevEuler[0]);
+        ry = unwrapDegrees(ry, prevEuler[1]);
+        rz = unwrapDegrees(rz, prevEuler[2]);
+      }
+    }
+    prevEuler = [rx, ry, rz];
+
+    const fadeIn = ease(t, .16, 1.13);
+    const fadeOut = 1 - ease(t, config.flight - 1.24,
+      config.flight - .12);
+    const opacity = fadeIn * fadeOut;
+    const scale = lerp(.185, .405,
+      ease(t, .20, config.flight - .32)) *
       (.92 + .12 * Math.sin(index * 2.18 + .2));
-    const releaseBend = ease(t, release, release + .60);
-    curl = clamp((.50 +
-      .24 * Math.sin(t * 1.62 + roll) +
-      .13 * Math.cos(t * 3.15 + wobble)) *
-      (.10 + .90 * releaseBend), .03, .92);
-    flutter = clamp((.66 + .20 * Math.sin(t * 2.13 + tilt) +
-      .12 * Math.cos(t * 3.6 + roll)) * releaseBend, 0, 1);
-    frames.push({ x, y, z, rx, ry, rz, scale, opacity: show,
-      curl, flutter, time: t });
+    const releaseBlend = ease(t, releaseTime, releaseTime + .55);
+    const curl = releaseBlend *
+      clamp(.10 + .92 * pressure + .16 * rush, .05, 1.07);
+    const flutter = releaseBlend *
+      clamp(.12 + rush * .60 + .20 * pressure, .08, .98);
+    frames.push({ x, y, z, rx, ry, rz, scale, opacity,
+      curl, flutter, time: t,
+      q: [q.x, q.y, q.z, q.w] });
   }
   return frames;
 }
 
-/** A cache is regenerated only when the viewport actually changes. */
+/** Cache deterministic motion once per viewport so it can be scrubbed in both directions. */
 export function createHomePaperMotion(width, height, config = HOME_PAPER_PRESET) {
   const lanes = Array.from({ length: config.count },
     (_, index) => createLane(index, width, height, config));
+  const interpQ1 = new Quaternion();
+  const interpQ2 = new Quaternion();
+  const interpolatedQ = new Quaternion();
   return {
     width, height, config,
-    /** Global home clock is cyclic; sample any sheet at an arbitrary time. */
     age(index, clock) {
       const birth = index * config.duration / config.count;
       return ((clock - birth) / config.duration % 1 + 1) % 1;
@@ -168,27 +227,29 @@ export function createHomePaperMotion(width, height, config = HOME_PAPER_PRESET)
         const last = lanes[index][lanes[index].length - 1];
         return { ...last, opacity: 0 };
       }
-      const position = life / STEP;
-      const a = Math.floor(position);
-      const fract = position - a;
+      const at = life / STEP;
+      const index0 = Math.floor(at);
+      const frac = at - index0;
       const frames = lanes[index];
-      const from = frames[Math.min(a, frames.length - 1)];
-      const to = frames[Math.min(a + 1, frames.length - 1)];
-      if (!fract) return from;
-      // Interpolating all coordinates gives scroll-reversible movement even
-      // under slow, pixel-by-pixel scrubbing (no animation state to restart).
+      const a = frames[Math.min(index0, frames.length - 1)];
+      const b = frames[Math.min(index0 + 1, frames.length - 1)];
+      if (!frac) return a;
+      interpQ1.fromArray(a.q);
+      interpQ2.fromArray(b.q);
+      interpolatedQ.slerpQuaternions(interpQ1, interpQ2, frac);
       return {
-        x: lerp(from.x, to.x, fract),
-        y: lerp(from.y, to.y, fract),
-        z: lerp(from.z, to.z, fract),
-        rx: lerp(from.rx, to.rx, fract),
-        ry: lerp(from.ry, to.ry, fract),
-        rz: lerp(from.rz, to.rz, fract),
-        scale: lerp(from.scale, to.scale, fract),
-        opacity: lerp(from.opacity, to.opacity, fract),
-        curl: lerp(from.curl, to.curl, fract),
-        flutter: lerp(from.flutter, to.flutter, fract),
+        x: lerp(a.x, b.x, frac),
+        y: lerp(a.y, b.y, frac),
+        z: lerp(a.z, b.z, frac),
+        rx: lerp(a.rx, b.rx, frac),
+        ry: lerp(a.ry, b.ry, frac),
+        rz: lerp(a.rz, b.rz, frac),
+        scale: lerp(a.scale, b.scale, frac),
+        opacity: lerp(a.opacity, b.opacity, frac),
+        curl: lerp(a.curl, b.curl, frac),
+        flutter: lerp(a.flutter, b.flutter, frac),
         time: life,
+        q: interpolatedQ.toArray(),
       };
     },
   };
