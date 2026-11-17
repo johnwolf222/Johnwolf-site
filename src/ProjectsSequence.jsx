@@ -289,6 +289,7 @@ export default function ProjectsSequence() {
         rx: rotX, ry: rotY, rz: rotZ,
         scale: finalScale, opacity,
         front, curl, time,
+        q: flight.q,
         flutter: mix(flight.flutter, 1, smooth(phase, .012, .085)),
       });
       card.dataset.phase = phase === 0 ? 'home-current' :
