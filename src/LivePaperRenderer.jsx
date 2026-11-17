@@ -19,20 +19,26 @@ const VERTEX = `
   uniform float uSeed;
   uniform float uExitWrap;
   uniform float uArcRadius;
+  uniform float uOuterRim;
+  uniform float uFocal;
   uniform float uSheetExtent;
-  uniform vec3 uCardCenter;
+  uniform float uSheetWidth;
   uniform vec2 uOutward;
 
   // Cross-section of the rounded opening. Sheets first travel along its
   // nearly vertical inner wall, then bend over its circular rim and out.
   // This is used for individual mesh vertices, never the card flight.
   vec2 openingCurve(float s, float radius) {
-    if (s < 0.0) return vec2(-radius, s);
-    float limit = radius * (3.141593 - .872665);
-    float theta = 3.141593 - min(s, limit) / radius;
-    float remaining = max(0.0, s - limit);
-    return vec2(radius * cos(theta) + remaining * sin(theta),
-      radius * sin(theta) - remaining * cos(theta));
+    // Return absolute radius and depth around the inner wall and rim.
+    // A negative distance is still inside the vertical throat.
+    if (s < 0.0) return vec2(uOuterRim - radius, s);
+    float arcEnd = radius * (3.141593 - .872665);
+    float angle = 3.141593 - min(s, arcEnd) / radius;
+    float remaining = max(0.0, s - arcEnd);
+    return vec2(
+      uOuterRim + radius * cos(angle) + remaining * sin(angle),
+      radius * sin(angle) - remaining * cos(angle)
+    );
   }
 
   void main() {
@@ -60,28 +66,28 @@ const VERTEX = `
     float rimGate = clamp(uExitWrap, 0.0, 1.0);
     vOpeningReveal = 1.0;
     if (rimGate > .0001) {
-      // Feed the sheet across the opening, not by rotating a flat card.
+      // Map the *entire opening* into camera space. The previous
+      // approach was anchored to the moving card center, which placed
+      // its paper inside the empty hole and washed it out.
       float arcRadius = max(8.0, uArcRadius);
       float arcEnd = arcRadius * (3.141593 - .872665);
-      float advance = smoothstep(.14, 1.62, uTime);
-      float centerTravel = mix(-arcRadius * .72,
-        arcEnd + uSheetExtent * .40, advance);
+      float advance = smoothstep(.08, 1.60, uTime);
+      float halfHeight = 0.5 * uSheetExtent;
+      float centerTravel = mix(-halfHeight - arcRadius * .10,
+        arcEnd + halfHeight, advance);
 
-      // Translate each vertex in the rim's radial/tangential frame.
-      // Anchoring at the existing sheet center keeps its approved
-      // positions and its free-flight handoff exactly intact.
-      vec3 flatWorld = (modelMatrix * vec4(position, 1.0)).xyz;
-      vec3 local = flatWorld - uCardCenter;
+      // The leading edge is the local lower Y edge, independently of
+      // the sheet's later free-flight rotation. Its tangential width
+      // stays perpendicular to the sheet's radial exit lane.
       vec3 radial = vec3(uOutward, 0.0);
       vec3 tangential = vec3(-uOutward.y, uOutward.x, 0.0);
-      float distance = centerTravel + dot(local, radial);
-      float offset = dot(local, tangential);
-      vec2 centerOnRim = openingCurve(centerTravel, arcRadius);
+      float distance = centerTravel - position.y * uSheetExtent;
+      float offset = position.x * uSheetWidth;
       vec2 vertexOnRim = openingCurve(distance, arcRadius);
-      vec3 rimWorld = uCardCenter +
-        radial * (vertexOnRim.x - centerOnRim.x) +
+      float depthBase = uFocal - uFocal / .55 - arcRadius;
+      vec3 rimWorld = radial * vertexOnRim.x +
         tangential * offset +
-        vec3(0.0, 0.0, vertexOnRim.y - centerOnRim.y);
+        vec3(0.0, 0.0, depthBase + vertexOnRim.y);
       vec3 ordinaryWorld = (modelMatrix * vec4(pos, 1.0)).xyz;
       vec3 emergingWorld = mix(ordinaryWorld, rimWorld, rimGate);
 
@@ -329,8 +335,10 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
           uFlutter: { value: 0 },
           uExitWrap: { value: 0 },
           uArcRadius: { value: 1 },
+          uOuterRim: { value: 1 },
+          uFocal: { value: FOCAL },
           uSheetExtent: { value: 1 },
-          uCardCenter: { value: new THREE.Vector3() },
+          uSheetWidth: { value: 1 },
           uOutward: { value: new THREE.Vector2(1, 0) },
           uTime: { value: 0 },
           uSeed: { value: index },
@@ -443,11 +451,14 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
         item.material.uniforms.uExitWrap.value = pose.wrap ?? 0;
         // The rounded hole is evaluated in world units, using the
         // same radial departure for every vertex in this sheet.
+        const ringOuter = Math.min(width, height) * .33 / .55;
+        item.material.uniforms.uOuterRim.value = ringOuter;
         item.material.uniforms.uArcRadius.value =
-          Math.min(width, height) * .33 * (.11 / .312) / .55;
-        item.material.uniforms.uSheetExtent.value = sheetSize;
-        item.material.uniforms.uCardCenter.value.set(
-          pose.x, -pose.y, pose.z);
+          ringOuter * (.11 / .312);
+        item.material.uniforms.uSheetExtent.value =
+          item.mesh.scale.y;
+        item.material.uniforms.uSheetWidth.value =
+          item.mesh.scale.x;
         const radialLength = Math.max(1, Math.hypot(pose.x, pose.y));
         item.material.uniforms.uOutward.value.set(
           pose.x / radialLength, -pose.y / radialLength);
