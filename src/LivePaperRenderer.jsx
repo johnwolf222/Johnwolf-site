@@ -19,23 +19,26 @@ const VERTEX = `
   void main() {
     vUv = uv;
     vec3 pos = position;
-    // Bend each paper sheet around a gently rotated material axis.
-    float a = .34 + uSeed * .041;
-    vec2 axis = vec2(cos(a), sin(a));
-    float across = dot(pos.xy, axis);
-    float along = dot(pos.xy, vec2(-axis.y, axis.x));
+    // Fold lines cross each sheet horizontally in its local coordinates.
+    // The bend changes with local Y, not X. Sheet rotation is handled
+    // separately by its 3D pose so the fold follows the paper naturally.
+    float across = pos.y;
+    float along = pos.x;
     float bend = max(.0001, uCurl * 2.12);
     float phi = across * bend;
     float bentAcross = sin(phi) / bend;
     float bulge = (1. - cos(phi)) / bend;
     float edge = pow(clamp(abs(across) * 2., 0., 1.), 1.5);
+    // The visible undulation also advances from row to row. A tiny
+    // sideways phase shift avoids a mechanical perfectly straight stripe.
     float paperRipple = uFlutter * (.022 + edge * .039) *
-      (sin(along * 13.8 + uTime * 3.6 + uSeed * .83) +
-       .33 * sin(along * 21. + uTime * 5.4 + uSeed * .47));
-    float twist = uFlutter * edge * .022 *
+      (sin(across * 13.8 + uTime * 3.6 + uSeed * .83 +
+        .17 * sin(along * 4.0 + uSeed * .31)) +
+       .33 * sin(across * 21. + uTime * 5.4 + uSeed * .47));
+    // Keep a subtle widthwise flutter without turning the main crease.
+    float twist = uFlutter * edge * .012 *
       sin(along * 8.6 - uTime * 2.8 + uSeed * .31);
-    pos.xy = axis * bentAcross +
-      vec2(-axis.y, axis.x) * (along + twist);
+    pos.xy = vec2(along + twist, bentAcross);
     pos.z = bulge * .72 + paperRipple;
     float lightFacing = .5 + .5 * cos(phi + .4);
     vLight = clamp(.79 + .26 * lightFacing -
