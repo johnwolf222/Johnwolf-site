@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { Euler, Quaternion, Vector3 } from 'three';
 import './ProjectsSequence.css';
 import LivePaperRenderer from './LivePaperRenderer.jsx';
 import { createHomePaperMotion } from './HomePaperMotion.js';
@@ -85,6 +86,10 @@ export default function ProjectsSequence() {
     let showing = false;
     let disposed = false;
     const travel = { progress: 0 };
+    const domOrientation = new Quaternion();
+    const domTarget = new Quaternion();
+    const domAxis = new Vector3();
+    const domEuler = new Euler(0, 0, 0, 'YXZ');
     // The live Home current has an actual clock. Scrolling freezes it, so
     // each sheet rewinds from its exact visible state along its own path.
     let homeClock = 3.45;
@@ -259,12 +264,35 @@ export default function ProjectsSequence() {
       // re-synchronized on the next frame if WebGL is lost or unsupported.
       if (!gpuPaperRef.current?.ready) {
         card.style.zIndex = String(phase === 0 ? 1 : (front ? 12 : 10));
+        let rotation = 'rotateY(' + rotY.toFixed(2) +
+          'deg) rotateX(' + rotX.toFixed(2) +
+          'deg) rotateZ(' + rotZ.toFixed(2) + 'deg)';
+        if (flight.q && phase < .10) {
+          // The CSS fallback uses the SAME physical rotation as WebGL.
+          // Screen Y points down, while the 3D scene uses Y up.
+          const q = flight.q;
+          domOrientation.set(-q[0], q[1], -q[2], q[3]).normalize();
+          domEuler.set(rotX * Math.PI / 180,
+            rotY * Math.PI / 180, rotZ * Math.PI / 180, 'YXZ');
+          domTarget.setFromEuler(domEuler);
+          const blend = smooth(phase, .012, .092);
+          domOrientation.slerp(domTarget, blend);
+          const w = Math.max(-1, Math.min(1, domOrientation.w));
+          const angle = 2 * Math.acos(w);
+          const den = Math.sqrt(Math.max(0, 1 - w * w));
+          if (den > .00001) {
+            domAxis.set(domOrientation.x / den,
+              domOrientation.y / den, domOrientation.z / den);
+            rotation = 'rotate3d(' + domAxis.x.toFixed(5) +
+              ',' + domAxis.y.toFixed(5) +
+              ',' + domAxis.z.toFixed(5) + ',' +
+              (angle * 180 / Math.PI).toFixed(3) + 'deg)';
+          } else rotation = '';
+        }
         card.style.transform = 'perspective(1350px) translate3d(' +
           finalX.toFixed(2) + 'px,' + finalY.toFixed(2) + 'px,' +
-          finalZ.toFixed(2) + 'px) rotateY(' +
-          rotY.toFixed(2) + 'deg) rotateX(' + rotX.toFixed(2) +
-          'deg) rotateZ(' + rotZ.toFixed(2) +
-          'deg) scale(' + finalScale.toFixed(4) + ')';
+          finalZ.toFixed(2) + 'px) ' + rotation +
+          ' scale(' + finalScale.toFixed(4) + ')';
         card.style.opacity = String(opacity);
         card.style.visibility = opacity < .008 ? 'hidden' : 'visible';
       }
