@@ -162,10 +162,17 @@ function createLane(index, width, height, preset) {
       .23 * Math.sin(time * 1.54 + rollPhase) +
       .11 * Math.cos(time * 3.11 + yawPhase)) *
       (.16 + .84 * release) * preset.curl, 0, 1.20);
-    const flutter = clamp((.68 +
-      .20 * Math.sin(time * 2.07 + pitchPhase) +
-      .12 * Math.cos(time * 3.46 + rollPhase)) *
-      release * preset.flutter, 0, 1.20);
+    // Flutter amplitude follows the sheet's simulated airspeed.
+    // A small phase variation keeps the motion organic, while its
+    // primary magnitude comes from flight rather than an independent
+    // high-frequency ripple timer.
+    const flightSpeed = Math.hypot(vx, vy, vz);
+    const windLoading = clamp(
+      flightSpeed / Math.max(60, targetRadialSpeed), .45, 1.45);
+    const flutter = clamp((.57 +
+      .13 * Math.sin(time * 1.83 + pitchPhase) +
+      .07 * Math.cos(time * 2.38 + rollPhase)) *
+      (.38 + .62 * windLoading) * release * preset.flutter, 0, 1.20);
     frames.push({
       x: px, y: py, z: pz, rx, ry, rz,
       scale, opacity: visibility, curl, flutter, time,
