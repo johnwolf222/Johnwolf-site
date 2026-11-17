@@ -13,6 +13,7 @@ const VERTEX = `
   varying vec2 vUv;
   varying float vLight;
   uniform float uCurl;
+  uniform float uRingWrap;
   uniform float uFlutter;
   uniform float uTime;
   uniform float uSeed;
@@ -24,7 +25,9 @@ const VERTEX = `
     vec2 axis = vec2(cos(a), sin(a));
     float across = dot(pos.xy, axis);
     float along = dot(pos.xy, vec2(-axis.y, axis.x));
-    float bend = max(.0001, uCurl * 2.12);
+    // Wrap around the inner lip of the hole while constrained to its ring.
+    // As the sheet unfurls, the same surface responds to free-air pressure.
+    float bend = max(.0001, uCurl * 2.12 + uRingWrap * 2.8);
     float phi = across * bend;
     float bentAcross = sin(phi) / bend;
     float bulge = (1. - cos(phi)) / bend;
@@ -40,7 +43,7 @@ const VERTEX = `
     float lightFacing = .5 + .5 * cos(phi + .4);
     vLight = clamp(.79 + .26 * lightFacing -
       .10 * abs(paperRipple) * 6. -
-      .06 * edge * uCurl, .61, 1.06);
+      .06 * edge * (uCurl + uRingWrap), .61, 1.06);
     gl_Position = projectionMatrix * modelViewMatrix *
       vec4(pos, 1.0);
   }
@@ -146,6 +149,7 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
           uOpacity: { value: 0 },
           uBehind: { value: 1 },
           uCurl: { value: 0 },
+          uRingWrap: { value: 0 },
           uFlutter: { value: 0 },
           uTime: { value: 0 },
           uSeed: { value: index },
@@ -262,6 +266,7 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
         }
         item.material.uniforms.uOpacity.value = pose.opacity;
         item.material.uniforms.uCurl.value = pose.curl;
+        item.material.uniforms.uRingWrap.value = pose.ringWrap || 0;
         item.material.uniforms.uFlutter.value = pose.flutter ?? 1;
         item.material.uniforms.uTime.value = pose.time;
       }
