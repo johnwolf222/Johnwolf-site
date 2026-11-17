@@ -90,12 +90,30 @@ test('flutter is controlled by simulated flight and can be disabled separately',
   const noFlutter = createHomePaperMotion(1280, 720,
     {...HOME_PAPER_PRESET, flutter: 0});
   const normal = createHomePaperMotion(1280, 720);
+  const optionalFlutter = createHomePaperMotion(1280, 720,
+    {...HOME_PAPER_PRESET, flutter: 1});
   const noCurl = createHomePaperMotion(1280, 720,
     {...HOME_PAPER_PRESET, curl: 0});
   for (let i = 0; i < HOME_PAPER_PRESET.count; i++) {
     assert.equal(noFlutter.pose(i, 4 / 12).flutter, 0);
     assert.equal(noCurl.pose(i, 4 / 12).curl, 0);
-    assert.ok(normal.pose(i, 4 / 12).flutter > 0.1);
+    assert.equal(normal.pose(i, 4 / 12).flutter, 0);
+    assert.ok(optionalFlutter.pose(i, 4 / 12).flutter > 0.1);
     assert.ok(normal.pose(i, .8 / 12).flutter < .001);
+  }
+});
+
+test('each page follows repeated 3D rise and dip after the hole', () => {
+  assert.equal(HOME_PAPER_PRESET.flutter, 0);
+  for (const [w,h] of [[390, 844], [1280,720], [1920,1080]]) {
+    const motion = createHomePaperMotion(w,h);
+    for (let id = 0; id < HOME_PAPER_PRESET.count; id++) {
+      const z = [];
+      for (let s = 2.25; s <= 8; s += .17) z.push(motion.pose(id, s/12).z);
+      const delta = z.slice(1).map((v,k) => v-z[k]);
+      const reversals = delta.slice(1).filter((v,k) => v*delta[k]<0).length;
+      assert.ok(reversals >= 3,
+        'sheet ' + id + ' lacks repeated crests/dips at ' + w + 'px');
+    }
   }
 });
