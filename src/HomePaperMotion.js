@@ -131,7 +131,7 @@ function createLane(index, width, height, config) {
     const show = ease(t, .16, 1.13) *
       (1 - ease(t, config.flight - 1.24, config.flight - .12));
     // A shallow natural swing in apparent size, never a bounce or scale pop.
-    scale = lerp(.145, .295, ease(t, .20, config.flight - .32)) *
+    scale = lerp(.185, .405, ease(t, .20, config.flight - .32)) *
       (.92 + .12 * Math.sin(index * 2.18 + .2));
     const releaseBend = ease(t, release, release + .60);
     curl = clamp((.50 +
