@@ -12,11 +12,13 @@ const imageFor = index => '/new-homepage/approved-cards/' +
 const VERTEX = `
   varying vec2 vUv;
   varying float vLight;
+  varying float vOpeningReveal;
   uniform float uCurl;
   uniform float uFlutter;
   uniform float uTime;
   uniform float uSeed;
   uniform float uExitWrap;
+  uniform float uRimRadius;
   void main() {
     vUv = uv;
     vec3 pos = position;
@@ -40,16 +42,44 @@ const VERTEX = `
       uSeed * 1.61;
     float paperRipple = uFlutter * .042 * sin(ripplePhase);
     float rippleSlope = uFlutter * .042 * 3.14159 * cos(ripplePhase);
-    pos.xy = vec2(along, bentAcross);
+    // CENTER OPENING ONLY: feed each vertex along the rounded rim,
+    // rather than bending and revealing the entire card at once.
+    // Geometry is a circular cross-section around the opening; the
+    // cross-section radius is tied to the physical ring, not an
+    // arbitrary screen-space ripple.
+    float rimGate = clamp(uExitWrap, 0.0, 1.0);
+    float emergence = smoothstep(.18, 1.68, uTime);
+    float rimAngle = mix(3.141593, .872665, emergence);
+    float rimRadius = max(.16, uRimRadius);
+    float vertexArc = across / rimRadius;
+    float toroidY = rimRadius *
+      (cos(rimAngle - vertexArc) - cos(rimAngle));
+    float toroidZ = rimRadius *
+      (sin(rimAngle - vertexArc) - sin(rimAngle));
+
+    // At full emergence the paper becomes the original curled free
+    // sheet. The gate reaches precisely zero after the opening, so
+    // all approved free-flight vertices remain unchanged.
     float leadingEdge = smoothstep(.02, .5, across);
     float trailingEdge = smoothstep(.02, .5, -across);
-    float ringLipArc = uExitWrap *
+    float ringLipArc = rimGate *
       (.24 * leadingEdge * leadingEdge -
        .38 * trailingEdge * trailingEdge);
-    pos.z = bulge * .72 + paperRipple + ringLipArc;
-    // Fold and flutter affect the surface normal independently.
+    float originalZ = bulge * .72 + paperRipple + ringLipArc;
+    pos.xy = vec2(along, mix(bentAcross, toroidY, rimGate));
+    pos.z = mix(originalZ, toroidZ + paperRipple, rimGate);
+
+    // The outer edge peels through first. Only the part that has
+    // crossed the rim is visible; the trailing edge remains hidden.
+    // Free-flight sheets have an exactly neutral reveal multiplier.
+    float acrossRim = emergence + across * .52;
+    float visibleFraction = smoothstep(.28, .56, acrossRim);
+    vOpeningReveal = mix(1.0, visibleFraction, rimGate);
     float lightFacing = .5 + .5 * cos(phi + .4 + rippleSlope);
-    vLight = clamp(.79 + .26 * lightFacing -
+    float rimFacing = .5 + .5 *
+      sin(rimAngle - vertexArc);
+    vLight = clamp(.79 + .26 *
+      mix(lightFacing, rimFacing, rimGate) -
       .055 * abs(rippleSlope) -
       .06 * edge * uCurl, .61, 1.06);
     gl_Position = projectionMatrix * modelViewMatrix *
@@ -63,6 +93,7 @@ const PAPER_FRAGMENT = `
   precision highp float;
   varying vec2 vUv;
   varying float vLight;
+  varying float vOpeningReveal;
   uniform sampler2D uTexture;
   uniform sampler2D uHead;
   uniform vec4 uHeadBounds;
@@ -72,7 +103,7 @@ const PAPER_FRAGMENT = `
   uniform vec2 uResolution;
   void main() {
     vec4 paper = texture2D(uTexture, vUv);
-    float alpha = paper.a * uOpacity;
+    float alpha = paper.a * uOpacity * vOpeningReveal;
     if (uBehind > .5) {
       vec2 uvScreen = gl_FragCoord.xy / uResolution;
       vec2 maskUV = (uvScreen - uHeadBounds.xy) /
@@ -261,6 +292,7 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
           uCurl: { value: 0 },
           uFlutter: { value: 0 },
           uExitWrap: { value: 0 },
+          uRimRadius: { value: 1 },
           uTime: { value: 0 },
           uSeed: { value: index },
         },
@@ -370,6 +402,11 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
         item.material.uniforms.uCurl.value = pose.curl;
         item.material.uniforms.uFlutter.value = pose.flutter ?? 1;
         item.material.uniforms.uExitWrap.value = pose.wrap ?? 0;
+        // The ring's rounded throat has a radius proportional to
+        // the opening. Scale into the sheet's local coordinates.
+        item.material.uniforms.uRimRadius.value =
+          Math.min(width, height) * .33 * (.11 / .312) /
+          Math.max(1, sheetSize);
         item.material.uniforms.uTime.value = pose.time;
       }
       // The optical rays belong to Home. Fade them away as the existing
