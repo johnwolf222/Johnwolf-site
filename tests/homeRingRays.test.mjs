@@ -26,8 +26,8 @@ test('optical pass samples chromatic streaks from the paper layer', () => {
   assert.match(post, /uniform sampler2D uPaper;/);
   assert.match(post, /float holeWeight = uNearRays/);
   assert.match(post, /float edgeWeight = uEdgeRays/);
-  assert.match(post, /vec3 spectrum = vec3\(/);
-  assert.match(post, /sampleColor\.rgb \* sampleColor\.a \* spectrum/);
+  assert.match(post, /vec3 spectralWeight\(float t\)/);
+  assert.match(post, /colorAccum \+= ink\.rgb \* ink\.a \* wavelength/);
   assert.match(source, /renderer\.setRenderTarget\(paperTarget\)/);
   assert.match(source, /renderer\.render\(world, camera\)/);
   assert.match(source, /renderer\.render\(raysScene, raysCamera\)/);
@@ -40,23 +40,34 @@ test('optical effect fades before paper enters the projects gallery', () => {
 
 
 test('color separation is confined to ring crossing and section exit', () => {
-  assert.match(post, /float throatWidth = max\(1\.0, uRingRadius \* \(\.11 \/ \.312\)\)/);
-  assert.match(post, /float throatPosition = \(radialDistance - uRingRadius\) \/ throatWidth/);
-  assert.match(post, /exp\(-pow\(\(throatPosition \+ 1\.0\) \/ \.60, 2\.0\)\)/);
-  assert.match(post, /float edgeInset = min\(/);
-  assert.match(post, /smoothstep\(shortSide \* \.025, shortSide \* \.16, edgeInset\)/);
-  assert.match(post, /float effect = clamp\(max\(holeWeight, edgeWeight\) \* uRayStrength/);
-  assert.match(post, /if \(effect < \.006\) \{\s*gl_FragColor = original;/);
-  assert.match(post, /float nearReach = throatWidth \* holeWeight \* \.46;/);
-  assert.match(post, /float edgeReach = edgeWeight \* \(3\.0 \+ shortSide \* \.024\);/);
-  assert.match(post, /float reach = uRayStrength \* max\(nearReach, edgeReach\);/);
+  assert.match(post, /float throatWidth = max\(1\.0, uRingRadius \* \(0\.11 \/ 0\.312\)\)/);
+  assert.match(post, /float holePosition = \(distanceFromHole - uRingRadius\) \/ throatWidth/);
+  assert.match(post, /exp\(-pow\(\(holePosition \+ 1\.0\) \/ 0\.60, 2\.0\)\)/);
+  assert.match(post, /float edgeWeight = uEdgeRays \* ease01/);
+  assert.match(post, /float nearReach = throatWidth \* holeWeight \* 0\.46;/);
+  assert.match(post, /float edgeReach = shorter \* edgeWeight \* 0\.058;/);
+  assert.match(post, /float reach = uRayStrength \* \(nearReach \+ edgeReach\);/);
+  assert.match(post, /if \(reach < 0\.75\)/);
   assert.doesNotMatch(post, /reach = min\(48\.0/);
 });
 
 
 test('inner rim optics align with the reference throat, without changing edge optics', () => {
   assert.match(source, /Math.min\(width, height\) \* \.33 \* dpr/);
-  assert.match(post, /float throatWidth = max\(1\.0, uRingRadius \* \(\.11 \/ \.312\)\)/);
-  assert.match(post, /float edgeReach = edgeWeight \* \(3\.0 \+ shortSide \* \.024\);/);
-  assert.match(post, /max\(holeWeight \* \.80, edgeWeight \* \.56\)/);
+  assert.match(post, /float throatWidth = max\(1\.0, uRingRadius \* \(0\.11 \/ 0\.312\)\)/);
+  assert.match(post, /float edgeReach = shorter \* edgeWeight \* 0\.058;/);
+  assert.match(post, /float sampleCount = clamp\(ceil\(reach \/ 2\.6\), 5\.0, 16\.0\)/);
+});
+
+
+test('the center optical pass creates a clear hole with colored paper on its inner rim', () => {
+  assert.match(post, /float innerRim = max\(1\.0, uRingRadius - throatWidth\)/);
+  assert.match(post, /float innerVisibility = 1\.0 -/);
+  assert.match(post, /exp\(-pow\(distanceFromHole \/ max\(1\.0, innerRim \* 0\.82\), 2\.0\)\)/);
+  assert.match(post, /vec3 spectralWeight\(float t\)/);
+  assert.match(post, /colorAccum \+= ink\.rgb \* ink\.a \* wavelength/);
+  assert.match(post, /coverAccum \+= ink\.a \* wavelength/);
+  assert.match(post, /float sampleCount = clamp\(ceil\(reach \/ 2\.6\), 5\.0, 16\.0\)/);
+  assert.match(post, /coverage \* innerVisibility/);
+  assert.doesNotMatch(post, /mix\(original\.rgb, fringeColor/);
 });
