@@ -112,14 +112,20 @@ function createLane(index, width, height, config) {
         .48 * Math.sin(flightT * 3.5 + tilt);
       x = px;
       y = py;
+      const releaseBlend = ease(flightT, 0, .48);
       z = lerp(-280, 165, ease(u, 0, .94)) +
-        Math.sin(flightT * 1.12 + roll) * 33;
-      rx = Math.sin(flightT * 1.12 + tilt) * 28 +
-        Math.cos(flightT * 2.2 + roll) * 8;
-      ry = Math.sin(flightT * 1.3 + wobble) * 44 +
-        9 * Math.sin(flightT * 2.8 + tilt);
-      rz = (travelDirection + Math.PI / 2) * 180 / Math.PI +
-        13 * air + spin * flightT * 18;
+        Math.sin(flightT * 1.12 + roll) * 33 * releaseBlend;
+      const ringRx = 9 * Math.sin(tilt + 4);
+      const ringRy = 13 * Math.cos(wobble + 3);
+      const ringRz = angle * 180 / Math.PI + 90 +
+        12 * Math.sin(roll + 2.5);
+      rx = lerp(ringRx, Math.sin(flightT * 1.12 + tilt) * 28 +
+        Math.cos(flightT * 2.2 + roll) * 8, releaseBlend);
+      ry = lerp(ringRy, Math.sin(flightT * 1.3 + wobble) * 44 +
+        9 * Math.sin(flightT * 2.8 + tilt), releaseBlend);
+      rz = lerp(ringRz,
+        (travelDirection + Math.PI / 2) * 180 / Math.PI +
+        13 * air + spin * flightT * 18, releaseBlend);
     }
 
     const show = ease(t, .16, 1.13) *
@@ -127,11 +133,13 @@ function createLane(index, width, height, config) {
     // A shallow natural swing in apparent size, never a bounce or scale pop.
     scale = lerp(.145, .295, ease(t, .20, config.flight - .32)) *
       (.92 + .12 * Math.sin(index * 2.18 + .2));
-    curl = clamp(.50 +
+    const releaseBend = ease(t, release, release + .60);
+    curl = clamp((.50 +
       .24 * Math.sin(t * 1.62 + roll) +
-      .13 * Math.cos(t * 3.15 + wobble), .12, .92);
-    flutter = clamp(.66 + .20 * Math.sin(t * 2.13 + tilt) +
-      .12 * Math.cos(t * 3.6 + roll), .24, 1);
+      .13 * Math.cos(t * 3.15 + wobble)) *
+      (.10 + .90 * releaseBend), .03, .92);
+    flutter = clamp((.66 + .20 * Math.sin(t * 2.13 + tilt) +
+      .12 * Math.cos(t * 3.6 + roll)) * releaseBend, 0, 1);
     frames.push({ x, y, z, rx, ry, rz, scale, opacity: show,
       curl, flutter, time: t });
   }
