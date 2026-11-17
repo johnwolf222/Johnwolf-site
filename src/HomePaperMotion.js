@@ -56,8 +56,11 @@ function createLane(index, width, height, preset) {
   // The passage has depth: sheets travel from behind its opening to a lip,
   // where the curve's outgoing tangent becomes the free-flight velocity.
   const passTime = 1.48 + (rand() - .5) * .20;
-  const startR = ring * .24;
-  const controlR1 = ring * .22;
+  // Enter at the ring's inner throat; the opening, not the distant
+  // free-flight field, controls this early center-only approach.
+  // Exit control point and tangent are unchanged from the approved flight.
+  const startR = ring * .75;
+  const controlR1 = ring * .74;
   const controlR2 = ring * .81;
   const lipR = ring * 1.08;
   const startZ = -760;
