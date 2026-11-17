@@ -22,6 +22,6 @@ test('subtle flutter varies across paper width, independent of the horizontal cu
 });
 
 test('curl and flutter can be independently enabled or disabled', () => {
-  assert.match(vertex, /float bend = max\(\.0001, uCurl \* 2\.12\)/);
+  assert.match(vertex, /float bend = max\(\.0001, uCurl \* 2\.12 \+ uExitWrap \* 2\.0\)/);
   assert.match(vertex, /pos\.z = bulge \* \.72 \+ paperRipple;/);
 });
