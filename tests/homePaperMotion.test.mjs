@@ -55,3 +55,32 @@ test('all sheets exit the ring without visual jumps or unwanted spins', () => {
     }
   }
 });
+
+
+test('every sheet travels through a deep ring passage before outward release', () => {
+  for (const [width, height] of [[390, 844], [1280, 720], [1920, 1080]]) {
+    const motion = createHomePaperMotion(width, height);
+    for (let id = 0; id < 21; id++) {
+      const back = motion.pose(id, .015 / 12);
+      const lip = motion.pose(id, 1.7 / 12);
+      const free = motion.pose(id, 5 / 12);
+      assert.ok(back.z < -680, 'sheet begins behind ring: ' + id);
+      assert.ok(lip.z > -290, 'sheet reaches ring lip: ' + id);
+      assert.ok(lip.z - back.z > 360, 'ring passage has meaningful depth: ' + id);
+      assert.ok(Math.hypot(free.x, free.y) > Math.hypot(lip.x, lip.y) + 60,
+        'sheet departs outward rather than orbiting in place: ' + id);
+    }
+  }
+});
+
+test('paper changes from guided ring posture into flexible wind-driven flight', () => {
+  const motion = createHomePaperMotion(1280, 720);
+  for (let id = 0; id < 21; id++) {
+    const guide = motion.pose(id, .15 / 12);
+    const free = motion.pose(id, 4 / 12);
+    assert.ok(guide.flutter < .001, 'paper is guided during ring entry');
+    assert.ok(free.flutter > .1, 'paper begins fluttering after release');
+    assert.ok(free.curl > guide.curl,
+      'free flight bends more than the guided entry');
+  }
+});
