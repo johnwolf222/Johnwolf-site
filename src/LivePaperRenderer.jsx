@@ -13,35 +13,36 @@ const VERTEX = `
   varying vec2 vUv;
   varying float vLight;
   uniform float uCurl;
+  uniform float uFlutter;
   uniform float uTime;
   uniform float uSeed;
   void main() {
     vUv = uv;
-    vec3 p = position;
-    float bend = max(.001, min(1.15, uCurl));
-    float axis = .28 + uSeed * .027;
-    float ca = cos(axis), sa = sin(axis);
-    float across = p.x * ca + p.y * sa;
-    float along = p.y * ca - p.x * sa;
-    float angle = across * bend * 1.8;
-    float curved = sin(angle) / (bend * 1.8);
-    float depth = (1. - cos(angle)) / (bend * 1.8);
-    float edge = .38 + .62 *
-      pow(min(1., abs(across) * 2.), 1.35);
-    float flutter = uCurl * .067 * edge *
-      sin(along * 12.2 - uTime * 2.8 + uSeed * .73);
-    float torsion = uCurl * .021 *
-      sin(along * 5.1 + uTime * 3.4 + uSeed * .38) *
-      abs(across);
-    p = vec3(
-      curved * ca - (along + torsion) * sa,
-      curved * sa + (along + torsion) * ca,
-      depth * .83 + flutter
-    );
-    vLight = 1. - .19 * abs(sin(angle)) -
-      .12 * min(1., abs(flutter) * 5.);
+    vec3 pos = position;
+    // Bend each paper sheet around a gently rotated material axis.
+    float a = .34 + uSeed * .041;
+    vec2 axis = vec2(cos(a), sin(a));
+    float across = dot(pos.xy, axis);
+    float along = dot(pos.xy, vec2(-axis.y, axis.x));
+    float bend = max(.0001, uCurl * 2.12);
+    float phi = across * bend;
+    float bentAcross = sin(phi) / bend;
+    float bulge = (1. - cos(phi)) / bend;
+    float edge = pow(clamp(abs(across) * 2., 0., 1.), 1.5);
+    float paperRipple = uFlutter * (.022 + edge * .039) *
+      (sin(along * 13.8 + uTime * 3.6 + uSeed * .83) +
+       .33 * sin(along * 21. + uTime * 5.4 + uSeed * .47));
+    float twist = uFlutter * edge * .022 *
+      sin(along * 8.6 - uTime * 2.8 + uSeed * .31);
+    pos.xy = axis * bentAcross +
+      vec2(-axis.y, axis.x) * (along + twist);
+    pos.z = bulge * .72 + paperRipple;
+    float lightFacing = .5 + .5 * cos(phi + .4);
+    vLight = clamp(.79 + .26 * lightFacing -
+      .10 * abs(paperRipple) * 6. -
+      .06 * edge * uCurl, .61, 1.06);
     gl_Position = projectionMatrix * modelViewMatrix *
-      vec4(p, 1.0);
+      vec4(pos, 1.0);
   }
 `;
 // A SINGLE render pass: every bendable paper mesh samples the GLB's
@@ -135,7 +136,7 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
     const items = [];
     const poses = Array(TOTAL).fill(null);
     for (let index = 0; index < TOTAL; index++) {
-      const geometry = new THREE.PlaneGeometry(1, 1, 12, 14);
+      const geometry = new THREE.PlaneGeometry(1, 1, 28, 28);
       const material = new THREE.ShaderMaterial({
         uniforms: {
           ...sharedUniforms,
@@ -143,6 +144,7 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
           uOpacity: { value: 0 },
           uBehind: { value: 1 },
           uCurl: { value: 0 },
+          uFlutter: { value: 0 },
           uTime: { value: 0 },
           uSeed: { value: index },
         },
@@ -246,6 +248,7 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
         );
         item.material.uniforms.uOpacity.value = pose.opacity;
         item.material.uniforms.uCurl.value = pose.curl;
+        item.material.uniforms.uFlutter.value = pose.flutter ?? 1;
         item.material.uniforms.uTime.value = pose.time;
       }
       renderer.clear();
