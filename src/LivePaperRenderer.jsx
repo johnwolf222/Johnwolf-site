@@ -135,6 +135,8 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
     };
     const items = [];
     const poses = Array(TOTAL).fill(null);
+    const physicalOrientation = new THREE.Quaternion();
+    const plannedOrientation = new THREE.Quaternion();
     for (let index = 0; index < TOTAL; index++) {
       const geometry = new THREE.PlaneGeometry(1, 1, 28, 28);
       const material = new THREE.ShaderMaterial({
@@ -246,6 +248,18 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
           -THREE.MathUtils.degToRad(pose.rz),
           'YXZ',
         );
+        // On Home the actual airflow simulation owns the paper's 3D
+        // orientation. Blend back to the existing GSAP gallery rotations as
+        // scrolling begins; never restart the card or swap its texture.
+        if (pose.q && progress < .10) {
+          plannedOrientation.copy(item.mesh.quaternion);
+          physicalOrientation.fromArray(pose.q).normalize();
+          const t = THREE.MathUtils.clamp(
+            (progress - .012) / (.092 - .012), 0, 1);
+          const blend = t * t * (3 - 2 * t);
+          item.mesh.quaternion.copy(physicalOrientation)
+            .slerp(plannedOrientation, blend);
+        }
         item.material.uniforms.uOpacity.value = pose.opacity;
         item.material.uniforms.uCurl.value = pose.curl;
         item.material.uniforms.uFlutter.value = pose.flutter ?? 1;
