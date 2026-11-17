@@ -10,7 +10,7 @@ test('the GPU paper retains a horizontal curl across each sheet', () => {
   assert.match(vertex, /float across = pos\.y;/);
   assert.match(vertex, /float along = pos\.x;/);
   assert.match(vertex, /float phi = across \* bend;/);
-  assert.match(vertex, /pos\.xy = vec2\(along, mix\(bentAcross, toroidY, rimGate\)\);/);
+  assert.match(vertex, /pos\.xy = vec2\(along, bentAcross\);/);
 });
 
 test('subtle flutter varies across paper width, independent of the horizontal curl', () => {
@@ -23,6 +23,6 @@ test('subtle flutter varies across paper width, independent of the horizontal cu
 
 test('curl and flutter can be independently enabled or disabled', () => {
   assert.match(vertex, /float bend = max\(\.0001, uCurl \* 2\.12 \+ uExitWrap \* 2\.0\)/);
-  assert.match(vertex, /float originalZ = bulge \* \.72 \+ paperRipple \+ ringLipArc;/);
-  assert.match(vertex, /pos\.z = mix\(originalZ, toroidZ \+ paperRipple, rimGate\);/);
+  assert.match(vertex, /pos\.z = bulge \* \.72 \+ paperRipple;/);
+  assert.match(vertex, /gl_Position = projectionMatrix \* modelViewMatrix \*/);
 });
