@@ -11,10 +11,12 @@ test('the center opening feeds each vertex over a curved physical rim', () => {
   assert.ok(vertex && fragment);
   assert.match(vertex, /vec2 openingCurve\(float s, float radius\)/);
   assert.match(vertex, /float limit = radius \* \(3\.141593 - \.872665\)/);
-  assert.match(vertex, /vec2 centerOnRim = openingCurve\(centerTravel, arcRadius\)/);
   assert.match(vertex, /vec2 vertexOnRim = openingCurve\(distance, arcRadius\)/);
-  assert.match(vertex, /vec3 rimWorld = uCardCenter \+/);
-  assert.match(source, /uArcRadius: \{ value: 1 \}/);
+  assert.match(vertex, /float depthBase = uFocal - uFocal \/ \.55 - arcRadius;/);
+  assert.match(vertex, /vec3 rimWorld = radial \* vertexOnRim\.x \+/);
+  assert.match(vertex, /float distance = centerTravel - position\.y \* uSheetExtent;/);
+  assert.match(source, /uOuterRim: \{ value: 1 \}/);
+  assert.match(source, /uFocal: \{ value: FOCAL \}/);
   assert.match(source, /uOutward: \{ value: new THREE\.Vector2\(1, 0\) \}/);
 });
 
@@ -63,4 +65,22 @@ test('center approach reaches the inner rim before sheet release', () => {
       'emerging sheet must remain at the inner throat: ' + id +
         ', radius ' + projectedRadius);
   }
+});
+
+
+test('inner rim projects to the opening instead of the card center', () => {
+  const focal = 1350;
+  for (const [width, height] of [[390, 844], [738, 414], [1280, 720]]) {
+    const short = Math.min(width, height);
+    const ringOuter = short * .33 / .55;
+    const arcRadius = ringOuter * (.11 / .312);
+    const depthBase = focal - focal / .55 - arcRadius;
+    const innerRadius = ringOuter - arcRadius;
+    const projected = innerRadius * focal / (focal - depthBase);
+    assert.ok(projected > short * .195 && projected < short * .215,
+      'hole throat should appear on the same visible rim across viewports');
+  }
+  assert.match(vertex, /if \(s < 0\.0\) return vec2\(uOuterRim - radius, s\);/);
+  assert.match(source, /item\.material\.uniforms\.uSheetExtent\.value =\s*item\.mesh\.scale\.y;/);
+  assert.match(source, /item\.material\.uniforms\.uSheetWidth\.value =\s*item\.mesh\.scale\.x;/);
 });
