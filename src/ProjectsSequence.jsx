@@ -4,6 +4,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import './ProjectsSequence.css';
 import LivePaperRenderer from './LivePaperRenderer.jsx';
+import { createHomePaperMotion } from './HomePaperMotion.js';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -79,6 +80,7 @@ export default function ProjectsSequence() {
     let sectionHeight = 0;
     let width = window.innerWidth;
     let height = window.innerHeight;
+    let homeMotion = createHomePaperMotion(width, height);
     let active = -1;
     let showing = false;
     let disposed = false;
@@ -92,65 +94,24 @@ export default function ProjectsSequence() {
     function measure() {
       sectionTop = docTop(section);
       sectionHeight = section.getBoundingClientRect().height;
-      width = window.innerWidth;
-      height = window.innerHeight;
+      const nextWidth = window.innerWidth;
+      const nextHeight = window.innerHeight;
+      if (width !== nextWidth || height !== nextHeight) {
+        width = nextWidth;
+        height = nextHeight;
+        homeMotion = createHomePaperMotion(width, height);
+      }
     }
 
 
-    const TAU = Math.PI * 2;
-    const GOLDEN_ANGLE = 2.399963229728653;
-    const HOME_PERIOD = 12;
-    // Evenly stagger births around the 12-second loop; successive cards
-    // launch along distinct golden-angle rays. Shuffling the birth order
-    // caused whole quadrants to empty at once instead of a balanced field.
+    // Home uses one deterministic, reversible path per artwork. The ring,
+    // release and airflow simulation is created once per viewport size;
+    // scrolling seeks those SAME paths backward, without replacing cards.
     function homeAge(index, time) {
-      const birth = index / CARD_COUNT;
-      const age = time / HOME_PERIOD - birth;
-      return ((age % 1) + 1) % 1;
+      return homeMotion.age(index, time);
     }
     function homePose(index, age) {
-      // Homepage only: paper leaving a central ring, NOT an orbit. Each sheet
-      // takes its own fixed golden-angle lane, with soft crosswind and tumble.
-      // The staggered launch is the architectural distinction of Hole 01.
-      const angle = index * GOLDEN_ANGLE +
-        Math.sin(index * 12.1) * .075;
-      const cos = Math.cos(angle);
-      const sin = Math.sin(angle);
-      const halfW = width * .5, halfH = height * .5;
-      const edgeMargin = Math.min(width, height) * .14;
-      // Per-lane flight distance ends just outside the actual viewport,
-      // avoiding oversized cards pinned to the edges.
-      const reach = Math.min(
-        (halfW + edgeMargin) / Math.max(.075, Math.abs(cos)),
-        (halfH + edgeMargin) / Math.max(.075, Math.abs(sin)),
-      );
-      const travel = smooth(age, .12, .84);
-      const ringOrigin = Math.min(width, height) * .104;
-      const radius = mix(ringOrigin, reach, travel);
-      const windEnvelope = smooth(age, .15, .52);
-      const crosswind = (
-        Math.sin(age * TAU * 1.17 + index * .73) * .61 +
-        Math.sin(age * TAU * 2.80 + index * 1.13) * .39
-      ) * Math.min(width, height) * .050 * windEnvelope;
-      const x = radius * cos - crosswind * sin;
-      const y = radius * sin + crosswind * cos;
-      const sizeVariation = .90 + .13 * Math.sin(index * 2.18);
-      const scale = mix(.17, .39, smooth(age, .12, .84)) *
-        sizeVariation;
-      // A sheet tumbles and drifts, but never stretches its source image.
-      // Actual curl/flutter remain on the live tessellated GPU surface.
-      const tumble = age * TAU;
-      return {
-        x, y,
-        z: mix(-580, 140, smooth(age, .10, .85)),
-        scale,
-        rx: Math.sin(tumble * 1.25 + index * .56) * 29,
-        ry: Math.sin(tumble * .93 + index * .77) * 52,
-        rz: 90 - angle * 180 / Math.PI +
-          Math.sin(tumble * 1.12 + index * .31) * 24,
-        opacity: smooth(age, .08, .22) *
-          (1 - smooth(age, .79, .94)),
-      };
+      return homeMotion.pose(index, age);
     }
 
     function targetForCard(id, galleryFocus) {
@@ -318,9 +279,7 @@ export default function ProjectsSequence() {
       // Curl and flutter breathe while the Home current loops. The first
       // sliver of scrolling blends back to the existing spiral physics;
       // neither the scroll timeline nor its geometry is edited here.
-      const homeCurl = Math.max(.18, .59 +
-        .21 * Math.sin(initialAge * TAU * 2.05 + index * .34) +
-        flutter * .24);
+      const homeCurl = flight.curl;
       const transitionCurl = Math.max(.10, .48 + flutter * .68) *
         (1 - smooth(phase, .835, .995));
       const curl = mix(homeCurl, transitionCurl,
@@ -330,6 +289,7 @@ export default function ProjectsSequence() {
         rx: rotX, ry: rotY, rz: rotZ,
         scale: finalScale, opacity,
         front, curl, time,
+        flutter: mix(flight.flutter, 1, smooth(phase, .012, .085)),
       });
       card.dataset.phase = phase === 0 ? 'home-current' :
         phase < .272 ? 'rewind' :
