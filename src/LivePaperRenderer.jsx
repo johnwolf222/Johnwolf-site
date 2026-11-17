@@ -160,14 +160,13 @@ const RAYS_FRAGMENT = `
     value = clamp(value, 0.0, 1.0);
     return value * value * (3.0 - 2.0 * value);
   }
-  // A distinct channel weighting across the short radial exposure,
-  // independently designed from the reference's spectral treatment.
+  // The reference separates white light into continuous red, green
+  // and blue components. Each tap weights color and coverage on its own.
   vec3 spectralWeight(float t) {
-    return vec3(
-      0.12 + 0.88 * exp(-pow((t - 0.19) / 0.31, 2.0)),
-      0.12 + 0.88 * exp(-pow((t - 0.51) / 0.31, 2.0)),
-      0.12 + 0.88 * exp(-pow((t - 0.83) / 0.31, 2.0))
-    );
+    vec3 prism = clamp(
+      abs(mod(t * 4.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0,
+      0.0, 1.0);
+    return mix(vec3(1.0), prism, 0.85);
   }
   void main() {
     vec2 pixel = vUv * uSize;
@@ -207,9 +206,9 @@ const RAYS_FRAGMENT = `
     vec3 colorAccum = vec3(0.0);
     vec3 coverAccum = vec3(0.0);
     vec3 weightAccum = vec3(0.0);
-    float sampleCount = clamp(ceil(reach / 2.6), 5.0, 16.0);
-    float jitter = fract(sin(dot(gl_FragCoord.xy,
-      vec2(10.721, 57.583))) * 59381.187);
+    float sampleCount = clamp(ceil(reach / 3.0), 4.0, 16.0);
+    float jitter = fract(52.9829189 * fract(dot(
+      gl_FragCoord.xy, vec2(.06711056, .00583715))));
     for (int k = 0; k < 16; k++) {
       if (float(k) >= sampleCount) break;
       float t = (float(k) + jitter) / sampleCount;
@@ -220,7 +219,7 @@ const RAYS_FRAGMENT = `
           uvAt.y >= 0.0 && uvAt.y <= 1.0)
         ink = texture2D(uPaper, uvAt);
       vec3 wavelength = spectralWeight(t);
-      colorAccum += ink.rgb * ink.a * wavelength;
+      colorAccum += ink.rgb * wavelength;
       coverAccum += ink.a * wavelength;
       weightAccum += wavelength;
     }
@@ -228,10 +227,11 @@ const RAYS_FRAGMENT = `
       max(weightAccum, vec3(0.0001));
     float coverage = max(channelCoverage.r,
       max(channelCoverage.g, channelCoverage.b));
-    vec3 premultiplied = colorAccum /
+    // Do not divide color by alpha a second time: that produced
+    // nearly-white fringes instead of the distinct colored paper edge.
+    vec3 visibleColor = colorAccum /
       max(weightAccum, vec3(0.0001));
-    vec3 visibleColor = premultiplied / max(coverage, 0.0001);
-    gl_FragColor = vec4(visibleColor,
+    gl_FragColor = vec4(visibleColor * innerVisibility,
       coverage * innerVisibility);
   }
 `;
