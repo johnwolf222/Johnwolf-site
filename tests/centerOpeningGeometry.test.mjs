@@ -10,7 +10,7 @@ const fragment = source.split('const PAPER_FRAGMENT = \`')[1]?.split('\`;')[0];
 test('the center opening feeds each vertex over a curved physical rim', () => {
   assert.ok(vertex && fragment);
   assert.match(vertex, /vec2 openingCurve\(float s, float radius\)/);
-  assert.match(vertex, /float limit = radius \* \(3\.141593 - \.872665\)/);
+  assert.match(vertex, /float arcEnd = radius \* \(3\.141593 - \.872665\)/);
   assert.match(vertex, /vec2 vertexOnRim = openingCurve\(distance, arcRadius\)/);
   assert.match(vertex, /float depthBase = uFocal - uFocal \/ \.55 - arcRadius;/);
   assert.match(vertex, /vec3 rimWorld = radial \* vertexOnRim\.x \+/);
