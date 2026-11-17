@@ -48,8 +48,14 @@ test('all sheets exit the ring without visual jumps or unwanted spins', () => {
       assert.ok(Math.hypot(
         after.x - before.x, after.y - before.y) < 9,
       'position discontinuity in sheet ' + id + ' at frame ' + frame);
-      assert.ok(Math.abs(after.rz - before.rz) < 6,
-      'rotation discontinuity in sheet ' + id + ' at frame ' + frame);
+      // Euler angles can change discontinuously at a gimbal singularity
+      // even when the physical 3D orientation is perfectly continuous.
+      // Measure geodesic quaternion rotation instead.
+      const dot = Math.min(1, Math.abs(before.q.reduce(
+        (sum, value, axis) => sum + value * after.q[axis], 0)));
+      const physicalDegrees = 2 * Math.acos(dot) * 180 / Math.PI;
+      assert.ok(physicalDegrees < 5,
+        'physical rotation discontinuity in sheet ' + id + ' at frame ' + frame);
       assert.ok(Math.abs(after.opacity - before.opacity) < .06,
       'opacity pop in sheet ' + id + ' at frame ' + frame);
     }
