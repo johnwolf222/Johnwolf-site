@@ -148,10 +148,12 @@ const RAYS_FRAGMENT = `
 
     // Only the two crossing points get chromatic softness: emergence
     // around the opening, and disappearance at the section boundaries.
-    float ringThickness = max(1.0, uRingRadius * .36);
-    float ringDistance = abs(radialDistance - uRingRadius) / ringThickness;
+    // Hole 01's chromatic softness belongs on the INNER rim:
+    // the sheet crosses the rounded throat before leaving the ring.
+    float throatWidth = max(1.0, uRingRadius * (.11 / .312));
+    float throatPosition = (radialDistance - uRingRadius) / throatWidth;
     float holeWeight = uNearRays *
-      (1.0 - smoothstep(.38, 1.22, ringDistance));
+      exp(-pow((throatPosition + 1.0) / .60, 2.0));
     float edgeInset = min(
       min(vUv.x, 1.0 - vUv.x) * uSize.x,
       min(vUv.y, 1.0 - vUv.y) * uSize.y
@@ -168,7 +170,11 @@ const RAYS_FRAGMENT = `
     }
 
     // A short, local RGB fringe rather than a long radial smear.
-    float reach = effect * (3.0 + shortSide * .024);
+    // Preserve the existing section-edge treatment; only the inner
+    // opening gets its own, physically located radial softness.
+    float nearReach = throatWidth * holeWeight * .46;
+    float edgeReach = edgeWeight * (3.0 + shortSide * .024);
+    float reach = uRayStrength * max(nearReach, edgeReach);
     vec3 colorSum = vec3(0.0);
     vec3 colorWeights = vec3(0.0);
     float sampledAlpha = 0.0;
@@ -189,7 +195,8 @@ const RAYS_FRAGMENT = `
     vec3 fringeColor = colorSum / max(colorWeights, vec3(.0001));
     float haloAlpha = sampledAlpha * effect * .40;
     float outputAlpha = max(original.a, haloAlpha);
-    float colorMix = effect * .56;
+    float colorMix = uRayStrength *
+      max(holeWeight * .80, edgeWeight * .56);
     gl_FragColor = vec4(mix(original.rgb, fringeColor, colorMix), outputAlpha);
   }
 `;
@@ -334,7 +341,7 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
       paperTarget.setSize(width * dpr, height * dpr);
       raysMaterial.uniforms.uSize.value.set(width * dpr, height * dpr);
       raysMaterial.uniforms.uRingRadius.value =
-        Math.min(width, height) * .31 * dpr;
+        Math.min(width, height) * .33 * dpr;
       const card = document.querySelector('.jw-projects-stage__card');
       paperWidth = card?.offsetWidth ||
         (width <= 800 ? Math.min(width * .55, 285) : Math.min(width * .26, 370));
