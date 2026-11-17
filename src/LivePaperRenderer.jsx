@@ -113,53 +113,53 @@ const RAYS_FRAGMENT = `
     vec2 fromCenter = (vUv - .5) * uSize;
     float radialDistance = length(fromCenter);
     vec2 outward = fromCenter / max(1.0, radialDistance);
-    float ringThickness = max(1.0, uRingRadius * .34);
-    float ringDistance = (radialDistance - uRingRadius) / ringThickness;
-    float holeWeight = uNearRays *
-      exp(-pow((ringDistance + .88) / .72, 2.0));
-    vec2 edges = abs(vUv * 2.0 - 1.0);
-    float edgeWeight = uEdgeRays *
-      smoothstep(.78, 1.0, max(edges.x, edges.y));
-    float reach = uRayStrength * (
-      ringThickness * holeWeight * .45 +
-      min(uSize.x, uSize.y) * edgeWeight * .055);
-    reach = min(48.0, reach);
+    float shortSide = min(uSize.x, uSize.y);
 
-    if (reach < .6) {
+    // Only the two crossing points get chromatic softness: emergence
+    // around the opening, and disappearance at the section boundaries.
+    float ringThickness = max(1.0, uRingRadius * .36);
+    float ringDistance = abs(radialDistance - uRingRadius) / ringThickness;
+    float holeWeight = uNearRays *
+      (1.0 - smoothstep(.38, 1.22, ringDistance));
+    float edgeInset = min(
+      min(vUv.x, 1.0 - vUv.x) * uSize.x,
+      min(vUv.y, 1.0 - vUv.y) * uSize.y
+    );
+    float edgeWeight = uEdgeRays *
+      (1.0 - smoothstep(shortSide * .025, shortSide * .16, edgeInset));
+    float effect = clamp(max(holeWeight, edgeWeight) * uRayStrength, 0.0, 1.0);
+
+    // Between the opening and the edges the papers stay perfectly crisp:
+    // neither a time-based trail nor a permanent lens blur is drawn.
+    if (effect < .006) {
       gl_FragColor = original;
       return;
     }
 
-    // Color channels pull from different points along a radial streak.
-    // The tinted ghost fades wherever there is no sheet coverage.
-    vec3 light = vec3(0.0);
-    vec3 cover = vec3(0.0);
-    vec3 weights = vec3(0.0);
-    for (int i = 0; i < 9; i++) {
-      float t = (float(i) + .5) / 9.0;
+    // A short, local RGB fringe rather than a long radial smear.
+    float reach = effect * (3.0 + shortSide * .024);
+    vec3 colorSum = vec3(0.0);
+    vec3 colorWeights = vec3(0.0);
+    float sampledAlpha = 0.0;
+    for (int i = 0; i < 7; i++) {
+      float t = (float(i) + .5) / 7.0;
       vec2 sampleUV = vUv + outward * (t - .5) * reach / uSize;
       vec4 sampleColor = texture2D(uPaper, sampleUV);
       vec3 spectrum = vec3(
-        smoothstep(.15, .82, 1.0 - t),
-        1.0 - .72 * abs(t * 2.0 - 1.0),
-        smoothstep(.15, .82, t)
+        smoothstep(.12, .83, 1.0 - t),
+        1.0 - .70 * abs(t * 2.0 - 1.0),
+        smoothstep(.12, .83, t)
       );
-      light += sampleColor.rgb * sampleColor.a * spectrum;
-      cover += sampleColor.a * spectrum;
-      weights += spectrum;
+      colorSum += sampleColor.rgb * sampleColor.a * spectrum;
+      colorWeights += sampleColor.a * spectrum;
+      sampledAlpha += sampleColor.a / 7.0;
     }
 
-    vec3 chromatic = light / max(weights, vec3(.0001));
-    vec3 channelCover = cover / max(weights, vec3(.0001));
-    float haloAlpha = max(channelCover.r,
-      max(channelCover.g, channelCover.b));
-    vec3 haloColor = chromatic / max(haloAlpha, .0001);
-    float blendAmount = clamp(
-      uRayStrength * (holeWeight + edgeWeight * .78), 0.0, 1.0);
-    float outputAlpha = max(original.a,
-      haloAlpha * blendAmount * .80);
-    vec3 outputColor = mix(original.rgb, haloColor, blendAmount);
-    gl_FragColor = vec4(outputColor, outputAlpha);
+    vec3 fringeColor = colorSum / max(colorWeights, vec3(.0001));
+    float haloAlpha = sampledAlpha * effect * .40;
+    float outputAlpha = max(original.a, haloAlpha);
+    float colorMix = effect * .56;
+    gl_FragColor = vec4(mix(original.rgb, fringeColor, colorMix), outputAlpha);
   }
 `;
 /** Render all 21 cards from the same continuous GPU geometry/clock. */
