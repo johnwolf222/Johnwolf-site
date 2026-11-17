@@ -15,7 +15,7 @@ export const HOME_PAPER_PRESET = Object.freeze({
   ring: .31,
   cardSize: 390,
   curl: 1,
-  flutter: 0,
+  flutter: 1,
   seed: 1,
 });
 
@@ -84,17 +84,6 @@ function createLane(index, width, height, preset) {
   const ringRX = 10 * Math.sin(pitchPhase + 3.7);
   const ringRY = 13 * Math.cos(yawPhase + 2.8);
   const ringRZ = baseRoll + 9 * Math.sin(rollPhase + 2.5);
-  // 3D whole-sheet heave: two staggered crest/dip cycles in outward
-  // flight. It does not alter the approved XY lanes or card sizing.
-  const liftRate = 2.18 + rand() * .19;
-  const liftAmplitude = Math.max(66, shortSide * (.10 + rand() * .035));
-  const liftHarmonic = .12 + rand() * .05;
-  const flightEnvelope = t => smooth(t, 0, .52) *
-    (1 - .26 * smooth(t, 4.0, 7.1));
-  const liftAt = t => t <= 0 ? 0 :
-    liftAmplitude * flightEnvelope(t) *
-    (Math.sin(liftRate * t) +
-     liftHarmonic * Math.sin(liftRate * 1.72 * t));
 
   let x = outwardX * lipR;
   let y = outwardY * lipR;
@@ -150,13 +139,7 @@ function createLane(index, width, height, preset) {
       z += vz * STEP;
       px = x;
       py = y;
-      // Move the entire sheet up and down in depth; a zero surface
-      // Flutter setting does not disable this physical movement.
-      pz = z + liftAt(t);
-      const liftSpeed = (liftAt(t + STEP) -
-        liftAt(Math.max(0, t - STEP))) / (2 * STEP);
-      const flightPitch = .34 * Math.atan2(
-        liftSpeed, Math.max(62, Math.hypot(vx, vy))) * 180 / PI;
+      pz = z;
 
       const direction = Math.atan2(vy, vx);
       const unwrapped = direction +
@@ -164,12 +147,8 @@ function createLane(index, width, height, preset) {
       const settle = smooth(t, 0, .82);
       const swing = Math.sin(t * 1.46 + pitchPhase);
       const yaw = Math.sin(t * 1.22 + yawPhase);
-      // Pitch follows the heaving path, around the tangent of each
-      // radial departure; independent wind yaw and roll are preserved.
-      rx = mix(ringRX, 30 * swing + 8 * Math.sin(t * 2.8 + rollPhase), settle) -
-        outwardY * flightPitch;
-      ry = mix(ringRY, 40 * yaw + 9 * Math.cos(t * 2.1 + pitchPhase), settle) +
-        outwardX * flightPitch;
+      rx = mix(ringRX, 30 * swing + 8 * Math.sin(t * 2.8 + rollPhase), settle);
+      ry = mix(ringRY, 40 * yaw + 9 * Math.cos(t * 2.1 + pitchPhase), settle);
       rz = mix(ringRZ, (unwrapped + PI / 2) * 180 / PI +
         11 * Math.sin(t * 1.74 + rollPhase) + 15 * spin * t, settle);
     }
