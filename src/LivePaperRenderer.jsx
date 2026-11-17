@@ -29,20 +29,20 @@ const VERTEX = `
     float bentAcross = sin(phi) / bend;
     float bulge = (1. - cos(phi)) / bend;
     float edge = pow(clamp(abs(across) * 2., 0., 1.), 1.5);
-    // The visible undulation also advances from row to row. A tiny
-    // sideways phase shift avoids a mechanical perfectly straight stripe.
-    float paperRipple = uFlutter * (.022 + edge * .039) *
-      (sin(across * 13.8 + uTime * 3.6 + uSeed * .83 +
-        .17 * sin(along * 4.0 + uSeed * .31)) +
-       .33 * sin(across * 21. + uTime * 5.4 + uSeed * .47));
-    // Keep a subtle widthwise flutter without turning the main crease.
-    float twist = uFlutter * edge * .012 *
-      sin(along * 8.6 - uTime * 2.8 + uSeed * .31);
-    pos.xy = vec2(along + twist, bentAcross);
+    // The wide curl bends along local Y; the much smaller air ripple
+    // travels across local X. Keep these effects separate so a sheet
+    // has a horizontal fold without horizontal bands of flutter.
+    // Use one broad wave, rather than several sharp fabric-like wrinkles.
+    float ripplePhase = along * 3.14159 + uTime * 8.1 +
+      uSeed * 1.61;
+    float paperRipple = uFlutter * .042 * sin(ripplePhase);
+    float rippleSlope = uFlutter * .042 * 3.14159 * cos(ripplePhase);
+    pos.xy = vec2(along, bentAcross);
     pos.z = bulge * .72 + paperRipple;
-    float lightFacing = .5 + .5 * cos(phi + .4);
+    // Fold and flutter affect the surface normal independently.
+    float lightFacing = .5 + .5 * cos(phi + .4 + rippleSlope);
     vLight = clamp(.79 + .26 * lightFacing -
-      .10 * abs(paperRipple) * 6. -
+      .055 * abs(rippleSlope) -
       .06 * edge * uCurl, .61, 1.06);
     gl_Position = projectionMatrix * modelViewMatrix *
       vec4(pos, 1.0);
