@@ -73,13 +73,13 @@ test('every sheet travels through a deep ring passage before outward release', (
   }
 });
 
-test('paper changes from guided ring posture into flexible wind-driven flight', () => {
+test('paper changes from guided ring posture into aerodynamic free flight', () => {
   const motion = createHomePaperMotion(1280, 720);
   for (let id = 0; id < 21; id++) {
     const guide = motion.pose(id, .15 / 12);
     const free = motion.pose(id, 4 / 12);
     assert.ok(guide.flutter < .001, 'paper is guided during ring entry');
-    assert.ok(free.flutter > .1, 'paper begins fluttering after release');
+    assert.equal(free.flutter, 0, 'surface ripples remain off in reference');
     assert.ok(free.curl > guide.curl,
       'free flight bends more than the guided entry');
   }
