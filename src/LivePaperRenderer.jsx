@@ -18,77 +18,88 @@ const VERTEX = `
   uniform float uTime;
   uniform float uSeed;
   uniform float uExitWrap;
-  uniform float uRimRadius;
+  uniform float uArcRadius;
+  uniform float uSheetExtent;
+  uniform vec3 uCardCenter;
+  uniform vec2 uOutward;
+
+  // Cross-section of the rounded opening. Sheets first travel along its
+  // nearly vertical inner wall, then bend over its circular rim and out.
+  // This is used for individual mesh vertices, never the card flight.
+  vec2 openingCurve(float s, float radius) {
+    if (s < 0.0) return vec2(-radius, s);
+    float limit = radius * (3.141593 - .872665);
+    float theta = 3.141593 - min(s, limit) / radius;
+    float remaining = max(0.0, s - limit);
+    return vec2(radius * cos(theta) + remaining * sin(theta),
+      radius * sin(theta) - remaining * cos(theta));
+  }
+
   void main() {
     vUv = uv;
     vec3 pos = position;
-    // Fold lines cross each sheet horizontally in its local coordinates.
-    // The bend changes with local Y, not X. Sheet rotation is handled
-    // separately by its 3D pose so the fold follows the paper naturally.
+    // The approved paper shader is the exact free-flight fallback.
     float across = pos.y;
     float along = pos.x;
-    // Fold the sheet around the ring lip during departure. This shapes
-    // individual vertices but does not move or rearrange card centers.
     float bend = max(.0001, uCurl * 2.12 + uExitWrap * 2.0);
     float phi = across * bend;
     float bentAcross = sin(phi) / bend;
     float bulge = (1. - cos(phi)) / bend;
     float edge = pow(clamp(abs(across) * 2., 0., 1.), 1.5);
-    // The wide curl bends along local Y; the much smaller air ripple
-    // travels across local X. Keep these effects separate so a sheet
-    // has a horizontal fold without horizontal bands of flutter.
-    // Use one broad wave, rather than several sharp fabric-like wrinkles.
     float ripplePhase = along * 3.14159 + uTime * 8.1 +
       uSeed * 1.61;
     float paperRipple = uFlutter * .042 * sin(ripplePhase);
     float rippleSlope = uFlutter * .042 * 3.14159 * cos(ripplePhase);
-    // CENTER OPENING ONLY: feed each vertex along the rounded rim,
-    // rather than bending and revealing the entire card at once.
-    // Geometry is a circular cross-section around the opening; the
-    // cross-section radius is tied to the physical ring, not an
-    // arbitrary screen-space ripple.
-    float rimGate = clamp(uExitWrap, 0.0, 1.0);
-    float emergence = smoothstep(.18, 1.68, uTime);
-    float rimAngle = mix(3.141593, .872665, emergence);
-    float rimRadius = max(.16, uRimRadius);
-    float vertexArc = across / rimRadius;
-    float toroidY = rimRadius *
-      (cos(rimAngle - vertexArc) - cos(rimAngle));
-    float toroidZ = rimRadius *
-      (sin(rimAngle - vertexArc) - sin(rimAngle));
-
-    // At full emergence the paper becomes the original curled free
-    // sheet. The gate reaches precisely zero after the opening, so
-    // all approved free-flight vertices remain unchanged.
-    float leadingEdge = smoothstep(.02, .5, across);
-    float trailingEdge = smoothstep(.02, .5, -across);
-    float ringLipArc = rimGate *
-      (.24 * leadingEdge * leadingEdge -
-       .38 * trailingEdge * trailingEdge);
-    float originalZ = bulge * .72 + paperRipple + ringLipArc;
-    pos.xy = vec2(along, mix(bentAcross, toroidY, rimGate));
-    pos.z = mix(originalZ, toroidZ + paperRipple, rimGate);
-
-    // The outer edge peels through first. Only the part that has
-    // crossed the rim is visible; the trailing edge remains hidden.
-    // Free-flight sheets have an exactly neutral reveal multiplier.
-    float acrossRim = emergence + across * .52;
-    float visibleFraction = smoothstep(.28, .56, acrossRim);
-    vOpeningReveal = mix(1.0, visibleFraction, rimGate);
+    pos.xy = vec2(along, bentAcross);
+    pos.z = bulge * .72 + paperRipple;
     float lightFacing = .5 + .5 * cos(phi + .4 + rippleSlope);
-    float rimFacing = .5 + .5 *
-      sin(rimAngle - vertexArc);
-    vLight = clamp(.79 + .26 *
-      mix(lightFacing, rimFacing, rimGate) -
+    vLight = clamp(.79 + .26 * lightFacing -
       .055 * abs(rippleSlope) -
       .06 * edge * uCurl, .61, 1.06);
-    gl_Position = projectionMatrix * modelViewMatrix *
-      vec4(pos, 1.0);
+
+    float rimGate = clamp(uExitWrap, 0.0, 1.0);
+    vOpeningReveal = 1.0;
+    if (rimGate > .0001) {
+      // Feed the sheet across the opening, not by rotating a flat card.
+      float arcRadius = max(8.0, uArcRadius);
+      float arcEnd = arcRadius * (3.141593 - .872665);
+      float advance = smoothstep(.14, 1.62, uTime);
+      float centerTravel = mix(-arcRadius * .72,
+        arcEnd + uSheetExtent * .40, advance);
+
+      // Translate each vertex in the rim's radial/tangential frame.
+      // Anchoring at the existing sheet center keeps its approved
+      // positions and its free-flight handoff exactly intact.
+      vec3 flatWorld = (modelMatrix * vec4(position, 1.0)).xyz;
+      vec3 local = flatWorld - uCardCenter;
+      vec3 radial = vec3(uOutward, 0.0);
+      vec3 tangential = vec3(-uOutward.y, uOutward.x, 0.0);
+      float distance = centerTravel + dot(local, radial);
+      float offset = dot(local, tangential);
+      vec2 centerOnRim = openingCurve(centerTravel, arcRadius);
+      vec2 vertexOnRim = openingCurve(distance, arcRadius);
+      vec3 rimWorld = uCardCenter +
+        radial * (vertexOnRim.x - centerOnRim.x) +
+        tangential * offset +
+        vec3(0.0, 0.0, vertexOnRim.y - centerOnRim.y);
+      vec3 ordinaryWorld = (modelMatrix * vec4(pos, 1.0)).xyz;
+      vec3 emergingWorld = mix(ordinaryWorld, rimWorld, rimGate);
+
+      // The trailing part is still inside the opening. Only the
+      // emerged radial length becomes visible, one vertex at a time.
+      float visibleFraction = smoothstep(0.0,
+        arcRadius * .42 * 1.570796, distance);
+      vOpeningReveal = mix(1.0, visibleFraction, rimGate);
+      gl_Position = projectionMatrix * viewMatrix *
+        vec4(emergingWorld, 1.0);
+    } else {
+      // This branch preserves the exact original paper coordinates,
+      // orientation, size and perspective after the ring passage.
+      gl_Position = projectionMatrix * modelViewMatrix *
+        vec4(pos, 1.0);
+    }
   }
 `;
-// A SINGLE render pass: every bendable paper mesh samples the GLB's
-// permanent alpha silhouette only when behind the head. Front papers pass
-// over it normally. Avoids two scene passes and an expensive framebuffer copy.
 const PAPER_FRAGMENT = `
   precision highp float;
   varying vec2 vUv;
@@ -299,7 +310,10 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
           uCurl: { value: 0 },
           uFlutter: { value: 0 },
           uExitWrap: { value: 0 },
-          uRimRadius: { value: 1 },
+          uArcRadius: { value: 1 },
+          uSheetExtent: { value: 1 },
+          uCardCenter: { value: new THREE.Vector3() },
+          uOutward: { value: new THREE.Vector2(1, 0) },
           uTime: { value: 0 },
           uSeed: { value: index },
         },
@@ -409,11 +423,16 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
         item.material.uniforms.uCurl.value = pose.curl;
         item.material.uniforms.uFlutter.value = pose.flutter ?? 1;
         item.material.uniforms.uExitWrap.value = pose.wrap ?? 0;
-        // The ring's rounded throat has a radius proportional to
-        // the opening. Scale into the sheet's local coordinates.
-        item.material.uniforms.uRimRadius.value =
-          Math.min(width, height) * .33 * (.11 / .312) /
-          Math.max(1, sheetSize);
+        // The rounded hole is evaluated in world units, using the
+        // same radial departure for every vertex in this sheet.
+        item.material.uniforms.uArcRadius.value =
+          Math.min(width, height) * .33 * (.11 / .312) / .55;
+        item.material.uniforms.uSheetExtent.value = sheetSize;
+        item.material.uniforms.uCardCenter.value.set(
+          pose.x, -pose.y, pose.z);
+        const radialLength = Math.max(1, Math.hypot(pose.x, pose.y));
+        item.material.uniforms.uOutward.value.set(
+          pose.x / radialLength, -pose.y / radialLength);
         item.material.uniforms.uTime.value = pose.time;
       }
       // The optical rays belong to Home. Fade them away as the existing
