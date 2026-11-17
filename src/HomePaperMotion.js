@@ -1,13 +1,12 @@
 /**
- * Homepage-only paper current, inspired by the observable behavior of
- * Premotio's Hole 01 preset. This is an independent implementation.
+ * Original, seekable paper-current choreography for the homepage.
  *
- * Each artwork owns a deterministic, reversible nine-second journey:
- * central ring -> curved release -> inertial wind-driven free flight.
- * All 21 journeys are staggered around one 12-second clock.
+ * Visual goals: a curved three-dimensional ring passage, a continuous
+ * departure tangent, and inertial wind-driven outward flight. This module
+ * intentionally uses independent trajectory math rather than vendor code.
  *
- * Every transform/rotation/curl sample is reproducible. Scrolling can seek
- * each unique sheet backwards without changing the card or swapping media.
+ * The approved 21 individual artworks, scroll handoff, and GPU renderer all
+ * consume the same per-sheet poses. There is no asset substitution.
  */
 export const HOME_PAPER_PRESET = Object.freeze({
   count: 21,
@@ -19,15 +18,23 @@ export const HOME_PAPER_PRESET = Object.freeze({
   flutter: 1,
   seed: 1,
 });
-const TAU = 2 * Math.PI;
-const GOLDEN = Math.PI * (3 - Math.sqrt(5));
+
+const PI = Math.PI;
+const TAU = 2 * PI;
+const GOLDEN = PI * (3 - Math.sqrt(5));
 const STEP = 1 / 60;
-const clamp = (n, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, n));
-const lerp = (a, b, t) => a + (b - a) * t;
-const ease = (t, a, b) => {
-  const v = clamp((t - a) / Math.max(.00001, b - a));
-  return v * v * (3 - 2 * v);
+const clamp = (value, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, value));
+const mix = (a, b, t) => a + (b - a) * t;
+const smooth = (t, start, end) => {
+  const x = clamp((t - start) / Math.max(.00001, end - start));
+  return x * x * (3 - 2 * x);
 };
+const bezier = (p0, p1, p2, p3, u) => {
+  const v = 1 - u;
+  return v * v * v * p0 + 3 * v * v * u * p1 +
+    3 * v * u * u * p2 + u * u * u * p3;
+};
+
 function random(seed) {
   let state = seed >>> 0;
   return () => {
@@ -35,159 +42,170 @@ function random(seed) {
     return state / 4294967296;
   };
 }
-function createLane(index, width, height, config) {
-  const noise = random(config.seed * 4099 + (index + 1) * 10007);
-  const angle = index * GOLDEN + (noise() - .5) * .20;
-  const xRay = Math.cos(angle);
-  const yRay = Math.sin(angle);
-  const acrossX = -yRay;
-  const acrossY = xRay;
-  const shortest = Math.min(width, height);
-  const ring = shortest * config.ring;
-  const body = shortest * .135;
+
+function createLane(index, width, height, preset) {
+  const rand = random((preset.seed * 4099 + (index + 1) * 10007) >>> 0);
+  const theta = index * GOLDEN + (rand() - .5) * .18;
+  const outwardX = Math.cos(theta);
+  const outwardY = Math.sin(theta);
+  const lateralX = -outwardY;
+  const lateralY = outwardX;
+  const shortSide = Math.max(1, Math.min(width, height));
+  const ring = shortSide * preset.ring;
+
+  // The passage has depth: sheets travel from behind its opening to a lip,
+  // where the curve's outgoing tangent becomes the free-flight velocity.
+  const passTime = 1.48 + (rand() - .5) * .20;
+  const startR = ring * .24;
+  const controlR1 = ring * .22;
+  const controlR2 = ring * .81;
+  const lipR = ring * 1.08;
+  const startZ = -760;
+  const controlZ1 = -590;
+  const controlZ2 = -294;
+  const lipZ = -224;
+  const radialAtLip = 3 * (lipR - controlR2) / passTime;
+  const depthAtLip = 3 * (lipZ - controlZ2) / passTime;
+
   const screenExit = Math.min(
-    (width * .5 + shortest * .12) / Math.max(.12, Math.abs(xRay)),
-    (height * .5 + shortest * .12) / Math.max(.12, Math.abs(yRay)),
+    (width * .5 + shortSide * .21) / Math.max(.10, Math.abs(outwardX)),
+    (height * .5 + shortSide * .21) / Math.max(.10, Math.abs(outwardY)),
   );
-  const reach = Math.max(ring + shortest * .20, screenExit);
-  const release = 1.52 + (noise() - .5) * .19;
-  const wander = .8 + noise() * .45;
-  const tilt = noise() * TAU;
-  const wobble = noise() * TAU;
-  const roll = noise() * TAU;
-  const spin = (noise() < .5 ? -1 : 1) * (.16 + noise() * .27);
-  const baseSpeed = (reach - ring * .98) / (config.flight - release);
-  const drift = (noise() - .5) * 13;
-  const gustPhase = [noise() * TAU, noise() * TAU, noise() * TAU];
+  const flightSpan = Math.max(.1, preset.flight - passTime);
+  const targetRadialSpeed = Math.max(45, (screenExit - lipR) / flightSpan);
+  const yawPhase = rand() * TAU;
+  const pitchPhase = rand() * TAU;
+  const rollPhase = rand() * TAU;
+  const gustPhase = rand() * TAU;
+  const lateralPhase = rand() * TAU;
+  const airflow = .8 + rand() * .45;
+  const spin = (rand() < .5 ? -1 : 1) * (.07 + rand() * .13);
+  const baseRoll = theta * 180 / PI + 90;
+  const ringRX = 10 * Math.sin(pitchPhase + 3.7);
+  const ringRY = 13 * Math.cos(yawPhase + 2.8);
+  const ringRZ = baseRoll + 9 * Math.sin(rollPhase + 2.5);
+
+  let x = outwardX * lipR;
+  let y = outwardY * lipR;
+  let z = lipZ;
+  let vx = outwardX * radialAtLip;
+  let vy = outwardY * radialAtLip;
+  let vz = depthAtLip;
+  let travelled = false;
   const frames = [];
-  let px = xRay * ring;
-  let py = yRay * ring;
-  let vx = xRay * baseSpeed + acrossX * drift;
-  let vy = yRay * baseSpeed + acrossY * drift;
+  const count = Math.ceil(preset.flight / STEP);
 
-  for (let i = 0; i <= Math.ceil(config.flight / STEP); i++) {
-    const t = Math.min(config.flight, i * STEP);
-    const out = t > release;
-    let x, y, z, rx, ry, rz, curl, flutter, scale;
+  for (let i = 0; i <= count; i++) {
+    const time = Math.min(preset.flight, i * STEP);
+    const withinPassage = time <= passTime;
+    let px, py, pz, rx, ry, rz;
 
-    if (!out) {
-      // Paper follows the inside of a three-dimensional curved ring before
-      // its free-flight release; the bend is in the radial-depth cross-section.
-      const u = ease(t, 0, release);
-      const phi = Math.PI * (1 - u) * .82;
-      const r = body + (ring - body) * ease(u, .12, .96);
-      x = xRay * r;
-      y = yRay * r;
-      z = -690 + 410 * u + 85 * Math.sin(phi);
-      const ringTilt = (1 - u) * 47;
-      rx = ringTilt * yRay + 9 * Math.sin(tilt + u * 4);
-      ry = ringTilt * xRay + 13 * Math.cos(wobble + u * 3);
-      rz = angle * 180 / Math.PI + 90 +
-        12 * Math.sin(roll + u * 2.5);
+    if (withinPassage) {
+      const u = clamp(time / passTime);
+      const r = bezier(startR, controlR1, controlR2, lipR, u);
+      px = outwardX * r;
+      py = outwardY * r;
+      pz = bezier(startZ, controlZ1, controlZ2, lipZ, u);
+      const facingChange = 1 - smooth(u, .22, .98);
+      rx = ringRX + facingChange * 53 * outwardY;
+      ry = ringRY + facingChange * 58 * outwardX;
+      rz = ringRZ + facingChange * 14 * Math.sin(rollPhase);
     } else {
-      const flightT = t - release;
-      const u = clamp(flightT / (config.flight - release));
-      if (i > 0) {
-        // Inertial advection through a bounded, multi-frequency wind field.
-        // Gusts depend on position and time, not random frame changes.
-        const wave1 = Math.sin(
-          (px * .0038 + py * .0021) + flightT * .97 + gustPhase[0]);
-        const wave2 = Math.cos(
-          (py * .0048 - px * .0016) - flightT * 1.43 + gustPhase[1]);
-        const wave3 = Math.sin(flightT * 2.12 + gustPhase[2]);
-        const sideways = (wave1 * 26 + wave2 * 17 + wave3 * 9) * wander;
-        const flow = 1 + .11 * Math.sin(flightT * 1.04 + tilt);
-        const goalVX = xRay * baseSpeed * flow + acrossX * sideways;
-        const goalVY = yRay * baseSpeed * flow + acrossY * sideways;
-        const inertia = Math.min(1, STEP * 1.28);
-        vx = lerp(vx, goalVX, inertia);
-        vy = lerp(vy, goalVY, inertia);
-        px += vx * STEP;
-        py += vy * STEP;
+      // The first free-flight sample uses the exact lip position and outgoing
+      // derivative. Continuous acceleration then changes that velocity; the
+      // sheet is never teleported to an unrelated random orbit.
+      if (!travelled) {
+        travelled = true;
+        x = outwardX * lipR;
+        y = outwardY * lipR;
+        z = lipZ;
       }
-      // Damped freedom of rotation: orientation is related to velocity,
-      // gently turning with the current rather than spinning in-place.
+      const t = time - passTime;
+      const windA = Math.sin(x * .0029 + y * .0016 + t * .94 + gustPhase);
+      const windB = Math.cos(y * .0041 - x * .0017 - t * 1.33 + lateralPhase);
+      const windC = Math.sin(t * 2.12 + rollPhase);
+      const lateral = airflow * (24 * windA + 16 * windB + 8 * windC);
+      const radial = targetRadialSpeed *
+        (1 + .11 * Math.sin(t * 1.04 + yawPhase));
+      const wantedVX = outwardX * radial + lateralX * lateral;
+      const wantedVY = outwardY * radial + lateralY * lateral;
+      const wantedVZ = 54 + 22 * Math.sin(t * .66 + pitchPhase);
+      const drag = Math.min(1, STEP * 1.4);
+      vx = mix(vx, wantedVX, drag);
+      vy = mix(vy, wantedVY, drag);
+      vz = mix(vz, wantedVZ, Math.min(1, STEP * 1.9));
+      x += vx * STEP;
+      y += vy * STEP;
+      z += vz * STEP;
+      px = x;
+      py = y;
+      pz = z;
+
       const direction = Math.atan2(vy, vx);
-      // Unwrap the heading around the birth direction. Otherwise later
-      // golden-angle lanes rotate through multiple unwanted revolutions at
-      // the moment of release because atan2 always returns [-PI, PI].
-      const travelDirection = direction +
-        Math.round((angle - direction) / TAU) * TAU;
-      const air = Math.sin(flightT * 1.8 + wobble) +
-        .48 * Math.sin(flightT * 3.5 + tilt);
-      x = px;
-      y = py;
-      const releaseBlend = ease(flightT, 0, .48);
-      z = lerp(-280, 165, ease(u, 0, .94)) +
-        Math.sin(flightT * 1.12 + roll) * 33 * releaseBlend;
-      const ringRx = 9 * Math.sin(tilt + 4);
-      const ringRy = 13 * Math.cos(wobble + 3);
-      const ringRz = angle * 180 / Math.PI + 90 +
-        12 * Math.sin(roll + 2.5);
-      rx = lerp(ringRx, Math.sin(flightT * 1.12 + tilt) * 28 +
-        Math.cos(flightT * 2.2 + roll) * 8, releaseBlend);
-      ry = lerp(ringRy, Math.sin(flightT * 1.3 + wobble) * 44 +
-        9 * Math.sin(flightT * 2.8 + tilt), releaseBlend);
-      rz = lerp(ringRz,
-        (travelDirection + Math.PI / 2) * 180 / Math.PI +
-        13 * air + spin * flightT * 18, releaseBlend);
+      const unwrapped = direction +
+        Math.round((theta - direction) / TAU) * TAU;
+      const settle = smooth(t, 0, .82);
+      const swing = Math.sin(t * 1.46 + pitchPhase);
+      const yaw = Math.sin(t * 1.22 + yawPhase);
+      rx = mix(ringRX, 30 * swing + 8 * Math.sin(t * 2.8 + rollPhase), settle);
+      ry = mix(ringRY, 40 * yaw + 9 * Math.cos(t * 2.1 + pitchPhase), settle);
+      rz = mix(ringRZ, (unwrapped + PI / 2) * 180 / PI +
+        11 * Math.sin(t * 1.74 + rollPhase) + 15 * spin * t, settle);
     }
 
-    const show = ease(t, .16, 1.13) *
-      (1 - ease(t, config.flight - 1.24, config.flight - .12));
-    // A shallow natural swing in apparent size, never a bounce or scale pop.
-    scale = lerp(.185, .405, ease(t, .20, config.flight - .32)) *
-      (.92 + .12 * Math.sin(index * 2.18 + .2));
-    const releaseBend = ease(t, release, release + .60);
-    curl = clamp((.50 +
-      .24 * Math.sin(t * 1.62 + roll) +
-      .13 * Math.cos(t * 3.15 + wobble)) *
-      (.10 + .90 * releaseBend), .03, .92);
-    flutter = clamp((.66 + .20 * Math.sin(t * 2.13 + tilt) +
-      .12 * Math.cos(t * 3.6 + roll)) * releaseBend, 0, 1);
-    frames.push({ x, y, z, rx, ry, rz, scale, opacity: show,
-      curl, flutter, time: t });
+    const release = smooth(time, passTime, passTime + .64);
+    const visibility = smooth(time, .12, .96) *
+      (1 - smooth(time, preset.flight - 1.20, preset.flight - .10));
+    const scale = mix(.20, .43, smooth(time, .18, preset.flight - .38)) *
+      (.94 + .1 * Math.sin(index * 2.18 + .2));
+    const curl = clamp((.47 +
+      .23 * Math.sin(time * 1.54 + rollPhase) +
+      .11 * Math.cos(time * 3.11 + yawPhase)) *
+      (.16 + .84 * release) * preset.curl, 0, 1.20);
+    const flutter = clamp((.68 +
+      .20 * Math.sin(time * 2.07 + pitchPhase) +
+      .12 * Math.cos(time * 3.46 + rollPhase)) *
+      release * preset.flutter, 0, 1.20);
+    frames.push({
+      x: px, y: py, z: pz, rx, ry, rz,
+      scale, opacity: visibility, curl, flutter, time,
+    });
   }
   return frames;
 }
 
-/** A cache is regenerated only when the viewport actually changes. */
 export function createHomePaperMotion(width, height, config = HOME_PAPER_PRESET) {
   const lanes = Array.from({ length: config.count },
     (_, index) => createLane(index, width, height, config));
   return {
     width, height, config,
-    /** Global home clock is cyclic; sample any sheet at an arbitrary time. */
     age(index, clock) {
       const birth = index * config.duration / config.count;
       return ((clock - birth) / config.duration % 1 + 1) % 1;
     },
     pose(index, normalizedAge) {
       const life = normalizedAge * config.duration;
-      if (life >= config.flight) {
-        const last = lanes[index][lanes[index].length - 1];
-        return { ...last, opacity: 0 };
-      }
-      const position = life / STEP;
-      const a = Math.floor(position);
-      const fract = position - a;
       const frames = lanes[index];
-      const from = frames[Math.min(a, frames.length - 1)];
-      const to = frames[Math.min(a + 1, frames.length - 1)];
-      if (!fract) return from;
-      // Interpolating all coordinates gives scroll-reversible movement even
-      // under slow, pixel-by-pixel scrubbing (no animation state to restart).
+      if (life >= config.flight) {
+        return { ...frames[frames.length - 1], opacity: 0 };
+      }
+      const at = life / STEP;
+      const lower = Math.floor(at);
+      const fraction = at - lower;
+      const before = frames[Math.min(lower, frames.length - 1)];
+      const after = frames[Math.min(lower + 1, frames.length - 1)];
+      if (!fraction) return before;
       return {
-        x: lerp(from.x, to.x, fract),
-        y: lerp(from.y, to.y, fract),
-        z: lerp(from.z, to.z, fract),
-        rx: lerp(from.rx, to.rx, fract),
-        ry: lerp(from.ry, to.ry, fract),
-        rz: lerp(from.rz, to.rz, fract),
-        scale: lerp(from.scale, to.scale, fract),
-        opacity: lerp(from.opacity, to.opacity, fract),
-        curl: lerp(from.curl, to.curl, fract),
-        flutter: lerp(from.flutter, to.flutter, fract),
+        x: mix(before.x, after.x, fraction),
+        y: mix(before.y, after.y, fraction),
+        z: mix(before.z, after.z, fraction),
+        rx: mix(before.rx, after.rx, fraction),
+        ry: mix(before.ry, after.ry, fraction),
+        rz: mix(before.rz, after.rz, fraction),
+        scale: mix(before.scale, after.scale, fraction),
+        opacity: mix(before.opacity, after.opacity, fraction),
+        curl: mix(before.curl, after.curl, fraction),
+        flutter: mix(before.flutter, after.flutter, fraction),
         time: life,
       };
     },
