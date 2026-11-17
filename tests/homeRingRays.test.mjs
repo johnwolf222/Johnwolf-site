@@ -27,7 +27,7 @@ test('optical pass samples chromatic streaks from the paper layer', () => {
   assert.match(post, /float holeWeight = uNearRays/);
   assert.match(post, /float edgeWeight = uEdgeRays/);
   assert.match(post, /vec3 spectralWeight\(float t\)/);
-  assert.match(post, /colorAccum \+= ink\.rgb \* ink\.a \* wavelength/);
+  assert.match(post, /colorAccum \+= ink\.rgb \* wavelength/);
   assert.match(source, /renderer\.setRenderTarget\(paperTarget\)/);
   assert.match(source, /renderer\.render\(world, camera\)/);
   assert.match(source, /renderer\.render\(raysScene, raysCamera\)/);
@@ -56,7 +56,7 @@ test('inner rim optics align with the reference throat, without changing edge op
   assert.match(source, /Math.min\(width, height\) \* \.33 \* dpr/);
   assert.match(post, /float throatWidth = max\(1\.0, uRingRadius \* \(0\.11 \/ 0\.312\)\)/);
   assert.match(post, /float edgeReach = shorter \* edgeWeight \* 0\.058;/);
-  assert.match(post, /float sampleCount = clamp\(ceil\(reach \/ 2\.6\), 5\.0, 16\.0\)/);
+  assert.match(post, /float sampleCount = clamp\(ceil\(reach \/ 3\.0\), 4\.0, 16\.0\)/);
 });
 
 
@@ -65,9 +65,20 @@ test('the center optical pass creates a clear hole with colored paper on its inn
   assert.match(post, /float innerVisibility = 1\.0 -/);
   assert.match(post, /exp\(-pow\(distanceFromHole \/ max\(1\.0, innerRim \* 0\.82\), 2\.0\)\)/);
   assert.match(post, /vec3 spectralWeight\(float t\)/);
-  assert.match(post, /colorAccum \+= ink\.rgb \* ink\.a \* wavelength/);
+  assert.match(post, /colorAccum \+= ink\.rgb \* wavelength/);
   assert.match(post, /coverAccum \+= ink\.a \* wavelength/);
-  assert.match(post, /float sampleCount = clamp\(ceil\(reach \/ 2\.6\), 5\.0, 16\.0\)/);
+  assert.match(post, /float sampleCount = clamp\(ceil\(reach \/ 3\.0\), 4\.0, 16\.0\)/);
+  assert.match(post, /visibleColor \* innerVisibility/);
   assert.match(post, /coverage \* innerVisibility/);
   assert.doesNotMatch(post, /mix\(original\.rgb, fringeColor/);
+});
+
+test('chromatic paper edges preserve sampled channel separation', () => {
+  assert.match(post, /mod\(t \* 4\.0 \+ vec3\(0\.0, 4\.0, 2\.0\), 6\.0\)/);
+  assert.match(post, /return mix\(vec3\(1\.0\), prism, 0\.85\);/);
+  assert.match(post, /colorAccum \+= ink\.rgb \* wavelength;/);
+  assert.match(post, /coverAccum \+= ink\.a \* wavelength;/);
+  assert.match(post, /visibleColor = colorAccum \/\s*max\(weightAccum/);
+  assert.doesNotMatch(post, /colorAccum \+= ink\.rgb \* ink\.a \* wavelength/);
+  assert.doesNotMatch(post, /premultiplied \/ max\(coverage/);
 });
