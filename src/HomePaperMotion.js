@@ -46,7 +46,52 @@ function unwrapDegrees(current, previous) {
   if (!Number.isFinite(previous)) return current;
   return current + 360 * Math.round((previous - current) / 360);
 }
-function createLane(index, width, height, config) {
+/**
+ * The paper current belongs to the SCENE, not to each sheet. Four traveling
+ * waves and one slow gust clock move all artwork through a coherent airflow.
+ * Individual orientation/weight determines how a sheet responds to it.
+ */
+function createSharedAir(width, height, seed) {
+  const rnd = random(0x9841c4a7 ^ (seed * 241));
+  const shorter = Math.min(width, height);
+  const modes = Array.from({ length: 4 }, (_, index) => {
+    const theta = rnd() * TAU;
+    const wavelength = shorter * (.55 + index * .30 + rnd() * .23);
+    return {
+      kx: Math.cos(theta) * TAU / wavelength,
+      ky: Math.sin(theta) * TAU / wavelength,
+      omega: (index % 2 ? -1 : 1) * (.46 + rnd() * .55),
+      phase: rnd() * TAU,
+      weight: 1 / (index + 1) ** .52,
+      x: -Math.sin(theta),
+      y: Math.cos(theta),
+    };
+  });
+  const offset = rnd() * TAU;
+  return (x, y, absoluteTime) => {
+    let sx = 0, sy = 0, z = 0, twistX = 0, twistY = 0, twistZ = 0;
+    for (const mode of modes) {
+      const arg = x * mode.kx + y * mode.ky +
+        absoluteTime * mode.omega + mode.phase;
+      const wave = Math.sin(arg) * mode.weight;
+      sx += mode.x * wave;
+      sy += mode.y * wave;
+      z += Math.cos(arg * 1.17) * mode.weight;
+      twistX += mode.y * Math.cos(arg) * mode.weight;
+      twistY -= mode.x * Math.cos(arg) * mode.weight;
+      twistZ += wave * .42;
+    }
+    const beat = 1 + .17 * Math.sin(absoluteTime * .84 + offset) +
+      .07 * Math.sin(absoluteTime * 1.68 + offset * .7);
+    return {
+      x: sx * 29, y: sy * 29,
+      z: z * 35, beat,
+      torque: [twistX, twistY, twistZ],
+    };
+  };
+}
+
+function createLane(index, width, height, config, sharedAir) {
   const noise = random(config.seed * 4099 + (index + 1) * 10007);
   const heading = index * GOLDEN + (noise() - .5) * .20;
   const dx = Math.cos(heading), dy = Math.sin(heading);
@@ -97,7 +142,12 @@ function createLane(index, width, height, config) {
       // Constrain the surface to the curved mouth until it reaches the
       // tangent release point. Rotation follows the curved surface.
       const u = ease(t, 0, releaseTime);
-      const radius = lerp(innerR, ringR, ease(u, .12, .96));
+      // Match radial velocity across release: no artificial acceleration
+      // jump when the sheet leaves its curved guide.
+      const h01 = -2 * u ** 3 + 3 * u ** 2;
+      const h11 = u ** 3 - u ** 2;
+      const radius = innerR * (1 - h01) + ringR * h01 +
+        (releaseTime * radialVelocity) * h11;
       const arc = Math.PI * (1 - u) * .82;
       x = dx * radius;
       y = dy * radius;
@@ -123,21 +173,17 @@ function createLane(index, width, height, config) {
       const flightT = t - releaseTime;
       const u = clamp(flightT / freeDuration);
       const entrain = ease(flightT, 0, .6);
-      const wave1 = Math.sin(x * .0040 + y * .0021 +
-        flightT * 1.08 + phases[0]);
-      const wave2 = Math.cos(y * .0047 - x * .0019 -
-        flightT * 1.37 + phases[1]);
-      const wave3 = Math.sin(flightT * 2.12 + phases[2]);
-      const sideways = gustGain * (wave1 * 46 + wave2 * 31 +
-        wave3 * 16);
-      const pulse = 1 + .12 * Math.sin(flightT * 1.02 + phases[3]);
-      const flowX = dx * radialVelocity * pulse + sideX * sideways;
-      const flowY = dy * radialVelocity * pulse + sideY * sideways;
+      const air = sharedAir(x, y,
+        index * config.duration / config.count + t);
+      const sideways = air.x * sideX + air.y * sideY;
+      const pulse = air.beat;
+      const flowX = dx * radialVelocity * pulse +
+        air.x * gustGain + sideX * sideways * .14;
+      const flowY = dy * radialVelocity * pulse +
+        air.y * gustGain + sideY * sideways * .14;
       // A slowly changing out-of-plane gust is essential: flat 2D motion
       // cannot produce convincing aerodynamic flipping and bending.
-      const verticalGust = (
-        Math.sin(x * .0047 + flightT * 1.31 + phases[4]) * 49 +
-        Math.cos(y * .0038 - flightT * 1.86 + phases[5]) * 34);
+      const verticalGust = air.z * gustGain;
       facing.set(0, 0, 1).applyQuaternion(q);
       airVector.set(flowX - vx + dx * 45,
         -(flowY - vy + dy * 45), verticalGust);
@@ -155,9 +201,7 @@ function createLane(index, width, height, config) {
       y += vy * STEP;
       torque.crossVectors(facing, windDirection);
       const swirl = new Vector3(
-        Math.sin(x * .006 + flightT * 1.23 + phases[0]),
-        Math.cos(y * .005 - flightT * 1.11 + phases[1]),
-        Math.sin(flightT * 1.50 + phases[2]));
+        air.torque[0], air.torque[1], air.torque[2]);
       angVel.addScaledVector(torque, (1.9 + normalImpact * 1.4) * STEP);
       angVel.addScaledVector(swirl, gustGain * .53 * STEP);
       angVel.multiplyScalar(Math.exp(-.72 * STEP));
@@ -214,8 +258,9 @@ function createLane(index, width, height, config) {
 
 /** Cache deterministic motion once per viewport so it can be scrubbed in both directions. */
 export function createHomePaperMotion(width, height, config = HOME_PAPER_PRESET) {
+  const sharedAir = createSharedAir(width, height, config.seed);
   const lanes = Array.from({ length: config.count },
-    (_, index) => createLane(index, width, height, config));
+    (_, index) => createLane(index, width, height, config, sharedAir));
   const interpQ1 = new Quaternion();
   const interpQ2 = new Quaternion();
   const interpolatedQ = new Quaternion();
