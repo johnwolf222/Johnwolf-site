@@ -84,3 +84,18 @@ test('paper changes from guided ring posture into flexible wind-driven flight', 
       'free flight bends more than the guided entry');
   }
 });
+
+
+test('flutter is controlled by simulated flight and can be disabled separately', () => {
+  const noFlutter = createHomePaperMotion(1280, 720,
+    {...HOME_PAPER_PRESET, flutter: 0});
+  const normal = createHomePaperMotion(1280, 720);
+  const noCurl = createHomePaperMotion(1280, 720,
+    {...HOME_PAPER_PRESET, curl: 0});
+  for (let i = 0; i < HOME_PAPER_PRESET.count; i++) {
+    assert.equal(noFlutter.pose(i, 4 / 12).flutter, 0);
+    assert.equal(noCurl.pose(i, 4 / 12).curl, 0);
+    assert.ok(normal.pose(i, 4 / 12).flutter > 0.1);
+    assert.ok(normal.pose(i, .8 / 12).flutter < .001);
+  }
+});
