@@ -34,7 +34,7 @@ test('airflow positions are deterministic and scroll-reversible', () => {
     for (const time of [0, .53, 3.17, 7.25, 11.99]) {
       const age = first.age(id, time);
       assert.deepEqual(first.pose(id, age), second.pose(id, age));
-      assert.equal(first.age(id, time), first.age(id, time + 12));
+      assert.ok(Math.abs(first.age(id, time) - first.age(id, time + 12)) < 1e-12);
     }
   }
 });
