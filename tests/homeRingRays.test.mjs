@@ -17,7 +17,7 @@ test('ring lip wraps the geometry only while each sheet exits', () => {
     assert.ok(approach.opacity > 0, 'sheet exists at lip ' + i);
   }
   assert.match(vertex, /uExitWrap \* 2\.0/);
-  assert.match(vertex, /float ringLipArc = uExitWrap/);
+  assert.match(vertex, /float ringLipArc = rimGate/);
   assert.match(source, /uExitWrap\.value = pose\.wrap \?\? 0/);
 });
 
