@@ -40,11 +40,23 @@ test('optical effect fades before paper enters the projects gallery', () => {
 
 
 test('color separation is confined to ring crossing and section exit', () => {
-  assert.match(post, /float ringDistance = abs\(radialDistance - uRingRadius\)/);
+  assert.match(post, /float throatWidth = max\(1\.0, uRingRadius \* \(\.11 \/ \.312\)\)/);
+  assert.match(post, /float throatPosition = \(radialDistance - uRingRadius\) \/ throatWidth/);
+  assert.match(post, /exp\(-pow\(\(throatPosition \+ 1\.0\) \/ \.60, 2\.0\)\)/);
   assert.match(post, /float edgeInset = min\(/);
   assert.match(post, /smoothstep\(shortSide \* \.025, shortSide \* \.16, edgeInset\)/);
   assert.match(post, /float effect = clamp\(max\(holeWeight, edgeWeight\) \* uRayStrength/);
   assert.match(post, /if \(effect < \.006\) \{\s*gl_FragColor = original;/);
-  assert.match(post, /float reach = effect \* \(3\.0 \+ shortSide \* \.024\)/);
+  assert.match(post, /float nearReach = throatWidth \* holeWeight \* \.46;/);
+  assert.match(post, /float edgeReach = edgeWeight \* \(3\.0 \+ shortSide \* \.024\);/);
+  assert.match(post, /float reach = uRayStrength \* max\(nearReach, edgeReach\);/);
   assert.doesNotMatch(post, /reach = min\(48\.0/);
+});
+
+
+test('inner rim optics align with the reference throat, without changing edge optics', () => {
+  assert.match(source, /Math.min\(width, height\) \* \.33 \* dpr/);
+  assert.match(post, /float throatWidth = max\(1\.0, uRingRadius \* \(\.11 \/ \.312\)\)/);
+  assert.match(post, /float edgeReach = edgeWeight \* \(3\.0 \+ shortSide \* \.024\);/);
+  assert.match(post, /max\(holeWeight \* \.80, edgeWeight \* \.56\)/);
 });
