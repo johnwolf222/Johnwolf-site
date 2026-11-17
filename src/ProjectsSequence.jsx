@@ -290,6 +290,7 @@ export default function ProjectsSequence() {
         scale: finalScale, opacity,
         front, curl, time,
         flutter: mix(flight.flutter, 1, smooth(phase, .012, .085)),
+        wrap: flight.wrap * (1 - smooth(phase, .012, .085)),
       });
       card.dataset.phase = phase === 0 ? 'home-current' :
         phase < .272 ? 'rewind' :
@@ -417,7 +418,7 @@ export default function ProjectsSequence() {
     };
     const frameSync = now => {
       const dt = lastAnimationFrame ?
-        Math.min(.05, Math.max(0, (now - lastAnimationFrame) / 1000)) : 0;
+        Math.min(.25, Math.max(0, (now - lastAnimationFrame) / 1000)) : 0;
       lastAnimationFrame = now;
       syncFromScroll();
       // Idle motion is live (and pause-able), even before scrolling begins.

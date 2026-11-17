@@ -55,3 +55,47 @@ test('all sheets exit the ring without visual jumps or unwanted spins', () => {
     }
   }
 });
+
+
+test('every sheet travels through a deep ring passage before outward release', () => {
+  for (const [width, height] of [[390, 844], [1280, 720], [1920, 1080]]) {
+    const motion = createHomePaperMotion(width, height);
+    for (let id = 0; id < 21; id++) {
+      const back = motion.pose(id, .015 / 12);
+      const lip = motion.pose(id, 1.7 / 12);
+      const free = motion.pose(id, 5 / 12);
+      assert.ok(back.z < -680, 'sheet begins behind ring: ' + id);
+      assert.ok(lip.z > -290, 'sheet reaches ring lip: ' + id);
+      assert.ok(lip.z - back.z > 360, 'ring passage has meaningful depth: ' + id);
+      assert.ok(Math.hypot(free.x, free.y) > Math.hypot(lip.x, lip.y) + 60,
+        'sheet departs outward rather than orbiting in place: ' + id);
+    }
+  }
+});
+
+test('paper changes from guided ring posture into flexible wind-driven flight', () => {
+  const motion = createHomePaperMotion(1280, 720);
+  for (let id = 0; id < 21; id++) {
+    const guide = motion.pose(id, .15 / 12);
+    const free = motion.pose(id, 4 / 12);
+    assert.ok(guide.flutter < .001, 'paper is guided during ring entry');
+    assert.ok(free.flutter > .1, 'paper begins fluttering after release');
+    assert.ok(free.curl > guide.curl,
+      'free flight bends more than the guided entry');
+  }
+});
+
+
+test('flutter is controlled by simulated flight and can be disabled separately', () => {
+  const noFlutter = createHomePaperMotion(1280, 720,
+    {...HOME_PAPER_PRESET, flutter: 0});
+  const normal = createHomePaperMotion(1280, 720);
+  const noCurl = createHomePaperMotion(1280, 720,
+    {...HOME_PAPER_PRESET, curl: 0});
+  for (let i = 0; i < HOME_PAPER_PRESET.count; i++) {
+    assert.equal(noFlutter.pose(i, 4 / 12).flutter, 0);
+    assert.equal(noCurl.pose(i, 4 / 12).curl, 0);
+    assert.ok(normal.pose(i, 4 / 12).flutter > 0.1);
+    assert.ok(normal.pose(i, .8 / 12).flutter < .001);
+  }
+});

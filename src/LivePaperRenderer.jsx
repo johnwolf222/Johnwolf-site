@@ -12,46 +12,105 @@ const imageFor = index => '/new-homepage/approved-cards/' +
 const VERTEX = `
   varying vec2 vUv;
   varying float vLight;
+  varying float vOpeningReveal;
   uniform float uCurl;
   uniform float uFlutter;
   uniform float uTime;
   uniform float uSeed;
+  uniform float uExitWrap;
+  uniform float uArcRadius;
+  uniform float uOuterRim;
+  uniform float uFocal;
+  uniform float uSheetExtent;
+  uniform float uSheetWidth;
+  uniform vec2 uOutward;
+
+  // Cross-section of the rounded opening. Sheets first travel along its
+  // nearly vertical inner wall, then bend over its circular rim and out.
+  // This is used for individual mesh vertices, never the card flight.
+  vec2 openingCurve(float s, float radius) {
+    // Return absolute radius and depth around the inner wall and rim.
+    // A negative distance is still inside the vertical throat.
+    if (s < 0.0) return vec2(uOuterRim - radius, s);
+    float arcEnd = radius * (3.141593 - .872665);
+    float angle = 3.141593 - min(s, arcEnd) / radius;
+    float remaining = max(0.0, s - arcEnd);
+    return vec2(
+      uOuterRim + radius * cos(angle) + remaining * sin(angle),
+      radius * sin(angle) - remaining * cos(angle)
+    );
+  }
+
   void main() {
     vUv = uv;
     vec3 pos = position;
-    // Bend each paper sheet around a gently rotated material axis.
-    float a = .34 + uSeed * .041;
-    vec2 axis = vec2(cos(a), sin(a));
-    float across = dot(pos.xy, axis);
-    float along = dot(pos.xy, vec2(-axis.y, axis.x));
-    float bend = max(.0001, uCurl * 2.12);
+    // The approved paper shader is the exact free-flight fallback.
+    float across = pos.y;
+    float along = pos.x;
+    float bend = max(.0001, uCurl * 2.12 + uExitWrap * 2.0);
     float phi = across * bend;
     float bentAcross = sin(phi) / bend;
     float bulge = (1. - cos(phi)) / bend;
     float edge = pow(clamp(abs(across) * 2., 0., 1.), 1.5);
-    float paperRipple = uFlutter * (.022 + edge * .039) *
-      (sin(along * 13.8 + uTime * 3.6 + uSeed * .83) +
-       .33 * sin(along * 21. + uTime * 5.4 + uSeed * .47));
-    float twist = uFlutter * edge * .022 *
-      sin(along * 8.6 - uTime * 2.8 + uSeed * .31);
-    pos.xy = axis * bentAcross +
-      vec2(-axis.y, axis.x) * (along + twist);
+    float ripplePhase = along * 3.14159 + uTime * 8.1 +
+      uSeed * 1.61;
+    float paperRipple = uFlutter * .042 * sin(ripplePhase);
+    float rippleSlope = uFlutter * .042 * 3.14159 * cos(ripplePhase);
+    pos.xy = vec2(along, bentAcross);
     pos.z = bulge * .72 + paperRipple;
-    float lightFacing = .5 + .5 * cos(phi + .4);
+    float lightFacing = .5 + .5 * cos(phi + .4 + rippleSlope);
     vLight = clamp(.79 + .26 * lightFacing -
-      .10 * abs(paperRipple) * 6. -
+      .055 * abs(rippleSlope) -
       .06 * edge * uCurl, .61, 1.06);
-    gl_Position = projectionMatrix * modelViewMatrix *
-      vec4(pos, 1.0);
+
+    float rimGate = clamp(uExitWrap, 0.0, 1.0);
+    vOpeningReveal = 1.0;
+    if (rimGate > .0001) {
+      // Map the *entire opening* into camera space. The previous
+      // approach was anchored to the moving card center, which placed
+      // its paper inside the empty hole and washed it out.
+      float arcRadius = max(8.0, uArcRadius);
+      float arcEnd = arcRadius * (3.141593 - .872665);
+      float advance = smoothstep(.42, 2.76, uTime);
+      float halfHeight = 0.5 * uSheetExtent;
+      float centerTravel = mix(-halfHeight - arcRadius * .10,
+        arcEnd + halfHeight, advance);
+
+      // The leading edge is the local lower Y edge, independently of
+      // the sheet's later free-flight rotation. Its tangential width
+      // stays perpendicular to the sheet's radial exit lane.
+      vec3 radial = vec3(uOutward, 0.0);
+      vec3 tangential = vec3(-uOutward.y, uOutward.x, 0.0);
+      float distance = centerTravel - position.y * uSheetExtent;
+      float offset = position.x * uSheetWidth;
+      vec2 vertexOnRim = openingCurve(distance, arcRadius);
+      float depthBase = uFocal - uFocal / .55 - arcRadius;
+      vec3 rimWorld = radial * vertexOnRim.x +
+        tangential * offset +
+        vec3(0.0, 0.0, depthBase + vertexOnRim.y);
+      vec3 ordinaryWorld = (modelMatrix * vec4(pos, 1.0)).xyz;
+      vec3 emergingWorld = mix(ordinaryWorld, rimWorld, rimGate);
+
+      // The trailing part is still inside the opening. Only the
+      // emerged radial length becomes visible, one vertex at a time.
+      float visibleFraction = smoothstep(0.0,
+        arcRadius * .42 * 1.570796, distance);
+      vOpeningReveal = mix(1.0, visibleFraction, rimGate);
+      gl_Position = projectionMatrix * viewMatrix *
+        vec4(emergingWorld, 1.0);
+    } else {
+      // This branch preserves the exact original paper coordinates,
+      // orientation, size and perspective after the ring passage.
+      gl_Position = projectionMatrix * modelViewMatrix *
+        vec4(pos, 1.0);
+    }
   }
 `;
-// A SINGLE render pass: every bendable paper mesh samples the GLB's
-// permanent alpha silhouette only when behind the head. Front papers pass
-// over it normally. Avoids two scene passes and an expensive framebuffer copy.
 const PAPER_FRAGMENT = `
   precision highp float;
   varying vec2 vUv;
   varying float vLight;
+  varying float vOpeningReveal;
   uniform sampler2D uTexture;
   uniform sampler2D uHead;
   uniform vec4 uHeadBounds;
@@ -61,7 +120,7 @@ const PAPER_FRAGMENT = `
   uniform vec2 uResolution;
   void main() {
     vec4 paper = texture2D(uTexture, vUv);
-    float alpha = paper.a * uOpacity;
+    float alpha = paper.a * uOpacity * vOpeningReveal;
     if (uBehind > .5) {
       vec2 uvScreen = gl_FragCoord.xy / uResolution;
       vec2 maskUV = (uvScreen - uHeadBounds.xy) /
@@ -75,6 +134,105 @@ const PAPER_FRAGMENT = `
     gl_FragColor = vec4(paper.rgb * vLight, alpha);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
+  }
+`;
+
+// Radial color separation belongs to the paper image, not to the title
+// or 3D head. It is a second pass over this SAME renderer/canvas.
+const RAYS_VERTEX = `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = vec4(position.xy, 0.0, 1.0);
+  }
+`;
+const RAYS_FRAGMENT = `
+  precision highp float;
+  varying vec2 vUv;
+  uniform sampler2D uPaper;
+  uniform vec2 uSize;
+  uniform float uRingRadius;
+  uniform float uNearRays;
+  uniform float uEdgeRays;
+  uniform float uRayStrength;
+
+  float ease01(float value) {
+    value = clamp(value, 0.0, 1.0);
+    return value * value * (3.0 - 2.0 * value);
+  }
+  // The reference separates white light into continuous red, green
+  // and blue components. Each tap weights color and coverage on its own.
+  vec3 spectralWeight(float t) {
+    vec3 prism = clamp(
+      abs(mod(t * 4.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0,
+      0.0, 1.0);
+    return mix(vec3(1.0), prism, 0.85);
+  }
+  void main() {
+    vec2 pixel = vUv * uSize;
+    vec2 offset = pixel - 0.5 * uSize;
+    float distanceFromHole = length(offset);
+    vec2 direction = offset / max(1.0, distanceFromHole);
+    float shorter = min(uSize.x, uSize.y);
+    float throatWidth = max(1.0, uRingRadius * (0.11 / 0.312));
+    float innerRim = max(1.0, uRingRadius - throatWidth);
+    float holePosition = (distanceFromHole - uRingRadius) / throatWidth;
+    float holeWeight = uNearRays *
+      exp(-pow((holePosition + 1.0) / 0.60, 2.0));
+    vec2 normalizedEdge = abs(vUv * 2.0 - 1.0);
+    float edgeWeight = uEdgeRays * ease01(
+      (max(normalizedEdge.x, normalizedEdge.y) - 0.80) / 0.20);
+
+    // The hole is formed by disappearing paper. It is not an extra
+    // decorative shape painted over the approved homepage artwork.
+    float innerVisibility = 1.0 -
+      exp(-pow(distanceFromHole / max(1.0, innerRim * 0.82), 2.0));
+
+    // Preserve the established section-edge treatment; the enlarged
+    // chromatic sampling is local to the paper crossing the inner lip.
+    float nearReach = throatWidth * holeWeight * 0.46;
+    float edgeReach = shorter * edgeWeight * 0.058;
+    float reach = uRayStrength * (nearReach + edgeReach);
+    vec4 original = texture2D(uPaper, vUv);
+    if (reach < 0.75) {
+      gl_FragColor = vec4(original.rgb,
+        original.a * innerVisibility);
+      return;
+    }
+
+    // Accumulate color and alpha independently. The old seven-sample
+    // blur mixed the unexposed transparent original into its result,
+    // making the emerging rainbow almost invisible on white.
+    vec3 colorAccum = vec3(0.0);
+    vec3 coverAccum = vec3(0.0);
+    vec3 weightAccum = vec3(0.0);
+    float sampleCount = clamp(ceil(reach / 3.0), 4.0, 16.0);
+    float jitter = fract(52.9829189 * fract(dot(
+      gl_FragCoord.xy, vec2(.06711056, .00583715))));
+    for (int k = 0; k < 16; k++) {
+      if (float(k) >= sampleCount) break;
+      float t = (float(k) + jitter) / sampleCount;
+      vec2 uvAt = (pixel +
+        direction * reach * (t - 0.5)) / uSize;
+      vec4 ink = vec4(0.0);
+      if (uvAt.x >= 0.0 && uvAt.x <= 1.0 &&
+          uvAt.y >= 0.0 && uvAt.y <= 1.0)
+        ink = texture2D(uPaper, uvAt);
+      vec3 wavelength = spectralWeight(t);
+      colorAccum += ink.rgb * wavelength;
+      coverAccum += ink.a * wavelength;
+      weightAccum += wavelength;
+    }
+    vec3 channelCoverage = coverAccum /
+      max(weightAccum, vec3(0.0001));
+    float coverage = max(channelCoverage.r,
+      max(channelCoverage.g, channelCoverage.b));
+    // Do not divide color by alpha a second time: that produced
+    // nearly-white fringes instead of the distinct colored paper edge.
+    vec3 visibleColor = colorAccum /
+      max(weightAccum, vec3(0.0001));
+    gl_FragColor = vec4(visibleColor * innerVisibility,
+      coverage * innerVisibility);
   }
 `;
 /** Render all 21 cards from the same continuous GPU geometry/clock. */
@@ -125,6 +283,36 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
     let disposed = false;
     let ready = false;
     const world = new THREE.Scene();
+    // Render the existing paper objects to an offscreen texture before
+    // their radial chromatic trail is composited to the same canvas.
+    const paperTarget = new THREE.WebGLRenderTarget(1, 1, {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat,
+      depthBuffer: true,
+      stencilBuffer: false,
+    });
+    const raysScene = new THREE.Scene();
+    const raysCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const raysGeometry = new THREE.PlaneGeometry(2, 2);
+    const raysMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        uPaper: { value: paperTarget.texture },
+        uSize: { value: new THREE.Vector2(1, 1) },
+        uRingRadius: { value: 1 },
+        uNearRays: { value: 1 },
+        uEdgeRays: { value: 1 },
+        uRayStrength: { value: 1 },
+      },
+      vertexShader: RAYS_VERTEX,
+      fragmentShader: RAYS_FRAGMENT,
+      depthTest: false,
+      depthWrite: false,
+      blending: THREE.NoBlending,
+      transparent: false,
+      toneMapped: false,
+    });
+    raysScene.add(new THREE.Mesh(raysGeometry, raysMaterial));
     const camera = new THREE.PerspectiveCamera(42, 1, 1, 9000);
     camera.position.z = FOCAL;
     const sharedUniforms = {
@@ -145,6 +333,13 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
           uBehind: { value: 1 },
           uCurl: { value: 0 },
           uFlutter: { value: 0 },
+          uExitWrap: { value: 0 },
+          uArcRadius: { value: 1 },
+          uOuterRim: { value: 1 },
+          uFocal: { value: FOCAL },
+          uSheetExtent: { value: 1 },
+          uSheetWidth: { value: 1 },
+          uOutward: { value: new THREE.Vector2(1, 0) },
           uTime: { value: 0 },
           uSeed: { value: index },
         },
@@ -183,6 +378,10 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       sharedUniforms.uResolution.value.set(width * dpr, height * dpr);
+      paperTarget.setSize(width * dpr, height * dpr);
+      raysMaterial.uniforms.uSize.value.set(width * dpr, height * dpr);
+      raysMaterial.uniforms.uRingRadius.value =
+        Math.min(width, height) * .33 * dpr;
       const card = document.querySelector('.jw-projects-stage__card');
       paperWidth = card?.offsetWidth ||
         (width <= 800 ? Math.min(width * .55, 285) : Math.min(width * .26, 370));
@@ -249,10 +448,38 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
         item.material.uniforms.uOpacity.value = pose.opacity;
         item.material.uniforms.uCurl.value = pose.curl;
         item.material.uniforms.uFlutter.value = pose.flutter ?? 1;
+        item.material.uniforms.uExitWrap.value = pose.wrap ?? 0;
+        // The rounded hole is evaluated in world units, using the
+        // same radial departure for every vertex in this sheet.
+        const ringOuter = Math.min(width, height) * .33 / .55;
+        item.material.uniforms.uOuterRim.value = ringOuter;
+        item.material.uniforms.uArcRadius.value =
+          ringOuter * (.11 / .312);
+        // A partly hidden sheet retains its physical size while
+        // wrapping the rim. Its approved flight scale is unaffected
+        // because the rim uniform is ignored after release.
+        const openingSheetSize = Math.min(390,
+          Math.min(width, height) * .55);
+        item.material.uniforms.uSheetExtent.value =
+          openingSheetSize * item.heightFactor;
+        item.material.uniforms.uSheetWidth.value =
+          openingSheetSize * item.widthFactor;
+        const radialLength = Math.max(1, Math.hypot(pose.x, pose.y));
+        item.material.uniforms.uOutward.value.set(
+          pose.x / radialLength, -pose.y / radialLength);
         item.material.uniforms.uTime.value = pose.time;
       }
+      // The optical rays belong to Home. Fade them away as the existing
+      // scroll sequence hands sheets into the Projects gallery.
+      const rayFade = Math.max(0, Math.min(1, 1 - progress / .18));
+      raysMaterial.uniforms.uRayStrength.value =
+        rayFade * rayFade * (3 - 2 * rayFade);
+      renderer.setRenderTarget(paperTarget);
       renderer.clear();
       renderer.render(world, camera);
+      renderer.setRenderTarget(null);
+      renderer.clear();
+      renderer.render(raysScene, raysCamera);
       if (!canvas.classList.contains('is-ready')) {
         canvas.classList.add('is-ready');
         document.body.classList.add('jw-live-paper-ready');
@@ -322,6 +549,9 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
       });
       textures.forEach(texture => texture.dispose());
       maskTexture?.dispose();
+      paperTarget.dispose();
+      raysGeometry.dispose();
+      raysMaterial.dispose();
       renderer.dispose();
     };
   }, []);
