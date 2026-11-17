@@ -150,65 +150,83 @@ const RAYS_FRAGMENT = `
   uniform float uEdgeRays;
   uniform float uRayStrength;
 
-  void main() {
-    vec4 original = texture2D(uPaper, vUv);
-    vec2 fromCenter = (vUv - .5) * uSize;
-    float radialDistance = length(fromCenter);
-    vec2 outward = fromCenter / max(1.0, radialDistance);
-    float shortSide = min(uSize.x, uSize.y);
-
-    // Only the two crossing points get chromatic softness: emergence
-    // around the opening, and disappearance at the section boundaries.
-    // Hole 01's chromatic softness belongs on the INNER rim:
-    // the sheet crosses the rounded throat before leaving the ring.
-    float throatWidth = max(1.0, uRingRadius * (.11 / .312));
-    float throatPosition = (radialDistance - uRingRadius) / throatWidth;
-    float holeWeight = uNearRays *
-      exp(-pow((throatPosition + 1.0) / .60, 2.0));
-    float edgeInset = min(
-      min(vUv.x, 1.0 - vUv.x) * uSize.x,
-      min(vUv.y, 1.0 - vUv.y) * uSize.y
+  float ease01(float value) {
+    value = clamp(value, 0.0, 1.0);
+    return value * value * (3.0 - 2.0 * value);
+  }
+  // A distinct channel weighting across the short radial exposure,
+  // independently designed from the reference's spectral treatment.
+  vec3 spectralWeight(float t) {
+    return vec3(
+      0.12 + 0.88 * exp(-pow((t - 0.19) / 0.31, 2.0)),
+      0.12 + 0.88 * exp(-pow((t - 0.51) / 0.31, 2.0)),
+      0.12 + 0.88 * exp(-pow((t - 0.83) / 0.31, 2.0))
     );
-    float edgeWeight = uEdgeRays *
-      (1.0 - smoothstep(shortSide * .025, shortSide * .16, edgeInset));
-    float effect = clamp(max(holeWeight, edgeWeight) * uRayStrength, 0.0, 1.0);
+  }
+  void main() {
+    vec2 pixel = vUv * uSize;
+    vec2 offset = pixel - 0.5 * uSize;
+    float distanceFromHole = length(offset);
+    vec2 direction = offset / max(1.0, distanceFromHole);
+    float shorter = min(uSize.x, uSize.y);
+    float throatWidth = max(1.0, uRingRadius * (0.11 / 0.312));
+    float innerRim = max(1.0, uRingRadius - throatWidth);
+    float holePosition = (distanceFromHole - uRingRadius) / throatWidth;
+    float holeWeight = uNearRays *
+      exp(-pow((holePosition + 1.0) / 0.60, 2.0));
+    vec2 normalizedEdge = abs(vUv * 2.0 - 1.0);
+    float edgeWeight = uEdgeRays * ease01(
+      (max(normalizedEdge.x, normalizedEdge.y) - 0.80) / 0.20);
 
-    // Between the opening and the edges the papers stay perfectly crisp:
-    // neither a time-based trail nor a permanent lens blur is drawn.
-    if (effect < .006) {
-      gl_FragColor = original;
+    // The hole is formed by disappearing paper. It is not an extra
+    // decorative shape painted over the approved homepage artwork.
+    float innerVisibility = 1.0 -
+      exp(-pow(distanceFromHole / max(1.0, innerRim * 0.82), 2.0));
+
+    // Preserve the established section-edge treatment; the enlarged
+    // chromatic sampling is local to the paper crossing the inner lip.
+    float nearReach = throatWidth * holeWeight * 0.46;
+    float edgeReach = shorter * edgeWeight * 0.058;
+    float reach = uRayStrength * (nearReach + edgeReach);
+    vec4 original = texture2D(uPaper, vUv);
+    if (reach < 0.75) {
+      gl_FragColor = vec4(original.rgb,
+        original.a * innerVisibility);
       return;
     }
 
-    // A short, local RGB fringe rather than a long radial smear.
-    // Preserve the existing section-edge treatment; only the inner
-    // opening gets its own, physically located radial softness.
-    float nearReach = throatWidth * holeWeight * .46;
-    float edgeReach = edgeWeight * (3.0 + shortSide * .024);
-    float reach = uRayStrength * max(nearReach, edgeReach);
-    vec3 colorSum = vec3(0.0);
-    vec3 colorWeights = vec3(0.0);
-    float sampledAlpha = 0.0;
-    for (int i = 0; i < 7; i++) {
-      float t = (float(i) + .5) / 7.0;
-      vec2 sampleUV = vUv + outward * (t - .5) * reach / uSize;
-      vec4 sampleColor = texture2D(uPaper, sampleUV);
-      vec3 spectrum = vec3(
-        smoothstep(.12, .83, 1.0 - t),
-        1.0 - .70 * abs(t * 2.0 - 1.0),
-        smoothstep(.12, .83, t)
-      );
-      colorSum += sampleColor.rgb * sampleColor.a * spectrum;
-      colorWeights += sampleColor.a * spectrum;
-      sampledAlpha += sampleColor.a / 7.0;
+    // Accumulate color and alpha independently. The old seven-sample
+    // blur mixed the unexposed transparent original into its result,
+    // making the emerging rainbow almost invisible on white.
+    vec3 colorAccum = vec3(0.0);
+    vec3 coverAccum = vec3(0.0);
+    vec3 weightAccum = vec3(0.0);
+    float sampleCount = clamp(ceil(reach / 2.6), 5.0, 16.0);
+    float jitter = fract(sin(dot(gl_FragCoord.xy,
+      vec2(10.721, 57.583))) * 59381.187);
+    for (int k = 0; k < 16; k++) {
+      if (float(k) >= sampleCount) break;
+      float t = (float(k) + jitter) / sampleCount;
+      vec2 uvAt = (pixel +
+        direction * reach * (t - 0.5)) / uSize;
+      vec4 ink = vec4(0.0);
+      if (uvAt.x >= 0.0 && uvAt.x <= 1.0 &&
+          uvAt.y >= 0.0 && uvAt.y <= 1.0)
+        ink = texture2D(uPaper, uvAt);
+      vec3 wavelength = spectralWeight(t);
+      colorAccum += ink.rgb * ink.a * wavelength;
+      coverAccum += ink.a * wavelength;
+      weightAccum += wavelength;
     }
-
-    vec3 fringeColor = colorSum / max(colorWeights, vec3(.0001));
-    float haloAlpha = sampledAlpha * effect * .40;
-    float outputAlpha = max(original.a, haloAlpha);
-    float colorMix = uRayStrength *
-      max(holeWeight * .80, edgeWeight * .56);
-    gl_FragColor = vec4(mix(original.rgb, fringeColor, colorMix), outputAlpha);
+    vec3 channelCoverage = coverAccum /
+      max(weightAccum, vec3(0.0001));
+    float coverage = max(channelCoverage.r,
+      max(channelCoverage.g, channelCoverage.b));
+    vec3 premultiplied = colorAccum /
+      max(weightAccum, vec3(0.0001));
+    vec3 visibleColor = premultiplied / max(coverage, 0.0001);
+    gl_FragColor = vec4(visibleColor,
+      coverage * innerVisibility);
   }
 `;
 /** Render all 21 cards from the same continuous GPU geometry/clock. */
