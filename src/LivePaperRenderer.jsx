@@ -80,7 +80,7 @@ const VERTEX = `
       // the sheet's later free-flight rotation. Its tangential width
       // stays perpendicular to the sheet's radial exit lane.
       vec3 radial = vec3(uOutward, 0.0);
-      vec3 tangential = vec3(-uOutward.y, uOutward.x, 0.0);
+      vec3 tangential = vec3(-uOutward.y * 0.16, uOutward.x * 0.16, 0.987117);
       float distance = centerTravel - position.y * uSheetExtent;
       float offset = position.x * uSheetWidth;
       vec2 vertexOnRim = openingCurve(distance, arcRadius);
