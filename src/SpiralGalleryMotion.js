@@ -1,12 +1,16 @@
 /**
- * Twenty-one solid paper sheets on one evenly spaced 3D current.
- * The seven featured projects peel left, clear the viewport, and return
- * together as a consistently spaced train to their approved gallery slots.
- * Deterministic in either scroll direction; no animation-side state.
+ * One continuous, clockwise, arc-length-spaced stream of all 21 sheets.
+ * Each card follows the lower tangent of the SAME ellipse, exits LEFT
+ * without fading or breaking away, and clears the viewport completely.
+ * Only after the entire procession is offscreen do the seven gallery
+ * sheets execute their invisible U-turn and re-enter as a horizontal train.
+ * All motion is scroll-seekable and reversible; Hole 01 is untouched.
  */
 export const CAMERA_DESCENT = .36;
 export const GALLERY_FOCAL = 1350;
-export const TRAIN_START = .765;
+export const UNWIND_START = .40;
+export const OFFSCREEN_START = .82;
+export const TRAIN_START = .89;
 export const TRAIN_END = .99;
 const TAU = Math.PI * 2;
 const FEATURED_INDICES = [8, 6, 4, 10, 1, 0, 9];
@@ -85,6 +89,50 @@ function orbitSlot(index, rank) {
   return 7 + index - featuredBefore;
 }
 
+// One master track, not 21 individually timed peel-off animations.
+// Increasing arc-length on screen (positive Y downward) is CLOCKWISE.
+// At the ellipse's bottom, its tangent is already pointing LEFT.
+export function clockwiseTrack(phase, slot, width, height) {
+  if (phase <= UNWIND_START) {
+    const early = orbitAt(phase, slot, width, height);
+    return { ...early, exited: false, distance: null };
+  }
+  const radiusX = Math.min(width * .37, 500);
+  const radiusY = Math.min(height * .35, 265);
+  arcAngle(0, radiusX, radiusY);
+  const perimeter = arcCache.total;
+  const duration = OFFSCREEN_START - UNWIND_START;
+  const elapsed = clamp(phase - UNWIND_START, 0, duration);
+  // Match the original orbit's position AND velocity at the handoff.
+  const startFraction = .90 * (UNWIND_START - .285) / (.69 - .285);
+  const startingSpeed = perimeter * .90 / (.69 - .285);
+  // Last sheet must pass the bottom and be fully left of the viewport.
+  // All sheets retain their arc-length separation during the exit.
+  const travelNeeded = perimeter * 1.01 + width * 1.1 + 220;
+  const acceleration = (travelNeeded - startingSpeed * duration) /
+    (duration * duration);
+  const travel = startingSpeed * elapsed + acceleration * elapsed * elapsed;
+  const distance = (slot / 21 + startFraction - 1) * perimeter + travel;
+  const bottom = perimeter * .25;
+  const beyondBottom = Math.max(0, distance - bottom);
+  const exited = distance >= bottom;
+  const angle = exited ? Math.PI / 2 :
+    arcAngle(distance / perimeter, radiusX, radiusY);
+  const growth = smoother((phase - .285) / .145);
+  return {
+    x: exited ? -beyondBottom * growth :
+      radiusX * growth * Math.cos(angle),
+    y: exited ? radiusY * growth :
+      radiusY * growth * Math.sin(angle),
+    z: mix(-690, -370, smooth(phase, .29, .60)),
+    scale: mix(.16, .31, smooth(phase, .30, .45)),
+    rx: 12 * Math.sin(angle + slot * .21) * growth,
+    ry: 23 * Math.cos(angle) * growth,
+    rz: 11 * Math.sin(angle + .4) * growth,
+    angle, exited, distance,
+  };
+}
+
 export function galleryRowOffset(width, height) {
   // Leave a full-height, unobstructed footer for the gallery arrows/dots.
   // The artwork is placed by its actual maximum rendered paper width.
@@ -100,76 +148,88 @@ export function galleryCameraProgress(phase) {
 
 export function spiralGalleryPose(phase, index, rank, width, height, target) {
   const slot = orbitSlot(index, rank);
-  const isFeatured = rank >= 0;
-  const exitStart = .61 + rank * .008;
+  const featured = rank >= 0;
   const cameraLift = height * CAMERA_DESCENT * galleryCameraProgress(phase);
-  const orbit = orbitAt(phase, slot, width, height);
-  let { x, y, z, scale, rx, ry, rz } = orbit;
+  const path = clockwiseTrack(phase, slot, width, height);
+  let { x, y, z, scale, rx, ry, rz } = path;
   let settle = 0;
-  let stage = 'spiral';
+  let stage = phase <= UNWIND_START ? 'clockwise-orbit' :
+    path.exited ? 'bottom-tangent-left' : 'clockwise-orbit';
 
-  if (isFeatured && phase > exitStart && phase < TRAIN_START) {
-    // Peel left in the SAME orbit tangent, then bend into a shared row
-    // outside the viewport. All seven are offscreen before returning.
-    const duration = TRAIN_START - exitStart;
-    const v = clamp((phase - exitStart) / duration);
-    const origin = orbitAt(exitStart, slot, width, height);
-    const previous = orbitAt(exitStart - .00001, slot, width, height);
-    const tangent = key =>
-      (origin[key] - previous[key]) / .00001 * duration / 5;
-    const offset = width * 1.55 + 60;
-    const rowY = target.y + height * CAMERA_DESCENT;
-    const stageY = rowY + height * .065;
-    const stageZ = target.z - 160;
+  // ALL 21 sheets are already offscreen before this point. There is no
+  // selection or fading visible while the clockwise ring is unwinding.
+  if (phase > OFFSCREEN_START && !featured) {
+    const prior = clockwiseTrack(OFFSCREEN_START, slot, width, height);
+    const prev = clockwiseTrack(OFFSCREEN_START - .00001,
+      slot, width, height);
+    const speed = (prior.x - prev.x) / .00001;
+    x = prior.x + speed * (phase - OFFSCREEN_START);
+    y = prior.y;
+    z = prior.z;
+    scale = prior.scale;
+    rx = prior.rx;
+    ry = prior.ry;
+    rz = prior.rz;
+    stage = 'offscreen-left';
+  } else if (phase > OFFSCREEN_START && featured) {
+    const origin = clockwiseTrack(OFFSCREEN_START, slot, width, height);
     const projectedX = target.x * GALLERY_FOCAL /
       (GALLERY_FOCAL - target.z);
+    // Entire row begins beyond the left edge, including the rightmost
+    // featured card, and shares the same projected X translation.
+    const offset = width * 1.8 + 300;
+    const stageZ = target.z - 160;
     const stageX = (projectedX - offset) *
       (GALLERY_FOCAL - stageZ) / GALLERY_FOCAL;
-    x = quintic([origin.x, origin.x + tangent('x'),
-      Math.min(origin.x - width * .22, stageX + width * .25),
-      stageX + width * .06, stageX, stageX], v);
-    y = quintic([origin.y, origin.y + tangent('y'),
-      origin.y + height * .09 + (rank - 3) * height * .035,
-      stageY + height * .025, stageY, stageY], v);
-    z = quintic([origin.z, origin.z + tangent('z'),
-      mix(origin.z, stageZ, .3), stageZ, stageZ, stageZ], v);
-    const eased = smoother(v);
-    scale = mix(origin.scale, target.scale * .72, eased);
-    rx = mix(origin.rx, 0, eased);
-    ry = mix(origin.ry, target.ry * .65, eased);
-    rz = mix(origin.rz, 0, eased);
-    stage = 'swirl-left';
-  } else if (isFeatured && phase >= TRAIN_START) {
-    // One shared horizontal translation: spacing is IDENTICAL for every
-    // featured sheet throughout the entire return, not only at landing.
-    const t = smoother((phase - TRAIN_START) /
-      (TRAIN_END - TRAIN_START));
-    const offset = width * 1.55 + 60;
-    const rowY = target.y + height * CAMERA_DESCENT;
-    z = target.z - 160 * (1 - t);
-    const projectedX = target.x * GALLERY_FOCAL /
-      (GALLERY_FOCAL - target.z);
-    // Preserve the same spacing in SCREEN pixels despite different
-    // 3D depths. Otherwise distant cards bunch together visually.
-    x = (projectedX - offset * (1 - t)) *
-      (GALLERY_FOCAL - z) / GALLERY_FOCAL;
-    y = rowY + height * .065 * (1 - t);
-    scale = target.scale * mix(.72, 1, t);
-    rx = 0;
-    ry = target.ry * mix(.65, 1, t);
-    rz = 0;
-    settle = t;
-    stage = phase >= TRAIN_END ? 'gallery' : 'train-to-row';
+    const stageY = target.y + height * CAMERA_DESCENT + height * .065;
+
+    if (phase < TRAIN_START) {
+      // Turn around completely OUTSIDE the viewport. A quintic with
+      // matched incoming tangent prevents the old abrupt breakaway.
+      const duration = TRAIN_START - OFFSCREEN_START;
+      const t = clamp((phase - OFFSCREEN_START) / duration);
+      const before = clockwiseTrack(OFFSCREEN_START - .00001,
+        slot, width, height);
+      const velocityX = (origin.x - before.x) / .00001;
+      x = quintic([origin.x, origin.x + velocityX * duration / 5,
+        Math.min(origin.x - width * .3, stageX - width * .45),
+        stageX - width * .22, stageX, stageX], t);
+      y = quintic([origin.y, origin.y, origin.y + height * .12,
+        stageY + height * .12, stageY, stageY], t);
+      const eased = smoother(t);
+      z = mix(origin.z, stageZ, eased);
+      scale = mix(origin.scale, target.scale * .72, eased);
+      rx = mix(origin.rx, 0, eased);
+      ry = mix(origin.ry, target.ry * .65, eased);
+      rz = mix(origin.rz, 0, eased);
+      stage = 'offscreen-u-turn';
+    } else {
+      // Re-enter from LEFT as a train: all seven cards have exactly
+      // the same SCREEN-SPACE translation despite their 3D depths.
+      // No individual landing tween, replacement or visible reordering.
+      const t = smoother((phase - TRAIN_START) /
+        (TRAIN_END - TRAIN_START));
+      z = target.z - 160 * (1 - t);
+      x = (projectedX - offset * (1 - t)) *
+        (GALLERY_FOCAL - z) / GALLERY_FOCAL;
+      y = stageY + (target.y + height * CAMERA_DESCENT - stageY) * t;
+      scale = target.scale * mix(.72, 1, t);
+      rx = 0;
+      ry = target.ry * mix(.65, 1, t);
+      rz = 0;
+      settle = t;
+      stage = phase >= TRAIN_END ? 'gallery' : 'train-to-row';
+    }
   }
 
   const emergence = smooth(phase, .295, .40);
-  const opacity = isFeatured
+  // The 14 nonfeatured sheets never fade out during the transition.
+  // They stay solid and physically continue offscreen to the left.
+  const opacity = featured
     ? emergence * mix(1, target.opacity, smooth(phase, .955, TRAIN_END))
-    : emergence * (1 - smooth(phase, .70, .845));
-  // The front-side sheet is genuinely opaque: the head mask only applies
-  // to sheets passing BEHIND the head, never to the train crossing in front.
-  const front = isFeatured && phase > exitStart ||
-    (Math.sin(orbit.angle) > .10 && phase > .40);
+    : emergence;
+  const front = phase > OFFSCREEN_START ||
+    (Math.sin(path.angle) > .10 && phase > .40);
   return {
     x, y: y - cameraLift, z, scale, rx, ry, rz,
     opacity, front, settle, start: .285, end: TRAIN_END,
