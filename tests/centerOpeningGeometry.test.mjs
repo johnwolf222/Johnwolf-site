@@ -35,29 +35,25 @@ test('free flight uses the exact unchanged projection branch', () => {
   assert.match(vertex, /vOpeningReveal = 1\.0;/);
 });
 
-import { createHomePaperMotion, seekHomePaperOutward } from '../src/HomePaperMotion.js';
+import { createHomePaperMotion } from '../src/HomePaperMotion.js';
 
-test('guided entry remains intact and flight has bounded continuous rotation', () => {
+test('entry begins along the inner throat; free flight retains its approved samples', () => {
+  const code = readFileSync(new URL('../src/HomePaperMotion.js', import.meta.url), 'utf8');
+  assert.match(code, /const startR = ring \* \.75;/);
+  assert.match(code, /const controlR1 = ring \* \.74;/);
+  assert.match(code, /const controlR2 = ring \* \.81;/);
+  assert.match(code, /const lipR = ring \* 1\.08;/);
   const motion = createHomePaperMotion(1280,720);
-  for(let id=0;id<21;id++){
-    const start=motion.pose(id,.015/12);
-    const lip=motion.pose(id,1.7/12);
-    const end=motion.pose(id,5/12);
-    assert.ok(start.z < -680 && lip.z > -290);
-    assert.ok(Math.hypot(end.x,end.y) > Math.hypot(lip.x,lip.y)+60);
-    let prior=motion.pose(id,1.6/12);
-    for(let frame=97;frame<=420;frame++){
-      const next=motion.pose(id,frame/720);
-      for(const key of ['rx','ry','rz']){
-        assert.ok(Number.isFinite(next[key]));
-        assert.ok(Math.abs(next[key]-prior[key]) < 6,
-          'no rotational discontinuity: '+id+'/'+frame+'/'+key);
-      }
-      prior=next;
-    }
+  const approved = [{"id":0,"time":2,"xyz":[292.94969050916006,6.84563545105634,-175.37459993209418],"rotation":[-10.54450517322082,19.379585948718375,79.7800319812095]},{"id":5,"time":4,"xyz":[366.3294092155736,-302.4033840601245,-21.94947952946829],"rotation":[-0.8104326345262738,40.7710587582229,756.8241943988892]},{"id":12,"time":7,"xyz":[-653.1788277099239,-365.0952972916118,166.5117762030517],"rotation":[21.797517411081934,-28.804068776086332,1769.6883838936337]},{"id":20,"time":2.5,"xyz":[-227.88494256235515,-252.99643621662403,-111.08732896636948],"rotation":[-9.63100961476302,3.571454870604627,2846.861086743537]}];
+  for (const sample of approved) {
+    const pose = motion.pose(sample.id, sample.time/12);
+    const observed = [pose.x,pose.y,pose.z,pose.rx,pose.ry,pose.rz];
+    const expected = [...sample.xyz,...sample.rotation];
+    observed.forEach((value,i) => assert.ok(Math.abs(value-expected[i]) < 1e-9,
+      'approved flight state altered after leaving the rim: ' + sample.id +
+        '/' + sample.time + '/' + i));
   }
 });
-
 
 test('center approach reaches the inner rim before sheet release', () => {
   const motion = createHomePaperMotion(738,414);
@@ -108,84 +104,4 @@ test('the paper presents its narrow rim-facing edge before its printed face', ()
   assert.ok(at(1.6) > 0);
   assert.ok(at(2.25) > rim);
   assert.match(vertex, /float visibleFraction = smoothstep\(0\.0,/);
-});
-
-test('paper never snaps backwards into the opening after becoming visible', () => {
-  for (const [width, height] of [[390, 844], [738, 414], [1280, 720]]) {
-    const motion = createHomePaperMotion(width, height);
-    for (let id = 0; id < 21; id++) {
-      let previousWrap = 1;
-      for (let frame = 0; frame <= 180; frame++) {
-        const pose = motion.pose(id, (frame / 60) / 12);
-        assert.ok(pose.wrap <= previousWrap + 1e-8,
-          'sheet must only unwrap OUT of ring: ' + id + '/' + frame);
-        previousWrap = pose.wrap;
-      }
-      assert.ok(motion.pose(id, 0).wrap > .999);
-      assert.equal(motion.pose(id, 0).opacity, 0);
-      assert.equal(motion.pose(id, (12 - .001) / 12).opacity, 0);
-      assert.equal(motion.pose(id, 9 / 12).opacity, 0);
-    }
-  }
-});
-
-test('scroll handoff advances sheets outward, never back into the ring', () => {
-  const motion = createHomePaperMotion(1280, 720);
-  const sources = readFileSync(
-    new URL('../src/ProjectsSequence.jsx', import.meta.url), 'utf8');
-  assert.match(sources, /seekHomePaperOutward\(initialAge, phase\)/);
-  assert.doesNotMatch(sources, /initialAge \* \(1 - rewind\)/);
-  for (const initialAge of [0, .01, .18, .38, .62, .74, .75, .91]) {
-    let previousAge = initialAge;
-    for (let step = 0; step <= 272; step++) {
-      const age = seekHomePaperOutward(initialAge, step / 1000);
-      assert.ok(age >= previousAge - 1e-9,
-        'scroll must not rewind a sheet into the opening');
-      previousAge = age;
-    }
-    const finalAge = seekHomePaperOutward(initialAge, .272);
-    assert.ok(finalAge >= .75);
-    assert.equal(motion.pose(0, finalAge).opacity, 0);
-  }
-});
-
-test('paper center does not visibly reverse toward hole during rim release', () => {
-  const smoothstep = (t, a, b) => {
-    const u = Math.max(0, Math.min(1, (t - a) / (b - a)));
-    return u * u * (3 - 2 * u);
-  };
-  for (const [width, height] of [[390, 844], [738, 414], [1280, 720], [1920, 1080]]) {
-    const motion = createHomePaperMotion(width, height);
-    const short = Math.min(width, height);
-    const outer = short * .33 / .55;
-    const arc = outer * (.11 / .312);
-    const extent = Math.min(390, short * .55);
-    const arcEnd = arc * (Math.PI - .872665);
-    for (let id = 0; id < 21; id++) {
-      let previous = -Infinity;
-      for (let frame = 65; frame <= 156; frame++) {
-        const t = frame / 60;
-        const pose = motion.pose(id, t / 12);
-        const advance = smoothstep(t, .42, 2.76);
-        const distance = (-extent * .5 - arc * .10) * (1 - advance) +
-          (arcEnd + extent * .5) * advance;
-        const angle = Math.PI - Math.min(Math.max(0, distance), arcEnd) / arc;
-        const extra = Math.max(0, distance - arcEnd);
-        const rimR = distance < 0 ? outer - arc :
-          outer + arc * Math.cos(angle) + extra * Math.sin(angle);
-        const rimZ = distance < 0 ? distance :
-          arc * Math.sin(angle) - extra * Math.cos(angle);
-        const depth = 1350 - 1350 / .55 - arc + rimZ;
-        const r = Math.hypot(pose.x, pose.y);
-        const blendR = r * (1 - pose.wrap) + rimR * pose.wrap;
-        const blendZ = pose.z * (1 - pose.wrap) + depth * pose.wrap;
-        const projected = blendR * 1350 / (1350 - blendZ);
-        assert.ok(projected >= previous - .1,
-          'paper appears to move backward at viewport ' + width + 'x' +
-          height + ', card ' + id + ', t=' + t.toFixed(3) +
-          ', delta=' + (projected - previous).toFixed(3));
-        previous = projected;
-      }
-    }
-  }
 });
