@@ -341,6 +341,7 @@ test('gallery swipe controls preserve the original scroll and head', () => {
     import.meta.url), 'utf8');
   assert.match(source, /onPointerDown=\{onPointerDown\}/);
   assert.match(source, /onPointerMove=\{onPointerMove\}/);
+  assert.match(source, /onWheel=\{onGalleryWheel\}/);
   assert.match(source, /onPointerUp=\{event => finishPointer\(event\)\}/);
   assert.match(source, /loopFocus = advanceGalleryFocus\(/);
   assert.match(source, /galleryControlsRef\.current\?\.start\(1\)/);
