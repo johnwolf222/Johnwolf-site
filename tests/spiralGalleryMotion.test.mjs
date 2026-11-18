@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   spiralGalleryPose, galleryCameraProgress, galleryRowOffset,
-  CAMERA_DESCENT, TRAIN_START, TRAIN_END,
+  CAMERA_DESCENT, TRAIN_START, TRAIN_END, GALLERY_FOCAL,
 } from '../src/SpiralGalleryMotion.js';
 
 const FEATURED = [9, 7, 5, 11, 2, 1, 10];
@@ -20,10 +20,12 @@ const targetFor = (id, width, height) => {
   let distance = spotlight;
   while (distance > FEATURED.length / 2) distance -= FEATURED.length;
   const d = Math.abs(distance);
+  const z = -d * 155;
   return {
-    x: distance * Math.min(width * .218, 290),
+    x: distance * Math.min(width * .218, 290) *
+      (GALLERY_FOCAL - z) / GALLERY_FOCAL,
     y: galleryRowOffset(width, height) + d * height * .014,
-    z: -d * 155,
+    z,
     scale: 1 / (1 + d * .18),
     ry: -Math.sign(distance) * Math.min(65, d * 23),
     opacity: Math.pow(clamp((3.55 - d) / 3.3), .7),
@@ -91,17 +93,34 @@ test('the seven gallery sheets move as a perfectly spaced horizontal train', () 
       const offsets = FEATURED.map(id => {
         const p = pose(phase, id - 1, width, height);
         const destination = targetFor(id, width, height);
-        return p.x - destination.x;
+        const screenX = x => x.x * GALLERY_FOCAL /
+          (GALLERY_FOCAL - x.z);
+        return screenX(p) - screenX(destination);
       });
       assert.ok(Math.max(...offsets) - Math.min(...offsets) < 1e-6,
         'train cars drift out of formation');
       if (phase === .77) {
         for (const id of FEATURED) {
           const p = pose(phase, id - 1, width, height);
-          assert.ok(p.x < -width * .5, 'train must leave left viewport');
+          const projected = p.x * GALLERY_FOCAL /
+            (GALLERY_FOCAL - p.z);
+          assert.ok(projected < -width * .5,
+            'train must leave left viewport');
         }
       }
     }
+  }
+});
+
+test('final gallery gaps are evenly spaced after 3D perspective', () => {
+  for (const [width, height] of sizes) {
+    const positions = FEATURED.map(id => {
+      const p = pose(TRAIN_END, id - 1, width, height);
+      return p.x * GALLERY_FOCAL / (GALLERY_FOCAL - p.z);
+    }).sort((a, b) => a - b);
+    const gaps = positions.slice(1).map((x, i) => x - positions[i]);
+    assert.ok(Math.max(...gaps) - Math.min(...gaps) < 1e-6,
+      'perspective compressed the gallery spacing');
   }
 });
 
