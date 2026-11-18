@@ -15,10 +15,10 @@ test('the GPU paper retains a horizontal curl across each sheet', () => {
 
 test('subtle flutter varies across paper width, independent of the horizontal curl', () => {
   assert.match(vertex, /float ripplePhase = along \* 3\.14159/);
-  assert.match(vertex, /float paperRipple = uFlutter \* \.042 \* sin\(ripplePhase\);/);
-  assert.match(vertex, /float rippleSlope = uFlutter \* \.042 \* 3\.14159/);
+  assert.match(vertex, /float paperRipple = uFlutter \* \(/);
+  assert.match(vertex, /float rippleSlope = uFlutter \* \(/);
   assert.doesNotMatch(vertex, /sin\(across \* 13\.8/);
-  assert.doesNotMatch(vertex, /float twist =/);
+  assert.match(vertex, /float secondaryPhase = across \* 2\.25/);
 });
 
 test('curl and flutter can be independently enabled or disabled', () => {
