@@ -5,7 +5,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import './ProjectsSequence.css';
 import LivePaperRenderer from './LivePaperRenderer.jsx';
 import { createHomePaperMotion } from './HomePaperMotion.js';
-import { spiralGalleryPose, galleryCameraProgress, galleryRowOffset, CAMERA_DESCENT, GALLERY_FOCAL } from './SpiralGalleryMotion.js';
+import { spiralGalleryPose, galleryHeadPlacement, galleryRowOffset, GALLERY_FOCAL } from './SpiralGalleryMotion.js';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -234,11 +234,9 @@ export default function ProjectsSequence() {
       const textFade = 1 - smooth(p, .035, .252);
       const subFade = 1 - smooth(p, .050, .250);
       const bottomFade = 1 - smooth(p, .018, .210);
-      const cameraDescent = galleryCameraProgress(p);
-      // Keep the head present until the entire 21-sheet procession has
-      // cleared left; its departure happens during the invisible turn.
-      const headRise = smooth(p, .84, .995);
-      const headFade = 1 - smooth(p, .86, .985);
+      // Keep the SAME live GLB at the top center of Projects, not offscreen.
+      // Only the eventual departure from the Projects section may fade it.
+      const headPlacement = galleryHeadPlacement(p, height);
 
       // Fade all Home lettering IN PLACE. Do not move any text off the page,
       // and do not modify the approved per-letter rolling GSAP timeline.
@@ -249,14 +247,12 @@ export default function ProjectsSequence() {
       if (bottom) bottom.style.opacity = String(bottomFade);
       home.style.setProperty('--jw-home-blow', '0');
 
-      const headOpacity = exitFade * headFade;
-      head.style.opacity = String(headOpacity);
-      head.style.visibility = headOpacity < .005 ? 'hidden' : 'visible';
+      head.style.opacity = String(exitFade);
+      head.style.visibility = exitFade < .005 ? 'hidden' : 'visible';
       head.style.setProperty('--jw-head-shift',
-        (-height * (CAMERA_DESCENT * cameraDescent +
-          .22 * headRise)).toFixed(2) + 'px');
+        headPlacement.shift.toFixed(2) + 'px');
       head.style.setProperty('--jw-head-scale',
-        (1 - .24 * headRise).toFixed(4));
+        headPlacement.scale.toFixed(4));
 
       stage.style.opacity = String(isShown ? sceneOpacity : 0);
       stage.style.visibility = isShown ? 'visible' : 'hidden';
