@@ -59,9 +59,11 @@ function createLane(index, width, height, preset) {
   // Enter at the ring's inner throat; the opening, not the distant
   // free-flight field, controls this early center-only approach.
   // Exit control point and tangent are unchanged from the approved flight.
-  const startR = ring * .75;
-  const controlR1 = ring * .74;
-  const controlR2 = ring * .81;
+  // Each recycled sheet starts at the center of the opening, not
+  // three-quarters of the way out where it appears to pop into view.
+  const startR = 0;
+  const controlR1 = 0;
+  const controlR2 = ring * .18;
   const lipR = ring * 1.08;
   const startZ = -760;
   const controlZ1 = -590;
