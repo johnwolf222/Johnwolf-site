@@ -288,7 +288,11 @@ export default function ProjectsSequence() {
         x: finalX, y: finalY, z: finalZ,
         rx: rotX, ry: rotY, rz: rotZ,
         scale: finalScale, opacity,
-        front, curl, time,
+        front, curl,
+        // The hole shader must follow this sheet's own age, not the global
+        // Home clock. Blend back to the existing gallery clock only after
+        // the ring wrap has faded during the approved scroll transition.
+        time: mix(flight.time, time, smooth(phase, .012, .085)),
         flutter: mix(flight.flutter, 1, smooth(phase, .012, .085)),
         wrap: flight.wrap * (1 - smooth(phase, .012, .085)),
       });
