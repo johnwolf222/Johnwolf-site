@@ -146,6 +146,26 @@ export function galleryCameraProgress(phase) {
   return smooth(phase, .34, .895);
 }
 
+/**
+ * The original GLB stays mounted in its single fixed body-level canvas.
+ * Its artboard starts at viewport center on Home, follows the apparent
+ * camera descent, then settles in a stable top-center gallery position.
+ * No fade, duplicate head, reparenting or per-project repositioning.
+ */
+export function galleryHeadPlacement(phase, height) {
+  const cameraShift = -height * CAMERA_DESCENT *
+    galleryCameraProgress(phase);
+  // The rendered face sits slightly below the artboard center because of
+  // the approved GLB pivot. Compensate without changing its 3D controller.
+  const faceCenterY = Math.max(148, Math.min(height * .225, 210));
+  const galleryShift = faceCenterY - height * .5 - 20;
+  const settle = smooth(phase, .66, .86);
+  return {
+    shift: mix(cameraShift, galleryShift, settle),
+    scale: 1 - .24 * smooth(phase, .84, .995),
+  };
+}
+
 export function spiralGalleryPose(phase, index, rank, width, height, target) {
   const slot = orbitSlot(index, rank);
   const featured = rank >= 0;
