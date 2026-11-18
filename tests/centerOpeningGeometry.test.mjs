@@ -148,3 +148,44 @@ test('scroll handoff advances sheets outward, never back into the ring', () => {
     assert.equal(motion.pose(0, finalAge).opacity, 0);
   }
 });
+
+test('paper center does not visibly reverse toward hole during rim release', () => {
+  const smoothstep = (t, a, b) => {
+    const u = Math.max(0, Math.min(1, (t - a) / (b - a)));
+    return u * u * (3 - 2 * u);
+  };
+  for (const [width, height] of [[390, 844], [738, 414], [1280, 720], [1920, 1080]]) {
+    const motion = createHomePaperMotion(width, height);
+    const short = Math.min(width, height);
+    const outer = short * .33 / .55;
+    const arc = outer * (.11 / .312);
+    const extent = Math.min(390, short * .55);
+    const arcEnd = arc * (Math.PI - .872665);
+    for (let id = 0; id < 21; id++) {
+      let previous = -Infinity;
+      for (let frame = 65; frame <= 156; frame++) {
+        const t = frame / 60;
+        const pose = motion.pose(id, t / 12);
+        const advance = smoothstep(t, .42, 2.76);
+        const distance = (-extent * .5 - arc * .10) * (1 - advance) +
+          (arcEnd + extent * .5) * advance;
+        const angle = Math.PI - Math.min(Math.max(0, distance), arcEnd) / arc;
+        const extra = Math.max(0, distance - arcEnd);
+        const rimR = distance < 0 ? outer - arc :
+          outer + arc * Math.cos(angle) + extra * Math.sin(angle);
+        const rimZ = distance < 0 ? distance :
+          arc * Math.sin(angle) - extra * Math.cos(angle);
+        const depth = 1350 - 1350 / .55 - arc + rimZ;
+        const r = Math.hypot(pose.x, pose.y);
+        const blendR = r * (1 - pose.wrap) + rimR * pose.wrap;
+        const blendZ = pose.z * (1 - pose.wrap) + depth * pose.wrap;
+        const projected = blendR * 1350 / (1350 - blendZ);
+        assert.ok(projected >= previous - .1,
+          'paper appears to move backward at viewport ' + width + 'x' +
+          height + ', card ' + id + ', t=' + t.toFixed(3) +
+          ', delta=' + (projected - previous).toFixed(3));
+        previous = projected;
+      }
+    }
+  }
+});
