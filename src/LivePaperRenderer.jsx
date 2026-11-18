@@ -191,6 +191,14 @@ const RAYS_FRAGMENT = `
     return mix(vec3(1.0), prism, 0.85);
   }
   void main() {
+    vec4 original = texture2D(uPaper, vUv);
+    // The circular Hole 01 alpha cutout belongs ONLY to Home. The old
+    // postprocess kept punching a white hole through the sheets even when
+    // all chromatic rays had faded out, creating the blocking head glow.
+    if (uRayStrength <= 0.001) {
+      gl_FragColor = original;
+      return;
+    }
     vec2 pixel = vUv * uSize;
     vec2 offset = pixel - 0.5 * uSize;
     float distanceFromHole = length(offset);
@@ -207,7 +215,7 @@ const RAYS_FRAGMENT = `
 
     // The hole is formed by disappearing paper. It is not an extra
     // decorative shape painted over the approved homepage artwork.
-    float innerVisibility = 1.0 -
+    float innerVisibility = 1.0 - ease01(uRayStrength) *
       exp(-pow(distanceFromHole / max(1.0, innerRim * 0.82), 2.0));
 
     // Preserve the established section-edge treatment; the enlarged
@@ -215,7 +223,6 @@ const RAYS_FRAGMENT = `
     float nearReach = throatWidth * holeWeight * 0.46;
     float edgeReach = shorter * edgeWeight * 0.058;
     float reach = uRayStrength * (nearReach + edgeReach);
-    vec4 original = texture2D(uPaper, vUv);
     if (reach < 0.75) {
       gl_FragColor = vec4(original.rgb,
         original.a * innerVisibility);
