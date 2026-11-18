@@ -2,8 +2,8 @@
  * Original, seekable paper-current choreography for the homepage.
  *
  * Visual goals: a curved three-dimensional ring passage, a continuous
- * departure tangent, and inertial wind-driven outward flight. This module
- * intentionally uses independent trajectory math rather than vendor code.
+ * departure tangent, and inertial wind-driven floating paper. The ring
+ * passage is preserved; free flight follows a shared spatial airflow field.
  *
  * The approved 21 individual artworks, scroll handoff, and GPU renderer all
  * consume the same per-sheet poses. There is no asset substitution.
@@ -50,8 +50,6 @@ function createLane(index, width, height, preset) {
   const theta = index * GOLDEN + (rand() - .5) * .18;
   const outwardX = Math.cos(theta);
   const outwardY = Math.sin(theta);
-  const lateralX = -outwardY;
-  const lateralY = outwardX;
   const shortSide = Math.max(1, Math.min(width, height));
   const ring = shortSide * preset.ring;
 
@@ -81,10 +79,6 @@ function createLane(index, width, height, preset) {
   const yawPhase = rand() * TAU;
   const pitchPhase = rand() * TAU;
   const rollPhase = rand() * TAU;
-  const gustPhase = rand() * TAU;
-  const lateralPhase = rand() * TAU;
-  const airflow = .8 + rand() * .45;
-  const spin = (rand() < .5 ? -1 : 1) * (.07 + rand() * .13);
   const baseRoll = theta * 180 / PI + 90;
   const ringRX = 10 * Math.sin(pitchPhase + 3.7);
   const ringRY = 13 * Math.cos(yawPhase + 2.8);
