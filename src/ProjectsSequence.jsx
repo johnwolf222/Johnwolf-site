@@ -5,7 +5,11 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import './ProjectsSequence.css';
 import LivePaperRenderer from './LivePaperRenderer.jsx';
 import { createHomePaperMotion } from './HomePaperMotion.js';
-import { spiralGalleryPose, galleryHeadPlacement, galleryRowOffset, GALLERY_FOCAL } from './SpiralGalleryMotion.js';
+import { spiralGalleryPose, galleryHeadPlacement, galleryRowOffset, GALLERY_FOCAL, TRAIN_END } from './SpiralGalleryMotion.js';
+import {
+  wrapGalleryFocus, wrappedGalleryDistance, nearestGalleryIndex,
+  advanceGalleryFocus, dragGalleryFocus, gallerySeamOpacity,
+} from './GalleryLoopMotion.js';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -58,9 +62,12 @@ export default function ProjectsSequence() {
   const cardRefs = useRef([]);
   const gpuPaperRef = useRef(null);
   const copyRef = useRef(null);
+  const galleryControlsRef = useRef(null);
+  const gestureRef = useRef(null);
   const activeRef = useRef(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [visible, setVisible] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
     const home = document.querySelector('#home');
@@ -90,6 +97,16 @@ export default function ProjectsSequence() {
     let homeClock = 3.45;
     let capturedClock = null;
     let lastAnimationFrame = 0;
+    // The scroll choreography owns the landing. After landing, a horizontal
+    // swipe takes over only the seven-card gallery focus. It keeps moving at
+    // constant speed until the next direction change, dot selection or exit.
+    let loopEnabled = false;
+    let loopFocus = 0;
+    let loopDirection = 0;
+    let loopDragging = false;
+    let dragOrigin = 0;
+    let heldDirection = 0;
+    let loopTween = null;
 
     function measure() {
       sectionTop = docTop(section);
@@ -114,16 +131,20 @@ export default function ProjectsSequence() {
       return homeMotion.pose(index, age);
     }
 
+    const scrollFocus = () =>
+      focusOf(0, window.scrollY, sectionTop, height);
+    const canInteract = () =>
+      travel.progress >= TRAIN_END - .0001 &&
+      window.scrollY >= sectionTop - height * .25 &&
+      window.scrollY < sectionTop + sectionHeight - height * .23;
+
     function targetForCard(id, galleryFocus) {
       const spotlightIndex = PROJECTS.findIndex(project => project.image === id);
       if (spotlightIndex < 0) {
         return { x: -width * .6, y: height * .85, z: -550, scale: .16,
           ry: -65, opacity: 0 };
       }
-      const count = PROJECTS.length;
-      let distance = spotlightIndex - galleryFocus;
-      while (distance > count / 2) distance -= count;
-      while (distance < -count / 2) distance += count;
+      const distance = wrappedGalleryDistance(spotlightIndex, galleryFocus);
       const d = Math.abs(distance);
       const z = -d * 155;
       const projectedX = distance * Math.min(width * .218, 290);
@@ -133,7 +154,8 @@ export default function ProjectsSequence() {
         z,
         scale: 1 / (1 + d * .18),
         ry: -Math.sign(distance) * Math.min(65, d * 23),
-        opacity: Math.pow(clamp((3.55 - d) / 3.3), .7),
+        opacity: Math.pow(clamp((3.55 - d) / 3.3), .7) *
+          (loopEnabled ? gallerySeamOpacity(distance) : 1),
       };
     }
 
@@ -214,6 +236,15 @@ export default function ProjectsSequence() {
       if (disposed) return;
       const p = reduced.matches ? (travel.progress < .5 ? 0 : 1) :
         travel.progress;
+      // Reverse-scrolling into the original 21-sheet transition returns
+      // control to ScrollTrigger; it never inherits a drifting gallery.
+      if (travel.progress < TRAIN_END - .001 && loopEnabled) {
+        loopTween?.kill();
+        loopTween = null;
+        loopEnabled = false;
+        loopDirection = 0;
+        loopDragging = false;
+      }
       if (p > .0001 && capturedClock === null) {
         capturedClock = homeClock;
       } else if (p <= .0001 && capturedClock !== null) {
@@ -223,7 +254,8 @@ export default function ProjectsSequence() {
         capturedClock = null;
       }
       const scrollY = window.scrollY;
-      const galleryFocus = focusOf(0, scrollY, sectionTop, height);
+      const galleryFocus = loopEnabled && travel.progress >= TRAIN_END
+        ? loopFocus : scrollFocus();
       const galleryActive = scrollY >= sectionTop - height * .25;
       const exitAt = sectionTop + sectionHeight - height * 1.16;
       const exitFade = 1 - smooth(scrollY, exitAt, exitAt + height * .8);
@@ -256,6 +288,8 @@ export default function ProjectsSequence() {
 
       stage.style.opacity = String(isShown ? sceneOpacity : 0);
       stage.style.visibility = isShown ? 'visible' : 'hidden';
+      stage.dataset.galleryInteractive = canInteract() && isShown
+        ? 'true' : 'false';
       if (copy) copy.style.opacity = String(smooth(p, .922, .992) * exitFade);
 
       for (let i = 0; i < CARD_COUNT; i++) {
@@ -265,7 +299,7 @@ export default function ProjectsSequence() {
       }
       gpuPaperRef.current?.draw(p);
 
-      const nextActive = Math.round(galleryFocus);
+      const nextActive = nearestGalleryIndex(galleryFocus);
       if (nextActive !== active) {
         active = nextActive;
         activeRef.current = nextActive;
@@ -330,6 +364,14 @@ export default function ProjectsSequence() {
         Math.min(.25, Math.max(0, (now - lastAnimationFrame) / 1000)) : 0;
       lastAnimationFrame = now;
       syncFromScroll();
+      // A swipe sets a constant velocity on the SAME seven paper meshes.
+      // Their wrapped positions are updated every frame without replacing
+      // artwork or moving the fixed GLB head.
+      if (loopEnabled && loopDirection !== 0 && !loopDragging &&
+          canInteract() && !document.hidden && !reduced.matches) {
+        loopFocus = advanceGalleryFocus(loopFocus, loopDirection, dt);
+        render();
+      }
       // Idle motion is live (and pause-able), even before scrolling begins.
       // The same 21 card elements are then controlled by ScrollTrigger.
       if (capturedClock === null && travel.progress < .0001 &&
@@ -349,8 +391,100 @@ export default function ProjectsSequence() {
       render();
     };
     const onReduced = () => {
+      if (reduced.matches) loopDirection = 0;
       ScrollTrigger.refresh();
       render();
+    };
+
+    const cancelTween = () => {
+      loopTween?.kill();
+      loopTween = null;
+    };
+    galleryControlsRef.current = {
+      canInteract,
+      hold() {
+        heldDirection = loopDirection;
+        loopDirection = 0;
+        loopTween?.pause();
+      },
+      resume() {
+        if (!loopDragging) {
+          loopDirection = heldDirection;
+          loopTween?.resume();
+        }
+      },
+      beginDrag() {
+        if (!canInteract()) return;
+        cancelTween();
+        loopFocus = loopEnabled ? loopFocus : scrollFocus();
+        loopEnabled = true;
+        loopDragging = true;
+        dragOrigin = loopFocus;
+        loopDirection = 0;
+      },
+      drag(deltaX) {
+        if (!loopDragging) return;
+        loopFocus = dragGalleryFocus(dragOrigin, deltaX,
+          Math.min(width * .218, 290));
+        render();
+      },
+      release(direction) {
+        if (!loopDragging) return;
+        loopDragging = false;
+        if (reduced.matches) {
+          loopFocus = wrapGalleryFocus(Math.round(dragOrigin) +
+            (direction || 0));
+          loopDirection = 0;
+        } else {
+          loopDirection = direction || heldDirection;
+        }
+        heldDirection = loopDirection;
+        render();
+      },
+      start(direction) {
+        if (!canInteract()) return false;
+        cancelTween();
+        loopFocus = loopEnabled ? loopFocus : scrollFocus();
+        loopEnabled = true;
+        loopDragging = false;
+        if (reduced.matches) {
+          loopFocus = wrapGalleryFocus(Math.round(loopFocus) + direction);
+          loopDirection = 0;
+        } else {
+          loopDirection = Math.sign(direction);
+        }
+        heldDirection = loopDirection;
+        render();
+        return true;
+      },
+      select(index) {
+        if (!canInteract()) return false;
+        cancelTween();
+        loopFocus = loopEnabled ? loopFocus : scrollFocus();
+        loopEnabled = true;
+        loopDragging = false;
+        loopDirection = 0;
+        heldDirection = 0;
+        const delta = wrappedGalleryDistance(index, loopFocus);
+        if (reduced.matches || Math.abs(delta) < .0001) {
+          loopFocus = wrapGalleryFocus(index);
+          render();
+        } else {
+          const start = loopFocus;
+          const tween = { progress: 0 };
+          loopTween = gsap.to(tween, {
+            progress: 1,
+            duration: Math.min(.85, Math.max(.35, Math.abs(delta) * .26)),
+            ease: 'power2.inOut',
+            onUpdate: () => {
+              loopFocus = wrapGalleryFocus(start + delta * tween.progress);
+              render();
+            },
+            onComplete: () => { loopTween = null; },
+          });
+        }
+        return true;
+      },
     };
     const navigateToGallery = event => {
       const a = event.target.closest?.('a[href="#work"]');
@@ -381,6 +515,8 @@ export default function ProjectsSequence() {
 
     return () => {
       disposed = true;
+      cancelTween();
+      galleryControlsRef.current = null;
       cancelAnimationFrame(syncFrame);
       observer.disconnect();
       window.removeEventListener('scroll', onScroll);
@@ -401,6 +537,7 @@ export default function ProjectsSequence() {
   }, []);
 
   function goTo(index) {
+    if (galleryControlsRef.current?.select(index)) return;
     const section = sectionRef.current;
     if (!section) return;
     const i = clamp(index, 0, PROJECTS.length - 1);
@@ -410,21 +547,76 @@ export default function ProjectsSequence() {
     });
   }
   function next() {
+    if (galleryControlsRef.current?.start(1)) return;
     if (activeRef.current >= PROJECTS.length - 1) {
       document.querySelector('#about')?.scrollIntoView({ behavior: 'smooth' });
     } else goTo(activeRef.current + 1);
   }
   function previous() {
+    if (galleryControlsRef.current?.start(-1)) return;
     if (activeRef.current <= 0) {
       document.querySelector('#home')?.scrollIntoView({ behavior: 'smooth' });
     } else goTo(activeRef.current - 1);
   }
+  const onPointerDown = event => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    if (!galleryControlsRef.current?.canInteract()) return;
+    gestureRef.current = {
+      id: event.pointerId, x: event.clientX, y: event.clientY,
+      horizontal: false,
+    };
+    galleryControlsRef.current.hold();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+  const onPointerMove = event => {
+    const gesture = gestureRef.current;
+    if (!gesture || gesture.id !== event.pointerId) return;
+    const dx = event.clientX - gesture.x;
+    const dy = event.clientY - gesture.y;
+    if (!gesture.horizontal) {
+      // Vertical gestures must remain native page scrolling.
+      if (Math.abs(dy) > 14 && Math.abs(dy) > Math.abs(dx) * 1.25) {
+        gestureRef.current = null;
+        galleryControlsRef.current?.resume();
+        return;
+      }
+      if (Math.abs(dx) < 10 || Math.abs(dx) <= Math.abs(dy) * 1.15)
+        return;
+      gesture.horizontal = true;
+      galleryControlsRef.current?.beginDrag();
+      setDragging(true);
+    }
+    galleryControlsRef.current?.drag(dx);
+  };
+  const finishPointer = (event, cancelled = false) => {
+    const gesture = gestureRef.current;
+    if (!gesture || gesture.id !== event.pointerId) return;
+    const dx = event.clientX - gesture.x;
+    if (gesture.horizontal) {
+      galleryControlsRef.current?.release(
+        !cancelled && Math.abs(dx) >= 24 ? (dx < 0 ? 1 : -1) : 0);
+    } else {
+      galleryControlsRef.current?.resume();
+    }
+    gestureRef.current = null;
+    setDragging(false);
+  };
   const project = PROJECTS[activeIndex];
   return (
     <>
     <section id="work" ref={sectionRef} className="jw-projects-journey" aria-labelledby="jw-projects-heading">
       <div ref={stageRef} className={'jw-projects-stage' + (visible ? ' is-visible' : '')}
         style={{ opacity: 0, visibility: 'hidden' }}>
+        <div
+          className={'jw-projects-stage__swipe-surface' +
+            (dragging ? ' is-dragging' : '')}
+          aria-label="Swipe left or right to keep the seven projects moving continuously"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={event => finishPointer(event)}
+          onPointerCancel={event => finishPointer(event, true)}
+          onLostPointerCapture={event => finishPointer(event, true)}
+        />
 
         <div className="jw-projects-stage__information" ref={copyRef}>
           <h2 id="jw-projects-heading">PROJECTS</h2>
@@ -433,7 +625,7 @@ export default function ProjectsSequence() {
             <p>{project.description}</p>
           </div>
           <div className="jw-projects-stage__controls" aria-label="Featured projects">
-            <button type="button" onClick={previous} aria-label="Previous featured project">←</button>
+            <button type="button" onClick={previous} aria-label="Move projects continuously right">←</button>
             <div className="jw-projects-stage__dots">
               {PROJECTS.map((item, index) =>
                 <button key={item.image} type="button" onClick={() => goTo(index)}
@@ -442,7 +634,7 @@ export default function ProjectsSequence() {
                   aria-current={activeIndex === index ? 'step' : undefined} />
               )}
             </div>
-            <button type="button" onClick={next} aria-label="Next featured project">→</button>
+            <button type="button" onClick={next} aria-label="Move projects continuously left">→</button>
             <span className="jw-projects-stage__count">{String(activeIndex + 1).padStart(2, '0')} / 07</span>
           </div>
         </div>
