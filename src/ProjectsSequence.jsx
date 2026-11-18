@@ -5,7 +5,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import './ProjectsSequence.css';
 import LivePaperRenderer from './LivePaperRenderer.jsx';
 import { createHomePaperMotion } from './HomePaperMotion.js';
-import { spiralGalleryPose, galleryCameraProgress, galleryRowOffset, CAMERA_DESCENT } from './SpiralGalleryMotion.js';
+import { spiralGalleryPose, galleryCameraProgress, galleryRowOffset, CAMERA_DESCENT, GALLERY_FOCAL } from './SpiralGalleryMotion.js';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -123,10 +123,12 @@ export default function ProjectsSequence() {
       while (distance > count / 2) distance -= count;
       while (distance < -count / 2) distance += count;
       const d = Math.abs(distance);
+      const z = -d * 155;
+      const projectedX = distance * Math.min(width * .218, 290);
       return {
-        x: distance * Math.min(width * .218, 290),
+        x: projectedX * (GALLERY_FOCAL - z) / GALLERY_FOCAL,
         y: galleryRowOffset(width, height) + d * height * .014,
-        z: -d * 155,
+        z,
         scale: 1 / (1 + d * .18),
         ry: -Math.sign(distance) * Math.min(65, d * 23),
         opacity: Math.pow(clamp((3.55 - d) / 3.3), .7),
