@@ -12,9 +12,11 @@
   inset: 0;
   height: 100svh;
   width: 100%;
-  z-index: 9;
+  /* Above the paper canvas (12), so arrows remain visible and clickable.
+     This overlay is transparent: it must not wash out the head or sheets. */
+  z-index: 15;
   overflow: hidden;
-  background: rgba(255,255,255,0);
+  background: transparent;
   isolation: isolate;
   pointer-events: none;
   transition: none;
@@ -108,6 +110,10 @@
   gap: 13px;
   white-space: nowrap;
   pointer-events: auto;
+  z-index: 200;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.97);
 }
 .jw-projects-stage__controls > button {
   border: 1px solid rgba(135,80,241,.32);
