@@ -8,6 +8,8 @@
  * The approved 21 individual artworks, scroll handoff, and GPU renderer all
  * consume the same per-sheet poses. There is no asset substitution.
  */
+import { createFloatingPaperDynamics } from './HomePaperAirflow.js';
+
 export const HOME_PAPER_PRESET = Object.freeze({
   count: 21,
   duration: 12,
@@ -88,20 +90,29 @@ function createLane(index, width, height, preset) {
   const ringRY = 13 * Math.cos(yawPhase + 2.8);
   const ringRZ = baseRoll + 9 * Math.sin(rollPhase + 2.5);
 
-  let x = outwardX * lipR;
-  let y = outwardY * lipR;
-  let z = lipZ;
-  let vx = outwardX * radialAtLip;
-  let vy = outwardY * radialAtLip;
-  let vz = depthAtLip;
-  let travelled = false;
+  // All sheets sample one globally timed, spatially continuous air current.
+  // Ring entry below remains unchanged; the shared integrator begins at its lip.
+  const floating = createFloatingPaperDynamics({
+    seed: preset.seed,
+    birth: index * preset.duration / preset.count,
+    theta,
+    ringRotation: [ringRX, ringRY, ringRZ],
+    position: [outwardX * lipR, outwardY * lipR, lipZ],
+    velocity: [
+      outwardX * radialAtLip, outwardY * radialAtLip, depthAtLip,
+    ],
+    radialSpeed: targetRadialSpeed,
+    curl: preset.curl,
+    flutter: preset.flutter,
+    step: STEP,
+  });
   const frames = [];
   const count = Math.ceil(preset.flight / STEP);
 
   for (let i = 0; i <= count; i++) {
     const time = Math.min(preset.flight, i * STEP);
     const withinPassage = time <= passTime;
-    let px, py, pz, rx, ry, rz;
+    let px, py, pz, rx, ry, rz, flightPose;
 
     if (withinPassage) {
       const u = clamp(time / passTime);
@@ -114,46 +125,15 @@ function createLane(index, width, height, preset) {
       ry = ringRY + facingChange * 58 * outwardX;
       rz = ringRZ + facingChange * 14 * Math.sin(rollPhase);
     } else {
-      // The first free-flight sample uses the exact lip position and outgoing
-      // derivative. Continuous acceleration then changes that velocity; the
-      // sheet is never teleported to an unrelated random orbit.
-      if (!travelled) {
-        travelled = true;
-        x = outwardX * lipR;
-        y = outwardY * lipR;
-        z = lipZ;
-      }
-      const t = time - passTime;
-      const windA = Math.sin(x * .0029 + y * .0016 + t * .94 + gustPhase);
-      const windB = Math.cos(y * .0041 - x * .0017 - t * 1.33 + lateralPhase);
-      const windC = Math.sin(t * 2.12 + rollPhase);
-      const lateral = airflow * (24 * windA + 16 * windB + 8 * windC);
-      const radial = targetRadialSpeed *
-        (1 + .11 * Math.sin(t * 1.04 + yawPhase));
-      const wantedVX = outwardX * radial + lateralX * lateral;
-      const wantedVY = outwardY * radial + lateralY * lateral;
-      const wantedVZ = 54 + 22 * Math.sin(t * .66 + pitchPhase);
-      const drag = Math.min(1, STEP * 1.4);
-      vx = mix(vx, wantedVX, drag);
-      vy = mix(vy, wantedVY, drag);
-      vz = mix(vz, wantedVZ, Math.min(1, STEP * 1.9));
-      x += vx * STEP;
-      y += vy * STEP;
-      z += vz * STEP;
-      px = x;
-      py = y;
-      pz = z;
-
-      const direction = Math.atan2(vy, vx);
-      const unwrapped = direction +
-        Math.round((theta - direction) / TAU) * TAU;
-      const settle = smooth(t, 0, .82);
-      const swing = Math.sin(t * 1.46 + pitchPhase);
-      const yaw = Math.sin(t * 1.22 + yawPhase);
-      rx = mix(ringRX, 30 * swing + 8 * Math.sin(t * 2.8 + rollPhase), settle);
-      ry = mix(ringRY, 40 * yaw + 9 * Math.cos(t * 2.1 + pitchPhase), settle);
-      rz = mix(ringRZ, (unwrapped + PI / 2) * 180 / PI +
-        11 * Math.sin(t * 1.74 + rollPhase) + 15 * spin * t, settle);
+      // Momentum, three-axis tumbling, and aerodynamic deformation all come
+      // from one shared spatial wind field—not independent wobble timers.
+      flightPose = floating.step(time);
+      px = flightPose.x;
+      py = flightPose.y;
+      pz = flightPose.z;
+      rx = flightPose.rx;
+      ry = flightPose.ry;
+      rz = flightPose.rz;
     }
 
     const release = smooth(time, passTime, passTime + .64);
@@ -165,21 +145,11 @@ function createLane(index, width, height, preset) {
       (1 - smooth(time, preset.flight - 1.20, preset.flight - .10));
     const scale = mix(.20, .43, smooth(time, .18, preset.flight - .38)) *
       (.94 + .1 * Math.sin(index * 2.18 + .2));
-    const curl = clamp((.47 +
-      .23 * Math.sin(time * 1.54 + rollPhase) +
-      .11 * Math.cos(time * 3.11 + yawPhase)) *
-      (.16 + .84 * release) * preset.curl, 0, 1.20);
-    // Flutter amplitude follows the sheet's simulated airspeed.
-    // A small phase variation keeps the motion organic, while its
-    // primary magnitude comes from flight rather than an independent
-    // high-frequency ripple timer.
-    const flightSpeed = Math.hypot(vx, vy, vz);
-    const windLoading = clamp(
-      flightSpeed / Math.max(60, targetRadialSpeed), .45, 1.45);
-    const flutter = clamp((.57 +
-      .13 * Math.sin(time * 1.83 + pitchPhase) +
-      .07 * Math.cos(time * 2.38 + rollPhase)) *
-      (.38 + .62 * windLoading) * release * preset.flutter, 0, 1.20);
+    // Guided entry is stable; aerodynamic motion progressively takes over
+    // after the lip. Each control remains independently disable-able.
+    const curl = withinPassage ? .06 * preset.curl :
+      (.08 + .92 * release) * flightPose.curl;
+    const flutter = withinPassage ? 0 : release * flightPose.flutter;
     frames.push({
       x: px, y: py, z: pz, rx, ry, rz,
       scale, opacity: visibility, curl, flutter, wrap, time,
