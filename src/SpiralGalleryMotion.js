@@ -5,6 +5,7 @@
  * Deterministic in either scroll direction; no animation-side state.
  */
 export const CAMERA_DESCENT = .36;
+export const GALLERY_FOCAL = 1350;
 export const TRAIN_START = .765;
 export const TRAIN_END = .99;
 const TAU = Math.PI * 2;
@@ -118,9 +119,12 @@ export function spiralGalleryPose(phase, index, rank, width, height, target) {
       (origin[key] - previous[key]) / .00001 * duration / 5;
     const offset = width * 1.55 + 60;
     const rowY = target.y + height * CAMERA_DESCENT;
-    const stageX = target.x - offset;
     const stageY = rowY + height * .065;
     const stageZ = target.z - 160;
+    const projectedX = target.x * GALLERY_FOCAL /
+      (GALLERY_FOCAL - target.z);
+    const stageX = (projectedX - offset) *
+      (GALLERY_FOCAL - stageZ) / GALLERY_FOCAL;
     x = quintic([origin.x, origin.x + tangent('x'),
       Math.min(origin.x - width * .22, stageX + width * .25),
       stageX + width * .06, stageX, stageX], v);
@@ -142,9 +146,14 @@ export function spiralGalleryPose(phase, index, rank, width, height, target) {
       (TRAIN_END - TRAIN_START));
     const offset = width * 1.55 + 60;
     const rowY = target.y + height * CAMERA_DESCENT;
-    x = target.x - offset * (1 - t);
-    y = rowY + height * .065 * (1 - t);
     z = target.z - 160 * (1 - t);
+    const projectedX = target.x * GALLERY_FOCAL /
+      (GALLERY_FOCAL - target.z);
+    // Preserve the same spacing in SCREEN pixels despite different
+    // 3D depths. Otherwise distant cards bunch together visually.
+    x = (projectedX - offset * (1 - t)) *
+      (GALLERY_FOCAL - z) / GALLERY_FOCAL;
+    y = rowY + height * .065 * (1 - t);
     scale = target.scale * mix(.72, 1, t);
     rx = 0;
     ry = target.ry * mix(.65, 1, t);
