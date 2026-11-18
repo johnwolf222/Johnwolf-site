@@ -7,6 +7,12 @@ import {
   TRAIN_START, TRAIN_END, GALLERY_FOCAL,
 } from '../src/SpiralGalleryMotion.js';
 
+import {
+  PROJECT_LOOP_SPEED, wrapGalleryFocus, wrappedGalleryDistance,
+  nearestGalleryIndex, advanceGalleryFocus, dragGalleryFocus,
+  gallerySeamOpacity,
+} from '../src/GalleryLoopMotion.js';
+
 const FEATURED = [9, 7, 5, 11, 2, 1, 10];
 const ORDER = [4, 5, 6, 0, 1, 2, 3];
 const FEATURED_INDICES = FEATURED.map(id => id - 1);
@@ -258,4 +264,90 @@ test('one GLB remains anchored at top center after the paper train lands', () =>
     'old head fade or upward ejection is still present');
   assert.match(css, /\.jw-continuous-head\s*\{[\s\S]*?position: fixed;/);
   assert.match(css, /\.jw-continuous-head__artboard\s*\{[\s\S]*?left: 50%;/);
+});
+
+test('horizontal swipes move all seven sheets continuously in either direction', () => {
+  const spacing = 290;
+  assert.equal(dragGalleryFocus(0, -spacing, spacing), 1,
+    'left swipe must advance the gallery to the next project');
+  assert.equal(dragGalleryFocus(0, spacing, spacing), 6,
+    'right swipe must wrap back to the last project');
+  assert.ok(Math.abs(advanceGalleryFocus(6.98, 1, .1) -
+    (6.98 + PROJECT_LOOP_SPEED * .1 - 7)) < 1e-9);
+  assert.ok(Math.abs(advanceGalleryFocus(.02, -1, .1) -
+    (7 + .02 - PROJECT_LOOP_SPEED * .1)) < 1e-9);
+  for (const direction of [-1, 1]) {
+    let focus = 2.35;
+    for (let frame = 0; frame < 8000; frame++)
+      focus = advanceGalleryFocus(focus, direction, 1 / 60);
+    const expected = wrapGalleryFocus(
+      2.35 + direction * 8000 / 60 * PROJECT_LOOP_SPEED);
+    assert.ok(Math.abs(focus - expected) < 1e-8,
+      'constant-speed focus drifted after many complete loops');
+  }
+  assert.equal(nearestGalleryIndex(6.6), 0,
+    'active project must wrap from seventh back to first');
+  assert.equal(nearestGalleryIndex(-.6), 6);
+  assert.equal(advanceGalleryFocus(2.3, 1, 5),
+    advanceGalleryFocus(2.3, 1, .1),
+    'returning from a background tab must not jump the cards');
+});
+
+test('the seven real sheets wrap offscreen without a visible seam', () => {
+  for (const [width, height] of sizes) {
+    const spacing = Math.min(width * .218, 290);
+    for (let tick = 0; tick < 700; tick++) {
+      const focus = tick / 100;
+      const distances = FEATURED.map((id, index) =>
+        wrappedGalleryDistance(index, focus));
+      assert.ok(distances.every(d => Math.abs(d) <= 3.5));
+      const centered = nearestGalleryIndex(focus);
+      assert.ok(Math.abs(distances[centered]) <= .5);
+      for (let index = 0; index < FEATURED.length; index++) {
+        const d = distances[index];
+        const depth = -Math.abs(d) * 155;
+        const target = {
+          x: d * spacing * (GALLERY_FOCAL - depth) / GALLERY_FOCAL,
+          y: galleryRowOffset(width, height) +
+            Math.abs(d) * height * .014,
+          z: depth,
+          scale: 1 / (1 + Math.abs(d) * .18),
+          ry: -Math.sign(d) * Math.min(65, Math.abs(d) * 23),
+          opacity: Math.pow(clamp((3.55 - Math.abs(d)) / 3.3), .7) *
+            gallerySeamOpacity(d),
+        };
+        const p = spiralGalleryPose(1, FEATURED[index] - 1,
+          ORDER.indexOf(index), width, height, target);
+        for (const key of ['x', 'y', 'z', 'scale', 'opacity'])
+          assert.ok(Number.isFinite(p[key]));
+        assert.ok(Math.abs(p.x - target.x) < 1e-6);
+        assert.ok(Math.abs(p.opacity - target.opacity) < 1e-6);
+      }
+    }
+    // At the exact cyclic boundary the center sheet does not jump.
+    const left = wrappedGalleryDistance(0, 6.9999);
+    const right = wrappedGalleryDistance(0, .0001);
+    assert.ok(Math.abs(left - right) < .001);
+  }
+  assert.equal(gallerySeamOpacity(3.5), 0);
+  assert.equal(gallerySeamOpacity(-3.5), 0);
+  assert.equal(gallerySeamOpacity(3.0), 1);
+});
+
+test('gallery swipe controls preserve the original scroll and head', () => {
+  const source = readFileSync(new URL('../src/ProjectsSequence.jsx',
+    import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../src/ProjectsSequence.css',
+    import.meta.url), 'utf8');
+  assert.match(source, /onPointerDown=\{onPointerDown\}/);
+  assert.match(source, /onPointerMove=\{onPointerMove\}/);
+  assert.match(source, /onPointerUp=\{event => finishPointer\(event\)\}/);
+  assert.match(source, /loopFocus = advanceGalleryFocus\(/);
+  assert.match(source, /galleryControlsRef\.current\?\.start\(1\)/);
+  assert.match(source, /galleryControlsRef\.current\?\.start\(-1\)/);
+  assert.match(source, /headPlacement = galleryHeadPlacement\(p, height\)/);
+  assert.match(css, /touch-action: pan-y;/,
+    'horizontal gesture surface must not prevent vertical page scrolling');
+  assert.match(css, /z-index: 50;/);
+  assert.match(css, /pointer-events: auto;/);
 });
