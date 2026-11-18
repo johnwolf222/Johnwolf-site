@@ -4,7 +4,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import './ProjectsSequence.css';
 import LivePaperRenderer from './LivePaperRenderer.jsx';
-import { createHomePaperMotion, seekHomePaperOutward } from './HomePaperMotion.js';
+import { createHomePaperMotion } from './HomePaperMotion.js';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -44,7 +44,7 @@ const focusOf = (index, scrollY, top, h) =>
 
 /**
  * Four distinct phases on ONE reversible GSAP scroll timeline:
- * (1) Existing artworks finish their outward Home flight before the next phase.
+ * (1) Every existing artwork returns to the origin behind the one GLB head.
  * (2) Each sheet exits separately and circles AROUND the head in a helical trail.
  * (3) The same sheets curve towards the left edge and towards the viewer.
  * (4) The seven featured sheets slide into gallery positions LEFT TO RIGHT.
@@ -86,7 +86,7 @@ export default function ProjectsSequence() {
     let disposed = false;
     const travel = { progress: 0 };
     // The live Home current has an actual clock. Scrolling freezes it, so
-    // each sheet continues from its exact visible state on scroll.
+    // each sheet rewinds from its exact visible state along its own path.
     let homeClock = 3.45;
     let capturedClock = null;
     let lastAnimationFrame = 0;
@@ -142,11 +142,11 @@ export default function ProjectsSequence() {
       const spotlight = PROJECTS.findIndex(project => project.image === id);
       const rank = spotlight < 0 ? -1 : ENTRY_ORDER.indexOf(spotlight);
 
-      // PHASE 1 · Continue the exact visible Home flight OUTWARD.
-      // The reverse seek previously pulled sheets into the center opening.
-      // They now reach their invisible flight end before the existing orbit.
+      // PHASE 1 · Reverse the ACTUAL moving Home cards into their shared
+      // origin. A captured clock means no flicker or discontinuity at handoff.
       const initialAge = homeAge(index, capturedClock ?? homeClock);
-      const flight = homePose(index, seekHomePaperOutward(initialAge, phase));
+      const rewind = smooth(phase, .012, .272);
+      const flight = homePose(index, initialAge * (1 - rewind));
       const originX = flight.x;
       const originY = flight.y;
       const originZ = flight.z;
@@ -234,8 +234,8 @@ export default function ProjectsSequence() {
       const rotZ = enteredSweep ? ringRotZ * (1 - landing) : baseRZ;
 
       // Each card remains the SAME element, including its original image.
-      // It leaves the Home current outward, then reappears individually
-      // from behind the head in the existing helical trail.
+      // It is visible in the Home current, winds down into the head, and
+      // reappears individually in the helical trail.
       const emerging = smooth(phase, releaseStart + .006, releaseStart + .075);
       const rewindOpacity = phase < .304 ? flight.opacity : 0;
       const unfeaturedFade = rank < 0 ?
@@ -277,7 +277,7 @@ export default function ProjectsSequence() {
       const flutter = Math.sin(time * 2.7 + index * .73) * .28 +
         Math.sin(time * 4.4 + index * 1.14) * .13;
       // Curl and flutter breathe while the Home current loops. The first
-      // sliver of scrolling blends into the existing spiral physics;
+      // sliver of scrolling blends back to the existing spiral physics;
       // neither the scroll timeline nor its geometry is edited here.
       const homeCurl = flight.curl;
       const transitionCurl = Math.max(.10, .48 + flutter * .68) *
@@ -293,7 +293,7 @@ export default function ProjectsSequence() {
         wrap: flight.wrap * (1 - smooth(phase, .012, .085)),
       });
       card.dataset.phase = phase === 0 ? 'home-current' :
-        phase < .272 ? 'outward-release' :
+        phase < .272 ? 'rewind' :
           phase < releaseStart ? 'behind-head' :
             phase < .806 ? 'spiral' :
               phase < .893 ? 'left-sweep' :
