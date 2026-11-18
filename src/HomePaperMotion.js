@@ -159,8 +159,11 @@ function createLane(index, width, height, preset) {
     const release = smooth(time, passTime, passTime + .64);
     // Ring-specific vertex wrapping is strongest as the sheet clears
     // the curved lip, then disappears without changing its center path.
-    const wrap = smooth(time, .22, .87) *
-      (1 - smooth(time, passTime - .16, passTime + .78));
+    // Keep the sheet attached to the opening from its first (hidden)
+    // frame. Ramping the wrap UP after the sheet became visible pulled
+    // it backwards into the hole and made it appear to pop in and out.
+    // Only the outward release is animated.
+    const wrap = 1 - smooth(time, passTime - .16, passTime + .78);
     const visibility = smooth(time, .12, .96) *
       (1 - smooth(time, preset.flight - 1.20, preset.flight - .10));
     const scale = mix(.20, .43, smooth(time, .18, preset.flight - .38)) *
@@ -176,6 +179,14 @@ function createLane(index, width, height, preset) {
     });
   }
   return frames;
+}
+
+// When the Home section begins scrolling, visible sheets keep travelling
+// OUTWARD until they have faded. The gallery's later orbit is untouched.
+export function seekHomePaperOutward(initialAge, phase, config = HOME_PAPER_PRESET) {
+  const endAge = config.flight / config.duration;
+  return mix(initialAge, Math.max(initialAge, endAge),
+    smooth(phase, .012, .272));
 }
 
 export function createHomePaperMotion(width, height, config = HOME_PAPER_PRESET) {
