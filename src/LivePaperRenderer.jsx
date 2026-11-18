@@ -18,6 +18,7 @@ const VERTEX = `
   uniform float uTime;
   uniform float uSeed;
   uniform float uExitWrap;
+  uniform float uOpeningScale;
   uniform float uArcRadius;
   uniform float uOuterRim;
   uniform float uFocal;
@@ -85,9 +86,18 @@ const VERTEX = `
       float offset = position.x * uSheetWidth;
       vec2 vertexOnRim = openingCurve(distance, arcRadius);
       float depthBase = uFocal - uFocal / .55 - arcRadius;
-      vec3 rimWorld = radial * vertexOnRim.x +
+      // Match the paper's apparent size at the rim to its free-flight
+      // size. The previous full-size rim mesh shrank sharply when its
+      // depth was handed back to the moving sheet, looking like a dive.
+      // Scale around the curved rim center, keeping the existing
+      // opening path and vertex-by-vertex reveal timing unchanged.
+      vec2 centerOnRim = openingCurve(centerTravel, arcRadius);
+      vec3 rimCenter = radial * centerOnRim.x +
+        vec3(0.0, 0.0, depthBase + centerOnRim.y);
+      vec3 rimWorld = rimCenter + uOpeningScale * (
+        radial * (vertexOnRim.x - centerOnRim.x) +
         tangential * offset +
-        vec3(0.0, 0.0, depthBase + vertexOnRim.y);
+        vec3(0.0, 0.0, vertexOnRim.y - centerOnRim.y));
       vec3 ordinaryWorld = (modelMatrix * vec4(pos, 1.0)).xyz;
       vec3 emergingWorld = mix(ordinaryWorld, rimWorld, rimGate);
 
@@ -334,6 +344,7 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
           uCurl: { value: 0 },
           uFlutter: { value: 0 },
           uExitWrap: { value: 0 },
+          uOpeningScale: { value: 1 },
           uArcRadius: { value: 1 },
           uOuterRim: { value: 1 },
           uFocal: { value: FOCAL },
@@ -464,6 +475,16 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
           openingSheetSize * item.heightFactor;
         item.material.uniforms.uSheetWidth.value =
           openingSheetSize * item.widthFactor;
+        // The rim is farther from the camera than free flight. Compensate
+        // for that perspective difference so the sheet never swells at
+        // the opening and then appears to plunge away on release.
+        const rimCameraDistance = FOCAL / .55 +
+          item.material.uniforms.uArcRadius.value;
+        const freeCameraDistance = Math.max(1, FOCAL - pose.z);
+        item.material.uniforms.uOpeningScale.value =
+          Math.max(.05, Math.min(1.5,
+            (sheetSize / openingSheetSize) *
+            rimCameraDistance / freeCameraDistance));
         const radialLength = Math.max(1, Math.hypot(pose.x, pose.y));
         item.material.uniforms.uOutward.value.set(
           pose.x / radialLength, -pose.y / radialLength);
