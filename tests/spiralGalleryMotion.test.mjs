@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  spiralGalleryPose, clockwiseTrack, galleryCameraProgress,
+  spiralGalleryPose, clockwiseTrack, galleryCameraProgress, galleryHeadPlacement,
   galleryRowOffset, CAMERA_DESCENT, UNWIND_START, OFFSCREEN_START,
   TRAIN_START, TRAIN_END, GALLERY_FOCAL,
 } from '../src/SpiralGalleryMotion.js';
@@ -225,4 +225,37 @@ test('gallery footer stays clear; compositing does not punch out paper', () => {
     /if \(uRayStrength <= 0\.001\) \{\s*gl_FragColor = original;/);
   assert.match(css, /z-index: 15;/);
   assert.match(css, /background: transparent;/);
+});
+
+test('one GLB remains anchored at top center after the paper train lands', () => {
+  for (const [width, height] of sizes) {
+    const atHome = galleryHeadPlacement(0, height);
+    assert.equal(atHome.shift, 0, 'approved Home placement changed');
+    assert.equal(atHome.scale, 1, 'approved Home head scale changed');
+    const expectedCenter = Math.max(148, Math.min(height * .225, 210));
+    const settled = galleryHeadPlacement(.86, height);
+    const landed = galleryHeadPlacement(1, height);
+    assert.ok(Math.abs(landed.shift + height / 2 + 20 -
+      expectedCenter) < 1e-6, 'head not at top center');
+    assert.ok(Math.abs(settled.shift - landed.shift) < 1e-6,
+      'head must remain stationary while gallery projects advance');
+    assert.ok(Math.abs(landed.scale - .76) < 1e-6,
+      'approved smaller gallery head scale changed');
+    for (let tick = 0; tick <= 100; tick++) {
+      const position = galleryHeadPlacement(tick / 100, height);
+      assert.ok(Number.isFinite(position.shift));
+      assert.ok(Number.isFinite(position.scale));
+      assert.ok(position.scale > .7 && position.scale <= 1);
+    }
+  }
+  const sequence = readFileSync(new URL('../src/ProjectsSequence.jsx',
+    import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../src/NewHomepage.css',
+    import.meta.url), 'utf8');
+  assert.match(sequence, /const headPlacement = galleryHeadPlacement\(p, height\)/);
+  assert.match(sequence, /head\.style\.opacity = String\(exitFade\)/);
+  assert.doesNotMatch(sequence, /headFade|headRise/,
+    'old head fade or upward ejection is still present');
+  assert.match(css, /\.jw-continuous-head\s*\{[\s\S]*?position: fixed;/);
+  assert.match(css, /\.jw-continuous-head__artboard\s*\{[\s\S]*?left: 50%;/);
 });
