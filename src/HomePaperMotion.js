@@ -79,10 +79,6 @@ function createLane(index, width, height, preset) {
   const yawPhase = rand() * TAU;
   const pitchPhase = rand() * TAU;
   const rollPhase = rand() * TAU;
-  const gustPhase = rand() * TAU;
-  const lateralPhase = rand() * TAU;
-  const airflow = .8 + rand() * .45;
-  const spin = (rand() < .5 ? -1 : 1) * (.07 + rand() * .13);
   const baseRoll = theta * 180 / PI + 90;
   const ringRX = 10 * Math.sin(pitchPhase + 3.7);
   const ringRY = 13 * Math.cos(yawPhase + 2.8);
@@ -94,6 +90,9 @@ function createLane(index, width, height, preset) {
   let vx = outwardX * radialAtLip;
   let vy = outwardY * radialAtLip;
   let vz = depthAtLip;
+  let pitch = ringRX, yaw = ringRY, roll = ringRZ;
+  let pitchRate = 0, yawRate = 0, rollRate = 0;
+  const birth = index * preset.duration / preset.count;
   let travelled = false;
   const frames = [];
   const count = Math.ceil(preset.flight / STEP);
@@ -124,36 +123,37 @@ function createLane(index, width, height, preset) {
         z = lipZ;
       }
       const t = time - passTime;
-      const windA = Math.sin(x * .0029 + y * .0016 + t * .94 + gustPhase);
-      const windB = Math.cos(y * .0041 - x * .0017 - t * 1.33 + lateralPhase);
-      const windC = Math.sin(t * 2.12 + rollPhase);
-      const lateral = airflow * (24 * windA + 16 * windB + 8 * windC);
-      const radial = targetRadialSpeed *
-        (1 + .11 * Math.sin(t * 1.04 + yawPhase));
-      const wantedVX = outwardX * radial + lateralX * lateral;
-      const wantedVY = outwardY * radial + lateralY * lateral;
-      const wantedVZ = 54 + 22 * Math.sin(t * .66 + pitchPhase);
-      const drag = Math.min(1, STEP * 1.4);
-      vx = mix(vx, wantedVX, drag);
-      vy = mix(vy, wantedVY, drag);
-      vz = mix(vz, wantedVZ, Math.min(1, STEP * 1.9));
-      x += vx * STEP;
-      y += vy * STEP;
-      z += vz * STEP;
+      // One coherent spatial current for all cards, with inertial response.
+      const clock = birth + time;
+      const a = Math.sin(x * .0026 + y * .0018 + clock * .71);
+      const b = Math.cos(y * .0031 - x * .0015 - clock * .87);
+      const c = Math.sin((x-y) * .0017 + z * .0012 + clock * .54);
+      const airX = 26*a + 13*b, airY = -24*b + 12*c, airZ = 12*a-9*c;
+      const follow = 1-Math.exp(-1.05*STEP);
+      vx += (outwardX*targetRadialSpeed+airX-vx)*follow;
+      vy += (outwardY*targetRadialSpeed+airY-vy)*follow;
+      vz += (54+airZ-vz)*follow;
+      x += vx*STEP; y += vy*STEP; z += vz*STEP;
       px = x;
       py = y;
       pz = z;
 
-      const direction = Math.atan2(vy, vx);
-      const unwrapped = direction +
-        Math.round((theta - direction) / TAU) * TAU;
-      const settle = smooth(t, 0, .82);
-      const swing = Math.sin(t * 1.46 + pitchPhase);
-      const yaw = Math.sin(t * 1.22 + yawPhase);
-      rx = mix(ringRX, 30 * swing + 8 * Math.sin(t * 2.8 + rollPhase), settle);
-      ry = mix(ringRY, 40 * yaw + 9 * Math.cos(t * 2.1 + pitchPhase), settle);
-      rz = mix(ringRZ, (unwrapped + PI / 2) * 180 / PI +
-        11 * Math.sin(t * 1.74 + rollPhase) + 15 * spin * t, settle);
+      // Spring-damped aerodynamic tilting replaces scripted sine rotations.
+      const crosswind=-outwardY*airX+outwardX*airY;
+      const headwind=outwardX*airX+outwardY*airY;
+      const targets=[
+        ringRX+32*Math.tanh((airZ+headwind*.35)/35),
+        ringRY+38*Math.tanh(crosswind/26),
+        ringRZ+22*Math.tanh(crosswind/25)
+      ];
+      const rates=[pitchRate,yawRate,rollRate],angles=[pitch,yaw,roll];
+      for(let k=0;k<3;k++){
+        rates[k]+=(2.8*(targets[k]-angles[k])-2.5*rates[k])*STEP;
+        angles[k]+=rates[k]*STEP;
+      }
+      [pitchRate,yawRate,rollRate]=rates;
+      [pitch,yaw,roll]=angles;
+      rx=pitch;ry=yaw;rz=roll;
     }
 
     const release = smooth(time, passTime, passTime + .64);
@@ -165,21 +165,11 @@ function createLane(index, width, height, preset) {
       (1 - smooth(time, preset.flight - 1.20, preset.flight - .10));
     const scale = mix(.20, .43, smooth(time, .18, preset.flight - .38)) *
       (.94 + .1 * Math.sin(index * 2.18 + .2));
-    const curl = clamp((.47 +
-      .23 * Math.sin(time * 1.54 + rollPhase) +
-      .11 * Math.cos(time * 3.11 + yawPhase)) *
-      (.16 + .84 * release) * preset.curl, 0, 1.20);
-    // Flutter amplitude follows the sheet's simulated airspeed.
-    // A small phase variation keeps the motion organic, while its
-    // primary magnitude comes from flight rather than an independent
-    // high-frequency ripple timer.
-    const flightSpeed = Math.hypot(vx, vy, vz);
-    const windLoading = clamp(
-      flightSpeed / Math.max(60, targetRadialSpeed), .45, 1.45);
-    const flutter = clamp((.57 +
-      .13 * Math.sin(time * 1.83 + pitchPhase) +
-      .07 * Math.cos(time * 2.38 + rollPhase)) *
-      (.38 + .62 * windLoading) * release * preset.flutter, 0, 1.20);
+    const flightSpeed=Math.hypot(vx,vy,vz);
+    const loading=clamp(flightSpeed/Math.max(60,targetRadialSpeed),.45,1.45);
+    const angular=clamp((Math.abs(pitchRate)+Math.abs(yawRate)+Math.abs(rollRate))/90,0,1);
+    const curl=clamp((.43+.31*angular+.15*loading)*(.16+.84*release)*preset.curl,0,1.2);
+    const flutter=clamp((.48+.34*angular+.15*loading)*release*preset.flutter,0,1.2);
     frames.push({
       x: px, y: py, z: pz, rx, ry, rz,
       scale, opacity: visibility, curl, flutter, wrap, time,
