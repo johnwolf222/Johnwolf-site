@@ -84,6 +84,15 @@ function orbitSlot(index, rank) {
   return 7 + index - featuredBefore;
 }
 
+export function galleryRowOffset(width, height) {
+  // Leave a full-height, unobstructed footer for the gallery arrows/dots.
+  // The artwork is placed by its actual maximum rendered paper width.
+  const paperWidth = width <= 800 ?
+    Math.min(width * .55, 285) : Math.min(width * .26, 370);
+  return Math.min(height * .235,
+    height * .5 - paperWidth * .5 - 110);
+}
+
 export function galleryCameraProgress(phase) {
   return smooth(phase, .34, .895);
 }
