@@ -41,11 +41,13 @@ const focusOf = (index, scrollY, top, h) =>
 /**
  * ONE reversible GSAP scroll choreography:
  * (1) Existing Home artworks rewind into the same GLB head.
- * (2) Individual sheets travel in a continuously moving spiral around it.
- * (3) The camera descends as the sheets turn through a tangent-matched curve.
- * (4) Seven approved projects settle into their original bottom gallery row
- *     left-to-right, while the remaining artworks flow away unobtrusively.
- * No intermediate stopping positions, scale spikes, or image replacements.
+ * (2) ALL 21 sheets circle clockwise and leave through the SAME bottom
+ *     tangent, one after another, with constant arc-length separation.
+ * (3) The camera descends while the entire procession travels LEFT.
+ * (4) Only after ALL sheets clear the screen do seven featured artworks
+ *     turn around offscreen and slide back in as the gallery row.
+ * The remaining 14 stay opaque and continue offscreen, never fading out.
+ * No visible selection, intermediate stop, or image replacement.
  *
  * The SAME 21 controllable sheets render on Home and Projects.
  * No MP4, crossfade, or substitution of artwork during the transition.
@@ -233,8 +235,10 @@ export default function ProjectsSequence() {
       const subFade = 1 - smooth(p, .050, .250);
       const bottomFade = 1 - smooth(p, .018, .210);
       const cameraDescent = galleryCameraProgress(p);
-      const headRise = smooth(p, .78, .995);
-      const headFade = 1 - smooth(p, .81, .985);
+      // Keep the head present until the entire 21-sheet procession has
+      // cleared left; its departure happens during the invisible turn.
+      const headRise = smooth(p, .84, .995);
+      const headFade = 1 - smooth(p, .86, .985);
 
       // Fade all Home lettering IN PLACE. Do not move any text off the page,
       // and do not modify the approved per-letter rolling GSAP timeline.
