@@ -124,13 +124,15 @@ function createLane(index, width, height, preset) {
         z = lipZ;
       }
       const t = time - passTime;
-      // The sheet follows one outward path; no side-current, orbit or
-      // independently oscillating acceleration can redirect its travel.
-      const lateral = 0;
-      const radial = targetRadialSpeed;
+      const windA = Math.sin(x * .0029 + y * .0016 + t * .94 + gustPhase);
+      const windB = Math.cos(y * .0041 - x * .0017 - t * 1.33 + lateralPhase);
+      const windC = Math.sin(t * 2.12 + rollPhase);
+      const lateral = airflow * (24 * windA + 16 * windB + 8 * windC);
+      const radial = targetRadialSpeed *
+        (1 + .11 * Math.sin(t * 1.04 + yawPhase));
       const wantedVX = outwardX * radial + lateralX * lateral;
       const wantedVY = outwardY * radial + lateralY * lateral;
-      const wantedVZ = 54;
+      const wantedVZ = 54 + 22 * Math.sin(t * .66 + pitchPhase);
       const drag = Math.min(1, STEP * 1.4);
       vx = mix(vx, wantedVX, drag);
       vy = mix(vy, wantedVY, drag);
