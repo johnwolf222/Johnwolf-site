@@ -21,6 +21,24 @@
   pointer-events: none;
   transition: none;
 }
+/* The invisible gesture plane sits above the GPU papers but below the
+   information/controls. Horizontal drags are ours; vertical touch scrolling
+   stays native so visitors can still reach About and Contact. */
+.jw-projects-stage__swipe-surface {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+.jw-projects-stage[data-gallery-interactive="true"]
+  .jw-projects-stage__swipe-surface {
+  pointer-events: auto;
+}
+.jw-projects-stage__swipe-surface.is-dragging { cursor: grabbing; }
 .jw-projects-stage__scene {
   position: absolute;
   inset: 0;
