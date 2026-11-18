@@ -94,11 +94,23 @@ const VERTEX = `
       vec2 centerOnRim = openingCurve(centerTravel, arcRadius);
       vec3 rimCenter = radial * centerOnRim.x +
         vec3(0.0, 0.0, depthBase + centerOnRim.y);
+      vec3 ordinaryWorld = (modelMatrix * vec4(pos, 1.0)).xyz;
+      // Keep the projected center on the SAME outward trajectory while
+      // the paper peels around the opening. Otherwise the rim path stalls
+      // and then abruptly catches up with free flight as wrap fades.
+      vec3 ordinaryCenter = (modelMatrix *
+        vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+      float freeDepth = max(1.0, uFocal - ordinaryCenter.z);
+      float rimDepth = max(1.0, uFocal - rimCenter.z);
+      float freeRadius = length(ordinaryCenter.xy) *
+        uFocal / freeDepth;
+      float rimRadius = centerOnRim.x * uFocal / rimDepth;
+      rimCenter += radial *
+        ((freeRadius - rimRadius) * rimDepth / uFocal);
       vec3 rimWorld = rimCenter + uOpeningScale * (
         radial * (vertexOnRim.x - centerOnRim.x) +
         tangential * offset +
         vec3(0.0, 0.0, vertexOnRim.y - centerOnRim.y));
-      vec3 ordinaryWorld = (modelMatrix * vec4(pos, 1.0)).xyz;
       vec3 emergingWorld = mix(ordinaryWorld, rimWorld, rimGate);
 
       // The trailing part is still inside the opening. Only the
