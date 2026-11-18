@@ -54,8 +54,17 @@ const VERTEX = `
     float edge = pow(clamp(abs(across) * 2., 0., 1.), 1.5);
     float ripplePhase = along * 3.14159 + uTime * 8.1 +
       uSeed * 1.61;
-    float paperRipple = uFlutter * .042 * sin(ripplePhase);
-    float rippleSlope = uFlutter * .042 * 3.14159 * cos(ripplePhase);
+    // A long, travelling flex wave keeps the sheet visibly supple.
+    // The secondary low-frequency mode bends opposite corners differently,
+    // without changing its approved opening geometry or projected flight.
+    float secondaryPhase = across * 2.25 - uTime * 3.1 + uSeed * .73;
+    float paperRipple = uFlutter * (
+      .080 * sin(ripplePhase) + .037 * sin(secondaryPhase) * along
+    );
+    float rippleSlope = uFlutter * (
+      .080 * 3.14159 * cos(ripplePhase) +
+      .037 * sin(secondaryPhase)
+    );
     pos.xy = vec2(along, bentAcross);
     pos.z = bulge * .72 + paperRipple;
     float lightFacing = .5 + .5 * cos(phi + .4 + rippleSlope);
