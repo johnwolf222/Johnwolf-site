@@ -601,6 +601,13 @@ export default function ProjectsSequence() {
     gestureRef.current = null;
     setDragging(false);
   };
+  const onGalleryWheel = event => {
+    // Horizontal trackpad swipes should behave like touch swipes; vertical
+    // wheel/trackpad movement must continue scrolling the page normally.
+    if (Math.abs(event.deltaX) < 8 ||
+        Math.abs(event.deltaX) <= Math.abs(event.deltaY) * 1.25) return;
+    galleryControlsRef.current?.start(event.deltaX > 0 ? 1 : -1);
+  };
   const project = PROJECTS[activeIndex];
   return (
     <>
@@ -613,6 +620,7 @@ export default function ProjectsSequence() {
           aria-label="Swipe left or right to keep the seven projects moving continuously"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
+          onWheel={onGalleryWheel}
           onPointerUp={event => finishPointer(event)}
           onPointerCancel={event => finishPointer(event, true)}
           onLostPointerCapture={event => finishPointer(event, true)}
