@@ -5,7 +5,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import './ProjectsSequence.css';
 import LivePaperRenderer from './LivePaperRenderer.jsx';
 import { createHomePaperMotion } from './HomePaperMotion.js';
-import { spiralGalleryPose, galleryCameraProgress, CAMERA_DESCENT } from './SpiralGalleryMotion.js';
+import { spiralGalleryPose, galleryCameraProgress, galleryRowOffset, CAMERA_DESCENT } from './SpiralGalleryMotion.js';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -125,7 +125,7 @@ export default function ProjectsSequence() {
       const d = Math.abs(distance);
       return {
         x: distance * Math.min(width * .218, 290),
-        y: height * .235 + d * height * .014,
+        y: galleryRowOffset(width, height) + d * height * .014,
         z: -d * 155,
         scale: 1 / (1 + d * .18),
         ry: -Math.sign(distance) * Math.min(65, d * 23),
@@ -254,8 +254,6 @@ export default function ProjectsSequence() {
 
       stage.style.opacity = String(isShown ? sceneOpacity : 0);
       stage.style.visibility = isShown ? 'visible' : 'hidden';
-      stage.style.backgroundColor = 'rgba(255,255,255,' +
-        smooth(p, .30, .65).toFixed(3) + ')';
       if (copy) copy.style.opacity = String(smooth(p, .922, .992) * exitFade);
 
       for (let i = 0; i < CARD_COUNT; i++) {
