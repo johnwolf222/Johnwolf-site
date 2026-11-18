@@ -145,9 +145,8 @@ export default function ProjectsSequence() {
       // PHASE 1 · Reverse the ACTUAL moving Home cards into their shared
       // origin. A captured clock means no flicker or discontinuity at handoff.
       const initialAge = homeAge(index, capturedClock ?? homeClock);
-      // Never run visible homepage paper backward into the opening.
-      // Keep its last outward pose until the existing gallery sequence takes over.
-      const flight = homePose(index, initialAge);
+      const rewind = smooth(phase, .012, .272);
+      const flight = homePose(index, initialAge * (1 - rewind));
       const originX = flight.x;
       const originY = flight.y;
       const originZ = flight.z;
@@ -238,9 +237,7 @@ export default function ProjectsSequence() {
       // It is visible in the Home current, winds down into the head, and
       // reappears individually in the helical trail.
       const emerging = smooth(phase, releaseStart + .006, releaseStart + .075);
-      // Fade out the outgoing sheet before the protected gallery choreography.
-      const rewindOpacity = phase < .304 ?
-        flight.opacity * (1 - smooth(phase, .012, .12)) : 0;
+      const rewindOpacity = phase < .304 ? flight.opacity : 0;
       const unfeaturedFade = rank < 0 ?
         1 - smooth(phase, .834, .921) : 1;
       const opacity = (orbitStarted ? emerging : rewindOpacity) *
