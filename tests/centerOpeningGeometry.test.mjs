@@ -35,7 +35,7 @@ test('free flight uses the exact unchanged projection branch', () => {
   assert.match(vertex, /vOpeningReveal = 1\.0;/);
 });
 
-import { createHomePaperMotion } from '../src/HomePaperMotion.js';
+import { createHomePaperMotion, seekHomePaperOutward } from '../src/HomePaperMotion.js';
 
 test('guided entry remains intact and flight has bounded continuous rotation', () => {
   const motion = createHomePaperMotion(1280,720);
@@ -108,4 +108,43 @@ test('the paper presents its narrow rim-facing edge before its printed face', ()
   assert.ok(at(1.6) > 0);
   assert.ok(at(2.25) > rim);
   assert.match(vertex, /float visibleFraction = smoothstep\(0\.0,/);
+});
+
+test('paper never snaps backwards into the opening after becoming visible', () => {
+  for (const [width, height] of [[390, 844], [738, 414], [1280, 720]]) {
+    const motion = createHomePaperMotion(width, height);
+    for (let id = 0; id < 21; id++) {
+      let previousWrap = 1;
+      for (let frame = 0; frame <= 180; frame++) {
+        const pose = motion.pose(id, (frame / 60) / 12);
+        assert.ok(pose.wrap <= previousWrap + 1e-8,
+          'sheet must only unwrap OUT of ring: ' + id + '/' + frame);
+        previousWrap = pose.wrap;
+      }
+      assert.ok(motion.pose(id, 0).wrap > .999);
+      assert.equal(motion.pose(id, 0).opacity, 0);
+      assert.equal(motion.pose(id, (12 - .001) / 12).opacity, 0);
+      assert.equal(motion.pose(id, 9 / 12).opacity, 0);
+    }
+  }
+});
+
+test('scroll handoff advances sheets outward, never back into the ring', () => {
+  const motion = createHomePaperMotion(1280, 720);
+  const sources = readFileSync(
+    new URL('../src/ProjectsSequence.jsx', import.meta.url), 'utf8');
+  assert.match(sources, /seekHomePaperOutward\(initialAge, phase\)/);
+  assert.doesNotMatch(sources, /initialAge \* \(1 - rewind\)/);
+  for (const initialAge of [0, .01, .18, .38, .62, .74, .75, .91]) {
+    let previousAge = initialAge;
+    for (let step = 0; step <= 272; step++) {
+      const age = seekHomePaperOutward(initialAge, step / 1000);
+      assert.ok(age >= previousAge - 1e-9,
+        'scroll must not rewind a sheet into the opening');
+      previousAge = age;
+    }
+    const finalAge = seekHomePaperOutward(initialAge, .272);
+    assert.ok(finalAge >= .75);
+    assert.equal(motion.pose(0, finalAge).opacity, 0);
+  }
 });
