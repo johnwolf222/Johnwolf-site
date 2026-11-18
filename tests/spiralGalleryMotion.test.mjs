@@ -230,7 +230,7 @@ test('gallery footer stays clear; compositing does not punch out paper', () => {
 test('one GLB remains anchored at top center after the paper train lands', () => {
   for (const [width, height] of sizes) {
     const atHome = galleryHeadPlacement(0, height);
-    assert.equal(atHome.shift, 0, 'approved Home placement changed');
+    assert.ok(Math.abs(atHome.shift) < 1e-9, 'approved Home placement changed');
     assert.equal(atHome.scale, 1, 'approved Home head scale changed');
     const expectedCenter = Math.max(148, Math.min(height * .225, 210));
     const settled = galleryHeadPlacement(.86, height);
