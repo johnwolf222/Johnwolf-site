@@ -5,6 +5,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import './ProjectsSequence.css';
 import LivePaperRenderer from './LivePaperRenderer.jsx';
 import { createHomePaperMotion } from './HomePaperMotion.js';
+import { spiralGalleryPose, galleryCameraProgress, CAMERA_DESCENT } from './SpiralGalleryMotion.js';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -30,11 +31,6 @@ const smooth = (n, a, b) => {
   return t * t * (3 - 2 * t);
 };
 const mix = (a, b, t) => a + (b - a) * t;
-const cubic = (a, b, c, d, t) => {
-  const s = 1 - t;
-  return s * s * s * a + 3 * s * s * t * b +
-    3 * s * t * t * c + t * t * t * d;
-};
 const landingVh = .28;
 const stepVh = .78;
 const docTop = node => window.scrollY + node.getBoundingClientRect().top;
@@ -43,15 +39,16 @@ const focusOf = (index, scrollY, top, h) =>
     0, PROJECTS.length - 1);
 
 /**
- * Four distinct phases on ONE reversible GSAP scroll timeline:
- * (1) Every existing artwork returns to the origin behind the one GLB head.
- * (2) Each sheet exits separately and circles AROUND the head in a helical trail.
- * (3) The camera appears to descend while the same sheets swirl past the head.
- * (4) One uninterrupted curve brings the featured sheets into the bottom row,
- *     arriving from left to right with no intermediate parking positions.
+ * ONE reversible GSAP scroll choreography:
+ * (1) Existing Home artworks rewind into the same GLB head.
+ * (2) Individual sheets travel in a continuously moving spiral around it.
+ * (3) The camera descends as the sheets turn through a tangent-matched curve.
+ * (4) Seven approved projects settle into their original bottom gallery row
+ *     left-to-right, while the remaining artworks flow away unobtrusively.
+ * No intermediate stopping positions, scale spikes, or image replacements.
  *
- * The SAME twenty-one controllable paper elements render on Home and Projects.
- * No MP4, no crossfade, and no substitution of cards during the transition.
+ * The SAME 21 controllable sheets render on Home and Projects.
+ * No MP4, crossfade, or substitution of artwork during the transition.
  */
 export default function ProjectsSequence() {
   const sectionRef = useRef(null);
@@ -137,7 +134,6 @@ export default function ProjectsSequence() {
     }
 
     function positionCard(card, index, phase, galleryFocus, exitFade) {
-      const order = index / (CARD_COUNT - 1);
       const id = index + 1;
       const target = targetForCard(id, galleryFocus);
       const spotlight = PROJECTS.findIndex(project => project.image === id);
@@ -148,98 +144,22 @@ export default function ProjectsSequence() {
       const initialAge = homeAge(index, capturedClock ?? homeClock);
       const rewind = smooth(phase, .012, .272);
       const flight = homePose(index, initialAge * (1 - rewind));
-      const originX = flight.x;
-      const originY = flight.y;
-      const originZ = flight.z;
-      const originScale = flight.scale;
-      const originRotY = flight.ry;
-      const originRotX = flight.rx;
-      const originRotZ = flight.rz;
 
-      // PHASE 2 · The trail follows the SAME winding helical curve. Each
-      // sheet begins behind the head, one after another, spaced on the clock.
-      // The last sheet finishes its full orbit before the leftward sweep.
-      const releaseStart = .304 + index * .0160;
-      const orbit = smooth(phase, releaseStart, releaseStart + .170);
-      const radius = smooth(orbit, 0, .42);
-      const headAngle = -Math.PI * .49 +
-        Math.PI * 2.72 * orbit +
-        index * .55 * smooth(orbit, .34, 1);
-      const ringX = Math.cos(headAngle) * Math.min(width * .37, 490) * radius;
-      const stairHeight = (order - .5) * height * .83 +
-        Math.sin(headAngle) * height * .13;
-      const ringY = stairHeight * radius;
-      const ringZ = mix(-710, Math.sin(headAngle) * 350 - 135, orbit);
-      const ringScale = mix(.09, .53 + Math.sin(headAngle) * .09, orbit);
-      const ringRotX = Math.sin(headAngle * 1.46 + index * .23) * 23 * radius;
-      const ringRotY = Math.cos(headAngle) * 58 * radius;
-      const ringRotZ = Math.sin(headAngle) * 16 * radius;
-      const orbitStarted = phase >= releaseStart;
-      const baseX = orbitStarted ? ringX : originX;
-      const baseY = orbitStarted ? ringY : originY;
-      const baseZ = orbitStarted ? ringZ : originZ;
-      const baseScale = orbitStarted ? ringScale : originScale;
-      const baseRX = orbitStarted ? ringRotX : originRotX;
-      const baseRY = orbitStarted ? ringRotY : originRotY;
-      const baseRZ = orbitStarted ? ringRotZ : originRotZ;
+      // Each sheet follows a single seekable 3D trajectory. No pause at
+      // the former spiral/sweep boundary and no extra landing tween.
+      const motion = spiralGalleryPose(phase, index, rank,
+        width, height, target);
+      const started = phase >= motion.start;
+      const finalX = started ? motion.x : flight.x;
+      const finalY = started ? motion.y : flight.y;
+      const finalZ = started ? motion.z : flight.z;
+      const finalScale = started ? motion.scale : flight.scale;
+      const rotX = started ? motion.rx : flight.rx;
+      const rotY = started ? motion.ry : flight.ry;
+      const rotZ = started ? motion.rz : flight.rz;
+      const opacity = (started ? motion.opacity : flight.opacity) * exitFade;
+      const front = started && motion.front;
 
-      // PHASES 3 + 4 · The spiral flows DIRECTLY into the horizontal row.
-      // There is no intermediate parking point at the left edge and no
-      // separate "place the card" animation. All 21 sheets stay on one path.
-      //
-      // Begin the glide while the helical current is still moving. Its
-      // endpoint follows the moving spiral, so the handoff has no stationary
-      // frame at the former spiral/sweep boundary.
-      const glideEnd = rank < 0 ? .985 : .943 + rank * .0067;
-      const glide = smooth(phase, .715, glideEnd);
-      const landing = glide;
-      const landingEnd = glideEnd;
-      // Moving the virtual camera DOWN makes the world and the original head
-      // rise together. Add the same camera offset to every sheet, then aim
-      // at a world-space gallery row that projects to its original y.
-      const cameraY = -height * .20 * smooth(phase, .32, .94);
-      const galleryWorldY = target.y + height * .20;
-      // The exit tangent sweeps left and downward, then every sheet enters
-      // its slot horizontally from the left. This is one cubic trajectory,
-      // not a series of eased position tweens with pauses between them.
-      const pathX = cubic(ringX, ringX - width * .27,
-        target.x - width * .16, target.x, glide);
-      const pathY = cubic(ringY, ringY + height * .18,
-        galleryWorldY - height * .11, galleryWorldY, glide);
-      const pathZ = cubic(ringZ, ringZ + 180,
-        target.z + 90, target.z, glide);
-      const finalX = orbitStarted ? pathX : baseX;
-      const finalY = (orbitStarted ? pathY : baseY) + cameraY;
-      const finalZ = orbitStarted ? pathZ : baseZ;
-      const finalScale = orbitStarted ?
-        mix(ringScale, target.scale, glide) : baseScale;
-      // Rotation and paper flexibility settle AS the sheets slide into
-      // alignment, rather than in a separate animation after they stop.
-      const rotX = mix(baseRX, 0, glide);
-      const rotY = mix(baseRY, target.ry, glide);
-      const rotZ = mix(baseRZ, 0, glide);
-
-      // Each card remains the SAME element, including its original image.
-      // It is visible in the Home current, winds down into the head, and
-      // reappears individually in the helical trail.
-      const emerging = smooth(phase, releaseStart + .006, releaseStart + .075);
-      const rewindOpacity = phase < .304 ? flight.opacity : 0;
-      const unfeaturedFade = rank < 0 ?
-        1 - smooth(phase, .850, .975) : 1;
-      const opacity = (orbitStarted ? emerging : rewindOpacity) *
-        mix(1, target.opacity, landing) * unfeaturedFade * exitFade;
-
-      // The 21 cards live as SINGLE document-level elements, not inside
-      // the stage stacking context. This places the rear side behind the
-      // original 3D head (z 10) and the front of the orbit ahead (z 12).
-      const inFront = orbitStarted && phase < .89 &&
-        Math.sin(headAngle) > .13 && radius > .46;
-      const onGallery = rank >= 0 && phase >= landingEnd;
-      // On Home the paper layer stays behind the approved headline (z=2).
-      // During the spiral each card can pass in front of / behind the head
-      // using the same DOM node, never a replacement image.
-      const front = inFront ||
-        (glide > .36 && !onGallery && rank >= 0);
       // Skip the duplicate DOM rasterization work while our ONE GPU surface
       // is running. The original DOM images remain a ready fallback, and are
       // re-synchronized on the next frame if WebGL is lost or unsupported.
@@ -254,20 +174,18 @@ export default function ProjectsSequence() {
         card.style.opacity = String(opacity);
         card.style.visibility = opacity < .008 ? 'hidden' : 'visible';
       }
-      // One clock controls the GPU bend AND its world-space trajectory.
-      // The paper fully flattens as each project settles into its gallery.
+      // One clock controls the GPU bend and the same 3D trajectory.
+      // Sheets flatten only as they approach their final gallery slot.
       const time = (capturedClock ?? homeClock) -
         smooth(phase, .01, .272) * 2.4 +
         smooth(phase, .304, .806) * 4.8 +
         smooth(phase, .806, .992) * 1.6;
       const flutter = Math.sin(time * 2.7 + index * .73) * .28 +
         Math.sin(time * 4.4 + index * 1.14) * .13;
-      // Curl and flutter breathe while the Home current loops. The first
-      // sliver of scrolling blends back to the existing spiral physics;
-      // neither the scroll timeline nor its geometry is edited here.
+      // Flexible in flight; flat and still once a gallery slot is reached.
       const homeCurl = flight.curl;
-      const transitionCurl = Math.max(.10, .48 + flutter * .68) *
-        (1 - smooth(glide, .72, 1));
+      const transitionCurl = Math.max(.12, .46 + flutter * .38) *
+        (1 - motion.settle);
       const curl = mix(homeCurl, transitionCurl,
         smooth(phase, .012, .085));
       gpuPaperRef.current?.setPose(index, {
@@ -279,15 +197,13 @@ export default function ProjectsSequence() {
         // Home clock. Blend back to the existing gallery clock only after
         // the ring wrap has faded during the approved scroll transition.
         time: mix(flight.time, time, smooth(phase, .012, .085)),
-        flutter: mix(flight.flutter, 1, smooth(phase, .012, .085)) *
-          (1 - smooth(glide, .78, 1)),
+        flutter: mix(flight.flutter, .75, smooth(phase, .012, .085)) *
+          (1 - motion.settle),
         wrap: flight.wrap * (1 - smooth(phase, .012, .085)),
       });
       card.dataset.phase = phase === 0 ? 'home-current' :
         phase < .272 ? 'rewind' :
-          phase < releaseStart ? 'behind-head' :
-            phase < .715 ? 'spiral' :
-              phase < landingEnd ? 'spiral-to-row' : 'gallery';
+          started ? motion.stage : 'behind-head';
     }
 
     function render() {
@@ -314,8 +230,9 @@ export default function ProjectsSequence() {
       const textFade = 1 - smooth(p, .035, .252);
       const subFade = 1 - smooth(p, .050, .250);
       const bottomFade = 1 - smooth(p, .018, .210);
-      const cameraDescent = smooth(p, .32, .94);
-      const headRise = smooth(p, .803, .993);
+      const cameraDescent = galleryCameraProgress(p);
+      const headRise = smooth(p, .78, .995);
+      const headFade = 1 - smooth(p, .81, .985);
 
       // Fade all Home lettering IN PLACE. Do not move any text off the page,
       // and do not modify the approved per-letter rolling GSAP timeline.
@@ -326,13 +243,14 @@ export default function ProjectsSequence() {
       if (bottom) bottom.style.opacity = String(bottomFade);
       home.style.setProperty('--jw-home-blow', '0');
 
-      const headOpacity = exitFade;
+      const headOpacity = exitFade * headFade;
       head.style.opacity = String(headOpacity);
       head.style.visibility = headOpacity < .005 ? 'hidden' : 'visible';
       head.style.setProperty('--jw-head-shift',
-        (-height * (.20 * cameraDescent + .105 * headRise)).toFixed(2) + 'px');
+        (-height * (CAMERA_DESCENT * cameraDescent +
+          .22 * headRise)).toFixed(2) + 'px');
       head.style.setProperty('--jw-head-scale',
-        (1 - .16 * headRise).toFixed(4));
+        (1 - .24 * headRise).toFixed(4));
 
       stage.style.opacity = String(isShown ? sceneOpacity : 0);
       stage.style.visibility = isShown ? 'visible' : 'hidden';
