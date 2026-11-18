@@ -120,7 +120,12 @@ test('every card crosses the clockwise bottom tangent smoothly', () => {
       const exit = (lo + hi) / 2;
       const center = clockwiseTrack(exit, slot, width, height);
       assert.ok(Math.abs(center.x) < .001);
-      assert.ok(Math.abs(center.y - Math.min(height * .35, 265)) < .001);
+      // The ellipse is still completing its original gentle expansion
+      // when the leading sheet reaches the bottom tangent.
+      const g = clamp((exit - .285) / .145);
+      const growth = g * g * g * (g * (g * 6 - 15) + 10);
+      assert.ok(Math.abs(center.y -
+        Math.min(height * .35, 265) * growth) < .001);
       const before = clockwiseTrack(exit - .00001, slot, width, height);
       const after = clockwiseTrack(exit + .00001, slot, width, height);
       assert.ok(Math.abs(before.y - after.y) < .01,
