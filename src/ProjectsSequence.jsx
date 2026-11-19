@@ -5,7 +5,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import './ProjectsSequence.css';
 import LivePaperRenderer from './LivePaperRenderer.jsx';
 import { createHomePaperMotion } from './HomePaperMotion.js';
-import { spiralGalleryPose, galleryHeadPlacement, galleryRowOffset, GALLERY_FOCAL, TRAIN_END } from './SpiralGalleryMotion.js';
+import { spiralGalleryPose, galleryHeadPlacement, galleryRowOffset, GALLERY_FOCAL, TRAIN_START, TRAIN_END } from './SpiralGalleryMotion.js';
 import {
   wrapGalleryFocus, wrappedGalleryDistance, nearestGalleryIndex,
   stepGalleryFocus, dragGalleryFocus, gallerySeamOpacity,
@@ -406,7 +406,7 @@ export default function ProjectsSequence() {
       render();
     };
     const startLanding = () => {
-      if (snapState === 'landing' || snapState === 'leaving') return;
+      if (snapState === 'landing') return;
       if (snapState === 'settled' && restingInGallery()) return;
       snapState = 'landing';
       const viewports = Math.abs(galleryAnchor() - window.scrollY) /
@@ -437,7 +437,8 @@ export default function ProjectsSequence() {
       timeline.progress(exact);
       render();
       if (shouldAutoLand(exact, previous, y, snapState,
-          .89, TRAIN_END)) {
+          TRAIN_START, 1.001) &&
+          y < galleryAnchor() - height * .04) {
         startLanding();
       } else if (snapState === 'idle' && restingInGallery()) {
         // Direct #work navigation, browser history, or reverse from About.
@@ -639,6 +640,23 @@ export default function ProjectsSequence() {
       window.history.replaceState(null, '', '#work');
       startLanding();
     };
+    const navigatePastGallery = event => {
+      // Explicit About/Contact links must not be intercepted by the
+      // auto-landing trigger while they travel through the pinned Home.
+      const a = event.target.closest?.('a[href="#about"], a[href="#contact"]');
+      if (!a || event.defaultPrevented || event.button !== 0 ||
+          event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+        return;
+      const hash = a.getAttribute('href');
+      const destination = document.querySelector(hash);
+      if (!destination) return;
+      event.preventDefault();
+      window.history.replaceState(null, '', hash);
+      snapState = 'leaving';
+      animatePageTo(docTop(destination), 1.2, () => {
+        snapState = 'idle';
+      });
+    };
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);
     window.addEventListener('wheel', onVerticalWheel,
@@ -649,6 +667,7 @@ export default function ProjectsSequence() {
     window.addEventListener('touchend', onTouchEnd, { passive: true });
     window.addEventListener('keydown', onScrollKey);
     document.addEventListener('click', navigateToGallery);
+    document.addEventListener('click', navigatePastGallery);
     reduced.addEventListener?.('change', onReduced);
     const observer = new ResizeObserver(() => {
       measure();
@@ -680,6 +699,7 @@ export default function ProjectsSequence() {
       window.removeEventListener('touchend', onTouchEnd);
       window.removeEventListener('keydown', onScrollKey);
       document.removeEventListener('click', navigateToGallery);
+      document.removeEventListener('click', navigatePastGallery);
       reduced.removeEventListener?.('change', onReduced);
       pinned.kill();
       timeline.kill();
