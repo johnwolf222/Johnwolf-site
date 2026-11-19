@@ -470,6 +470,8 @@ test('Section 2 waits after auto-landing and the next scroll enters About', () =
   assert.match(source, /exitReadyAt = performance\.now\(\) \+ 550/,
     'the triggering scroll gesture must not immediately skip About');
   assert.match(source, /const onVerticalWheel = event =>/);
+  assert.match(source, /event\.deltaY <= 0/,
+    'gentle trackpad movement must count as the next intentional scroll');
   assert.match(source, /const onTouchMove = event =>/);
   assert.match(source, /const onScrollKey = event =>/);
   assert.match(source, /leaveForAbout\(\)/);
