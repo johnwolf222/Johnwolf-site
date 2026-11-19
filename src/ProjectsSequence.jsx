@@ -268,8 +268,8 @@ export default function ProjectsSequence() {
         sectionHeight, height);
       const stageOpacity = smooth(p, .09, .19) * exitFade;
       const isShown = stageOpacity > .008 &&
-        scrollY < sectionTop + sectionHeight - height * .23;
-      const sceneOpacity = galleryActive ? 1 : stageOpacity;
+        scrollY < sectionTop + sectionHeight - height * .09;
+      const sceneOpacity = galleryActive ? exitFade : stageOpacity;
       const textFade = 1 - smooth(p, .035, .252);
       const subFade = 1 - smooth(p, .050, .250);
       const bottomFade = 1 - smooth(p, .018, .210);
@@ -534,13 +534,14 @@ export default function ProjectsSequence() {
     };
     const onScrollKey = event => {
       if (event.defaultPrevented || event.altKey || event.ctrlKey ||
-          event.metaKey || event.target?.closest?.(
-            'input, textarea, select, button, a, [contenteditable]')) return;
+          event.metaKey) return;
       if (!['ArrowDown', 'PageDown', ' '].includes(event.key)) return;
       if (snapState === 'landing' || snapState === 'leaving') {
         event.preventDefault();
         return;
       }
+      if (event.target?.closest?.(
+          'input, textarea, select, button, a, [contenteditable]')) return;
       if (snapState !== 'settled' || !restingInGallery()) return;
       event.preventDefault();
       if (performance.now() >= exitReadyAt) leaveForAbout();
