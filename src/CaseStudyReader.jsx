@@ -40,7 +40,7 @@ function StoryMedia({section,cycle}){
   {section.srcs.map((src,i)=><img key={src} src={src} alt={section.alts?.[i]||'Brand identity artwork'} loading="lazy" decoding="async"/>)}
  </div>;
  if(section.type==='text')return <div className="jw-case-interlude"><p><Ink phrases={section.emphasis}>{section.body}</Ink></p></div>;
- if(section.type==='video')return <figure className="jw-case-video"><video src={section.src} autoPlay={cycle===1} muted loop playsInline controls preload={cycle===1?'metadata':'none'} aria-label={section.title}/><figcaption>{section.title}</figcaption></figure>;
+ if(section.type==='video')return <figure className="jw-case-video"><video src={section.src} poster={section.poster} autoPlay={cycle===1} muted loop playsInline controls preload={cycle===1?'metadata':'none'} aria-label={section.title}/><figcaption>{section.title}</figcaption></figure>;
  if(section.type==='compare')return <Comparison section={section}/>;
  return null;
 }
