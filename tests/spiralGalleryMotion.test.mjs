@@ -14,6 +14,7 @@ import {
   galleryExitFade, GALLERY_LANDING_VH,
   initialGalleryWheelState, galleryWheelGesture,
   initialGalleryVerticalState, galleryVerticalExitGesture,
+  gallerySnapDuration, gallerySwipeDirection,
 } from '../src/GalleryLoopMotion.js';
 
 const FEATURED = [9, 7, 5, 11, 2, 1, 10];
@@ -375,8 +376,8 @@ test('gallery swipe controls preserve the original scroll and head', () => {
     'the old long momentum lock must not discard the next swipe');
   assert.match(source, /const shifted = event\.shiftKey/,
     'shift-wheel horizontal navigation should work');
-  assert.match(source, /Math\.abs\(dx\) >= 18/,
-    'a quick flick ending between pointermove frames should still count');
+  assert.match(source, /gallerySwipeDirection\(dx, dy, velocity, cancelled\)/,
+    'short high-velocity flicks must count without waiting for a pointermove');
   assert.match(source, /galleryControlsRef\.current\?\.start\(1\)/);
   assert.match(source, /galleryControlsRef\.current\?\.start\(-1\)/);
   assert.match(source, /headPlacement = galleryHeadPlacement\(p, height\)/);
@@ -621,4 +622,58 @@ test('vertical exit intent resets after a pause or horizontal gesture', () => {
   const upwards = galleryVerticalExitGesture(state, 0, -20, 10);
   assert.equal(upwards.exit, false);
   assert.equal(upwards.state.total, 0);
+});
+
+test('gallery trackpad starts within four pixels instead of waiting ten', () => {
+  let state = initialGalleryWheelState();
+  for (let i = 0; i < 3; i++) {
+    const result = galleryWheelGesture(state, 1, 0, i * 9);
+    state = result.state;
+    assert.equal(result.step, 0);
+  }
+  assert.equal(galleryWheelGesture(state, 1, 0, 27).step, 1);
+  const reversed = galleryWheelGesture(
+    galleryWheelGesture(state, 1, 0, 27).state, -4, 0, 43);
+  assert.equal(reversed.step, -1,
+    'an immediate direction reversal must not wait for old momentum');
+});
+
+test('short and interrupted gallery snaps settle within 280 milliseconds', () => {
+  assert.ok(gallerySnapDuration(0) <= .15);
+  assert.ok(gallerySnapDuration(.4) < .2);
+  assert.ok(gallerySnapDuration(1) <= .24);
+  assert.ok(gallerySnapDuration(1.8) <= .28);
+  assert.ok(gallerySnapDuration(7) <= .28);
+  const source = readFileSync(new URL('../src/ProjectsSequence.jsx',
+    import.meta.url), 'utf8');
+  assert.match(source, /duration: gallerySnapDuration\(delta\)/);
+  assert.match(source, /ease: 'power2\.out'/);
+  assert.doesNotMatch(source, /duration: Math\.min\(\.82/,
+    'the old 820ms card settle is still active');
+});
+
+test('flick velocity recognizes small intentional drags without vertical false positives', () => {
+  assert.equal(gallerySwipeDirection(-8, 1, -.55), 1);
+  assert.equal(gallerySwipeDirection(8, 0, .4), -1);
+  assert.equal(gallerySwipeDirection(-16, 0, -.01), 1);
+  assert.equal(gallerySwipeDirection(16, 0, .01), -1);
+  assert.equal(gallerySwipeDirection(-5, 0, -1.0), 0,
+    'sub-six-pixel accidental taps should not move a card');
+  assert.equal(gallerySwipeDirection(-8, 1, -.1), 0,
+    'slow tiny movements should not advance');
+  assert.equal(gallerySwipeDirection(-25, 40, -.9), 0,
+    'vertical scrolling should not move the horizontal gallery');
+  assert.equal(gallerySwipeDirection(-100, 0, -3, true), 0,
+    'cancelled pointer gestures should not move the gallery');
+});
+
+test('Projects uses one GPU render pass after Home rays finish', () => {
+  const source = readFileSync(new URL('../src/LivePaperRenderer.jsx',
+    import.meta.url), 'utf8');
+  assert.match(source, /if \(rayStrength <= \.001\) \{/);
+  assert.match(source,
+    /if \(rayStrength <= \.001\) \{[\s\S]*?renderer\.setRenderTarget\(null\);[\s\S]*?renderer\.render\(world, camera\);/);
+  assert.match(source, /else \{[\s\S]*?renderer\.setRenderTarget\(paperTarget\);/,
+    'the approved Hole 01 chromatic rays must retain their two-pass render');
+  assert.match(source, /uRayStrength\.value = rayStrength/);
 });
