@@ -23,7 +23,7 @@ export const PROJECTS = [
   { image: 9, name: 'Souly Unboxed', description: 'Brand identity and visual communication.' },
   { image: 7, name: 'Chick Muy Caliente', description: 'Branding and promotional design.' },
   { image: 5, name: 'Better Mate', description: 'An expressive identity for Better Mate.' },
-  { image: 11, name: 'Food & Hospitality', description: 'Creative direction and food-focused imagery.' },
+  { image: 11, name: 'Brewty', description: 'Coffee branding and visual identity.' },
   { image: 2, name: 'Nurusa', description: 'Healthy food service branding.' },
   { image: 1, name: 'Inkzilla', description: 'Tattoo shop identity and visual design.' },
   { image: 10, name: 'One on One', description: 'Identity and creative presentation.' },
