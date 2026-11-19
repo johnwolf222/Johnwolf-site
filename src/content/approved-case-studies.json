@@ -1,0 +1,287 @@
+{
+  "version": 2,
+  "sourceBranch": "fix/direct-responsive-gallery-swipes-2026-11-18",
+  "preserve": "Do not alter homepage, existing paper choreography or seven featured cards",
+  "reader": {
+    "open": "quick pull forward from gallery",
+    "layout": "visual-first, first-person",
+    "loopScroll": true,
+    "dragScroll": true,
+    "video": {
+      "autoplay": true,
+      "loop": true,
+      "muted": true,
+      "playsInline": true
+    },
+    "highlighter": "irregular translucent marker stroke in project color"
+  },
+  "studies": [
+    {
+      "id": "chick-muy-caliente",
+      "name": "Chick Muy Caliente",
+      "eyebrow": "FOOD TRUCK · BRAND IDENTITY",
+      "highlight": "#F0BB28",
+      "intro": "I was challenged to create the identity and voice for a chicken food truck, with the freedom to develop a brand that could stand on its own. My vision was to create something memorable, simple, fun, and highly marketable—an identity with enough personality to be recognized instantly and enough consistency to work across every application. But I didn't want to build a brand that simply sold chicken. I wanted to create an attitude.",
+      "beats": [
+        "Don't Be Chicken.",
+        "That became the defining slogan. A playful challenge to embrace bold flavor, take the heat, and enjoy the experience. I brought that personality to life through an expressive chicken mascot, a bold visual language, and a collection of daring, humorous messages.",
+        "The mascot's expressions became a way to communicate different heat levels, giving the identity an additional layer of personality and functionality.",
+        "I selected a vibrant palette of red, yellow, black, and white to communicate energy, warmth, confidence, and consistency.",
+        "Combined with distinctive typography and a playful icon system, these elements formed a cohesive identity designed to be recognizable, adaptable, and unmistakably Chick Muy Caliente. The lettering is bold and daring, with a second style that feels as if a confident chicken could write.",
+        "The goal was never just to make the brand look appetizing. It was to give it a personality people could remember."
+      ],
+      "highlights": [
+        "Don't Be Chicken",
+        "bold and daring",
+        "as if a confident chicken could write",
+        "personality people could remember"
+      ],
+      "cover": "/brands/chick-muy-caliente-01.webp",
+      "sections": [
+        {
+          "type": "image",
+          "src": "/brands/chick-muy-caliente/campaign-artwork.webp",
+          "alt": "Chick Muy Caliente campaign slogan designs"
+        },
+        {
+          "type": "text",
+          "body": "Don't Be Chicken. The brand's playful challenge to embrace the heat and enjoy the experience.",
+          "emphasis": [
+            "Don't Be Chicken"
+          ]
+        },
+        {
+          "type": "image",
+          "src": "/brands/chick-muy-caliente/logo-identity.webp",
+          "alt": "Chicken mascot identities and expressions"
+        },
+        {
+          "type": "image",
+          "src": "/brands/chick-muy-caliente/color-palette.webp",
+          "alt": "Brand palette of red, yellow, black and white"
+        },
+        {
+          "type": "image",
+          "src": "/brands/chick-muy-caliente/typography.webp",
+          "alt": "Bold and daring Chick Muy Caliente typography"
+        },
+        {
+          "type": "image",
+          "src": "/brands/chick-muy-caliente/brand-personality.webp",
+          "alt": "Chick Muy Caliente brand voice and personality"
+        }
+      ],
+      "mediaToAttach": [],
+      "layoutToPreserve": "",
+      "source": "approved case-study specification and provided artwork",
+      "assetState": "existing website assets"
+    },
+    {
+      "id": "riches",
+      "name": "Riches Cosmetics",
+      "eyebrow": "COSMETICS · BRAND IDENTITY",
+      "highlight": "#BFA18B",
+      "intro": "I approached Riches Cosmetics with a vision to create an identity that went beyond traditional beauty branding. I wanted to build something confident, sophisticated, and intentional—a brand that didn't rely on extravagance to communicate its value. Confidence isn't something you put on. It's something you already possess. Riches would serve as a reminder of that confidence, rather than a promise to create it.",
+      "beats": [],
+      "highlights": [
+        "Confidence isn't something you put on",
+        "reminder of that confidence"
+      ],
+      "cover": "/brands/riches-01.webp",
+      "sections": [
+        {
+          "type": "image",
+          "src": "/brands/riches/primary-mark.webp",
+          "alt": "Riches Cosmetics primary wordmark"
+        },
+        {
+          "type": "text",
+          "body": "Not beauty, but a reminder of confidence. Confidence isn't something you put on. It's something you already possess.",
+          "emphasis": [
+            "reminder of confidence",
+            "Confidence isn't something you put on"
+          ]
+        },
+        {
+          "type": "grid",
+          "columns": 2,
+          "srcs": [
+            "/brands/riches/editorial-portrait.webp",
+            "/brands/riches/the-code.webp",
+            "/brands/riches/the-mark.webp",
+            "/brands/riches/image-overview.webp"
+          ],
+          "alts": [
+            "Editorial portrait",
+            "Brand code",
+            "The Riches wordmark",
+            "Riches image direction"
+          ]
+        },
+        {
+          "type": "image",
+          "src": "/brands/riches/typography.webp",
+          "alt": "Riches Cosmetics typography"
+        },
+        {
+          "type": "image",
+          "src": "/brands/riches/the-palette.webp",
+          "alt": "Riches Cosmetics color palette"
+        },
+        {
+          "type": "image",
+          "src": "/brands/riches/palette-overview.webp",
+          "alt": "Riches palette usage"
+        }
+      ],
+      "mediaToAttach": [],
+      "layoutToPreserve": "",
+      "source": "approved case-study specification and provided artwork",
+      "assetState": "existing website assets"
+    },
+    {
+      "id": "bring-love-back",
+      "name": "Bring Love Back Clothing",
+      "eyebrow": "STREETWEAR · GRAPHIC DESIGN",
+      "highlight": "#EF806F",
+      "intro": "I was challenged to create a unique collection of clothing designs that expressed one simple message: Bring Love Back. My inspiration came from the words themselves. I began exploring the different ways love could be visually represented. Through hearts, relationships, typography, and symbolic imagery, I wanted to discover how a single message could take on different forms while maintaining its meaning. The challenge was to make each design feel unique, fashionable, and expressive, allowing the message to become part of the clothing rather than simply something printed on it.",
+      "beats": [],
+      "highlights": [
+        "Bring Love Back",
+        "Different expressions of love"
+      ],
+      "cover": "/brands/bring-love-back/cover.webp",
+      "sections": [
+        {
+          "type": "image",
+          "src": "/brands/bring-love-back/heart-echo.webp",
+          "alt": "Bring Love Back Clothing apparel graphics"
+        },
+        {
+          "type": "compare",
+          "title": "Better Half",
+          "before": "/brands/bring-love-back/better-half-linework.webp",
+          "after": "/brands/bring-love-back/better-half-color.webp",
+          "beforeLabel": "Black and white",
+          "afterLabel": "Color"
+        },
+        {
+          "type": "image",
+          "src": "/brands/bring-love-back/crosswalk.webp",
+          "alt": "Bring Love Back lifestyle crosswalk campaign"
+        },
+        {
+          "type": "image",
+          "src": "/brands/bring-love-back/heart.webp",
+          "alt": "Bring Love Back heart apparel graphic"
+        },
+        {
+          "type": "image",
+          "src": "/brands/bring-love-back/press.webp",
+          "alt": "Ribcage and heart print during apparel production"
+        },
+        {
+          "type": "video",
+          "src": "/brands/bring-love-back/collection.mp4",
+          "title": "Bring Love Back collection film"
+        }
+      ],
+      "mediaToAttach": [],
+      "layoutToPreserve": "",
+      "source": "approved case-study specification and provided artwork",
+      "assetState": "existing website assets"
+    },
+    {
+      "id": "inkzilla",
+      "name": "Inkzilla",
+      "eyebrow": "TATTOO SHOP · CUSTOM WORDMARK",
+      "highlight": "#DC342E",
+      "intro": "Inkzilla was already a name my client identified with. My challenge was to transform it into a distinctive wordmark that represented both the artist and the business behind it. I started with an existing typeface, reshaping its character and introducing custom-drawn details. Subtle hints of an octopus—the king of ink—became part of the design, while a classic, old-school grain gave the lettering a sense of history and personality. I wanted the finished mark to feel bold, recognizable, and unmistakably personal. Not simply a logo, but a signature they could proudly leave behind.",
+      "beats": [],
+      "highlights": [
+        "octopus—the king of ink",
+        "old-school grain",
+        "a signature they could proudly leave behind"
+      ],
+      "cover": "/logos/inkzilla.webp",
+      "sections": [
+        {
+          "type": "image",
+          "src": "/logos/inkzilla.webp",
+          "alt": "Original Inkzilla tattoo shop wordmark"
+        },
+        {
+          "type": "text",
+          "body": "I customized the typeface and drew the octopus detail into its lettering, giving the name a signature of its own. The old-school grain connects the mark to the tradition of tattoo artistry.",
+          "emphasis": [
+            "octopus detail",
+            "signature of its own"
+          ]
+        }
+      ],
+      "mediaToAttach": [
+        "3(4).png",
+        "4(3).png",
+        "5(2).png",
+        "6(2).png",
+        "Recreate image 1 with the logo i 797596 g24.png",
+        "Inkzilla.mp4"
+      ],
+      "layoutToPreserve": "Image 5 and image 6 function as one drag comparison, not separate pages.",
+      "source": "approved case-study specification and provided artwork",
+      "assetState": "original uploaded files reviewed; pending transfer to public website asset directory"
+    },
+    {
+      "id": "brewty",
+      "name": "Brewty",
+      "eyebrow": "COFFEE · VISUAL IDENTITY",
+      "highlight": "#0C59AF",
+      "intro": "I wanted Brewty to feel like more than a coffee brand. My vision was to create an identity that captured the warmth, calmness, and simple pleasure of enjoying a good cup of coffee. The name brings brew and beauty together, echoed in the slogan Life's a Brewty. Brown represents the richness of coffee, blue introduces a sense of calm, and cream brings the two together. The flowing squiggly patterns were inspired by steam rising from freshly brewed coffee, carrying its aroma toward your nose. The identity captures not just how coffee looks, but how the experience feels.",
+      "beats": [],
+      "highlights": [
+        "Life's a Brewty",
+        "blue",
+        "brown",
+        "cream",
+        "steam rising"
+      ],
+      "cover": null,
+      "sections": [],
+      "mediaToAttach": [
+        "3(5).png",
+        "2(3).png",
+        "1(2).png",
+        "remove logo 71098 Dhz.png",
+        "Brewty aimation with pattern.mp4",
+        "Brewty vid.mp4"
+      ],
+      "layoutToPreserve": "The first three uploaded images must share a single row of three evenly spaced equal-sized columns. Both films autoplay muted and loop.",
+      "source": "approved case-study specification and provided artwork",
+      "assetState": "original uploaded files reviewed; pending transfer to public website asset directory"
+    },
+    {
+      "id": "chit-chat",
+      "name": "Chit-Chat",
+      "eyebrow": "PODCAST · ORIGINAL CONCEPT",
+      "highlight": "#F7B00B",
+      "intro": "Chit-Chat began as an idea of my own. I envisioned a podcast where everyday conversations could be honest, hilarious, thought-provoking, and occasionally serious, without the weight of political debate. I wanted to create a space where different opinions could be expressed openly, facts could be acknowledged, and humor could always find its way into the conversation. That personality became the inspiration behind the visual identity. I designed the logo around a speech bubble, giving conversation a recognizable visual home. Looking closely at the C reveals a playful detail inspired by the familiar clock it finger gesture. With bold yellow, black, and white, I created an identity that feels expressive, confident, and unapologetically conversational. Because sometimes the best conversations are the ones where everyone gets to speak, laugh, and be heard.",
+      "beats": [],
+      "highlights": [
+        "honest",
+        "clock it",
+        "everyone gets to speak, laugh, and be heard"
+      ],
+      "cover": null,
+      "sections": [],
+      "mediaToAttach": [
+        "Chi chat bubble2 copy.png",
+        "chi chat mood 2.png",
+        "chitchat_podcast_microphone_setup.png",
+        "Untitled Design (1)(1).png"
+      ],
+      "layoutToPreserve": "Speech-bubble logo is the identity; doodles are supporting visual storytelling. The C is a clock-it finger gesture. Use microphone visual without RODE lettering.",
+      "source": "approved case-study specification and provided artwork",
+      "assetState": "original uploaded files reviewed; pending transfer to public website asset directory"
+    }
+  ]
+}
