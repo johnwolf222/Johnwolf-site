@@ -76,7 +76,8 @@ export function galleryExitFade(scrollY, sectionTop, sectionHeight,
 export function initialGalleryWheelState() {
   return {
     lastAt: -Infinity, total: 0, fired: false, direction: 0,
-    previous: 0, peak: 0, quiet: false, triggerAt: -Infinity,
+    previous: 0, peak: 0, quiet: false, riseStreak: 0,
+    triggerAt: -Infinity,
   };
 }
 
@@ -96,15 +97,22 @@ export function galleryWheelGesture(state, deltaX, deltaY, now) {
     magnitude >= 1.5;
   const slowed = prior.quiet ||
     (prior.fired && prior.previous <= Math.max(3, prior.peak * .18));
+  // A single late momentum packet may jump in magnitude. Require two
+  // consecutive accelerations to distinguish a NEW swipe from that noise.
+  const rising = magnitude >= 2 &&
+    magnitude >= prior.previous * 1.4 &&
+    magnitude > prior.previous + 1.5
+    ? prior.riseStreak + 1 : 0;
   const newImpulse = prior.fired && slowed &&
     now - prior.triggerAt >= 85 && magnitude >= 5 &&
-    magnitude >= prior.previous * 1.45;
+    rising >= 2;
   const reset = idle || reversed || newImpulse;
   const next = reset ? initialGalleryWheelState() : { ...prior };
   next.lastAt = now;
   next.quiet = reset ? false : slowed;
   next.previous = magnitude;
   next.peak = Math.max(next.peak, magnitude);
+  next.riseStreak = reset ? 0 : rising;
 
   if (next.fired) return { state: next, step: 0 };
   // Accumulate small events, including subpixel trackpad movement.
