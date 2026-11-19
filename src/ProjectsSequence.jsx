@@ -4,6 +4,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import './ProjectsSequence.css';
 import LivePaperRenderer from './LivePaperRenderer.jsx';
+import CaseStudyReader from './CaseStudyReader.jsx';
 import { createHomePaperMotion } from './HomePaperMotion.js';
 import { spiralGalleryPose, galleryHeadPlacement, galleryRowOffset, GALLERY_FOCAL, TRAIN_START, TRAIN_END } from './SpiralGalleryMotion.js';
 import {
@@ -837,6 +838,12 @@ export default function ProjectsSequence() {
       galleryControlsRef.current?.release(direction);
     } else {
       galleryControlsRef.current?.resume();
+      const withinCard = event.clientX >= window.innerWidth * .34 &&
+        event.clientX <= window.innerWidth * .66 &&
+        event.clientY >= window.innerHeight * .22 &&
+        event.clientY <= window.innerHeight * .85;
+      if (!cancelled && withinCard && galleryControlsRef.current?.canInteract())
+        setOpenedProject(PROJECTS[activeRef.current]);
     }
     gestureRef.current = null;
     setDragging(false);
@@ -877,7 +884,7 @@ export default function ProjectsSequence() {
         <div
           className={'jw-projects-stage__swipe-surface' +
             (dragging ? ' is-dragging' : '')}
-          aria-label="Swipe left or right to move one project at a time; the seven projects wrap around"
+          aria-label="Swipe left or right to move one project at a time; tap the center project to open its case study"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={event => finishPointer(event)}
@@ -890,7 +897,8 @@ export default function ProjectsSequence() {
           <div className="jw-projects-stage__details" aria-live="polite" aria-atomic="true">
             <h3>{project.name}</h3>
             <p>{project.description}</p>
-            <button type="button" onClick={() => setOpenedProject(project)} aria-label={'Open case study for ' + project.name}>View case study ↗</button>
+            <button className="jw-case-open-button" type="button" onClick={() => setOpenedProject(project)} aria-label={'Open case study for ' + project.name}>View case study ↗</button>
+            <button className="jw-case-open-button jw-case-open-all" type="button" onClick={() => setOpenedProject({name:'Explore all case studies'})}>Explore all six ↗</button>
           </div>
           <div className="jw-projects-stage__controls" aria-label="Featured projects">
             <button type="button" onClick={previous} aria-label="Previous project">←</button>
@@ -908,18 +916,7 @@ export default function ProjectsSequence() {
         </div>
       </div>
     </section>
-    {openedProject && createPortal(
-      <div role="presentation" onClick={() => setOpenedProject(null)} style={{position:'fixed',inset:0,zIndex:99999,background:'rgba(15,12,22,.88)',display:'grid',placeItems:'center',padding:20}}>
-        <article role="dialog" aria-modal="true" aria-label={openedProject.name + ' case study'} onClick={event => event.stopPropagation()} style={{background:'#fff',color:'#17121f',borderRadius:18,width:'min(760px,100%)',maxHeight:'90vh',overflow:'auto',padding:'clamp(20px,5vw,48px)',position:'relative'}}>
-          <button type="button" onClick={() => setOpenedProject(null)} aria-label="Close case study" style={{position:'absolute',right:18,top:14,fontSize:28,background:'none',border:0,cursor:'pointer'}}>×</button>
-          <span style={{fontSize:12,letterSpacing:3,color:'#7045a5'}}>SELECTED WORK / CASE STUDY</span>
-          <h2 style={{fontSize:'clamp(32px,6vw,58px)',margin:'18px 0'}}>{openedProject.name}</h2>
-          <img src={fileFor(openedProject.image)} alt={openedProject.name + ' project artwork'} style={{display:'block',width:'100%',maxHeight:380,objectFit:'contain',background:'#f5f3f7',borderRadius:12}} />
-          <p style={{fontSize:20,lineHeight:1.6,marginTop:28}}>{openedProject.description}</p>
-          <p style={{fontSize:14,color:'#666'}}>Full case-study narrative and additional artwork are being prepared for this project.</p>
-        </article>
-      </div>, document.body
-    )}
+    {openedProject && <CaseStudyReader selectedProject={openedProject} onClose={() => setOpenedProject(null)} />}
     <LivePaperRenderer ref={gpuPaperRef} />
     {CARD_IDS.map((id, index) => createPortal(
       <div className="jw-projects-stage__card" key={id}
