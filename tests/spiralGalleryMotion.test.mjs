@@ -456,6 +456,10 @@ test('Section 2 waits after auto-landing and the next scroll enters About', () =
   assert.match(source, /startLanding\(\);/);
   assert.match(source, /animatePageTo\(galleryAnchor\(\),/);
   assert.match(source, /markGallerySettled/);
+  assert.match(source, /const sceneOpacity = galleryActive \? exitFade : stageOpacity/,
+    'gallery overlay must fade with the head rather than vanish abruptly');
+  assert.match(source, /scrollY < sectionTop \+ sectionHeight - height \* \.09/,
+    'overlay must remain mounted until its fade finishes');
   assert.match(source, /snapState = 'settled'/);
   assert.match(source, /exitReadyAt = performance\.now\(\) \+ 550/,
     'the triggering scroll gesture must not immediately skip About');
