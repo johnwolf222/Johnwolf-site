@@ -11,6 +11,7 @@ import {
   stepGalleryFocus, dragGalleryFocus, gallerySeamOpacity,
   galleryRestScrollY, shouldAutoLand, galleryExitFade,
   initialGalleryWheelState, galleryWheelGesture,
+  initialGalleryVerticalState, galleryVerticalExitGesture,
 } from './GalleryLoopMotion.js';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -65,6 +66,7 @@ export default function ProjectsSequence() {
   // Accumulate even subpixel trackpad deltas, and recognize each new
   // horizontal impulse independently of the previous momentum tail.
   const wheelGestureRef = useRef(initialGalleryWheelState());
+  const verticalGestureRef = useRef(initialGalleryVerticalState());
   const activeRef = useRef(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [visible, setVisible] = useState(false);
@@ -498,19 +500,37 @@ export default function ProjectsSequence() {
     const onVerticalWheel = event => {
       if (snapState === 'landing' || snapState === 'leaving') {
         if (event.cancelable) event.preventDefault();
+        verticalGestureRef.current = initialGalleryVerticalState();
         return;
       }
-      if (snapState !== 'settled' || !restingInGallery()) return;
-      if (event.deltaY <= 0 ||
-          Math.abs(event.deltaY) <= Math.abs(event.deltaX) * 1.25) return;
+      if (snapState !== 'settled' || !restingInGallery()) {
+        verticalGestureRef.current = initialGalleryVerticalState();
+        return;
+      }
+      // Shift-wheel is horizontal gallery navigation, never a request to
+      // move to About. Tiny vertical noise from a sideways trackpad swipe
+      // must not eject the visitor from the locked gallery.
+      if (event.shiftKey && Math.abs(event.deltaX) < .2) return;
+      const unit = event.deltaMode === 1 ? 16 :
+        event.deltaMode === 2 ? window.innerHeight : 1;
+      const dx = event.deltaX * unit;
+      const dy = event.deltaY * unit;
+      if (dy <= 0 || dy <= Math.abs(dx) * 1.25) {
+        verticalGestureRef.current = initialGalleryVerticalState();
+        return;
+      }
       if (event.cancelable) event.preventDefault();
       const now = performance.now();
       if (now < exitReadyAt) {
         // Absorb the momentum tail of the gesture that triggered landing.
         exitReadyAt = now + 220;
+        verticalGestureRef.current = initialGalleryVerticalState();
         return;
       }
-      leaveForAbout();
+      const result = galleryVerticalExitGesture(
+        verticalGestureRef.current, dx, dy, now);
+      verticalGestureRef.current = result.state;
+      if (result.exit) leaveForAbout();
     };
     const onTouchStart = event => {
       if (snapState !== 'settled' || !restingInGallery()) return;
@@ -704,6 +724,7 @@ export default function ProjectsSequence() {
       cancelScrollTween();
       cancelTween();
       wheelGestureRef.current = initialGalleryWheelState();
+      verticalGestureRef.current = initialGalleryVerticalState();
       galleryControlsRef.current = null;
       cancelAnimationFrame(syncFrame);
       observer.disconnect();
