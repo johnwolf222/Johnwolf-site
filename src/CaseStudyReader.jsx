@@ -66,7 +66,7 @@ function LoopingFilm({section,cycle}){
 }
 function StoryMedia({section,cycle}){
  if(section.type==='image')return <figure className="jw-case-image"><img src={section.src} alt={section.alt} loading="lazy" decoding="async"/></figure>;
- if(section.type==='grid')return <div className={'jw-case-grid jw-case-grid--'+section.columns} aria-label="Editorial art direction">
+ if(section.type==='grid')return <div className={'jw-case-grid jw-case-grid--'+section.columns+(section.variant?' jw-case-grid--'+section.variant:'')} aria-label="Editorial art direction">
   {section.srcs.map((src,i)=><img key={src} src={src} alt={section.alts?.[i]||'Brand identity artwork'} loading="lazy" decoding="async"/>)}
  </div>;
  if(section.type==='text')return <div className="jw-case-interlude"><p><Ink phrases={section.emphasis}>{section.body}</Ink></p></div>;
@@ -81,7 +81,7 @@ function OneCycle({study,cycle}){
    <h2 className="jw-case-study-heading">{study.name}</h2>
    <p><Ink phrases={study.highlights}>{study.intro}</Ink></p>
   </div>
-  {study.cover&&<figure className="jw-case-image"><img src={study.cover} alt={study.name+' original brand artwork'} loading={cycle===1?'eager':'lazy'} decoding="async"/></figure>}
+  {study.cover&&!study.coverInGrid&&<figure className="jw-case-image"><img src={study.cover} alt={study.name+' original brand artwork'} loading={cycle===1?'eager':'lazy'} decoding="async"/></figure>}
   {study.sections.map((section,i)=><StoryMedia key={i} section={section} cycle={cycle}/>)}
   {study.beats?.length>0&&<div className="jw-case-beats">{study.beats.map((text,i)=>
    <p key={i}><Ink phrases={study.highlights}>{text}</Ink></p>)}</div>}

@@ -5,3 +5,7 @@ dist/
 !.env.example
 .DS_Store
 # 3D model assets must remain tracked; do not ignore *.glb or *.gltf.
+
+# Generated at prebuild/predev from checksum-verified Git-tracked fragments.
+/public/brands/brewty/steam-pattern-film.mp4
+/public/brands/brewty/brand-film.mp4
