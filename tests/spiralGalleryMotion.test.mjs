@@ -10,7 +10,8 @@ import {
 import {
   wrapGalleryFocus, wrappedGalleryDistance,
   nearestGalleryIndex, stepGalleryFocus, dragGalleryFocus,
-  gallerySeamOpacity,
+  gallerySeamOpacity, galleryRestScrollY, shouldAutoLand,
+  galleryExitFade, GALLERY_LANDING_VH,
 } from '../src/GalleryLoopMotion.js';
 
 const FEATURED = [9, 7, 5, 11, 2, 1, 10];
@@ -409,4 +410,70 @@ test('original homepage 3D head stays mounted and renders through section two', 
     assert.ok(settled.shift < 0);
     assert.equal(settled.scale, .76);
   }
+});
+
+test('the train automatically lands at a safe single-viewport gallery stop', () => {
+  assert.equal(GALLERY_LANDING_VH, .10);
+  for (const height of [480, 722, 844, 1080]) {
+    const top = height * 5.25;
+    const sectionHeight = Math.max(height, 550);
+    const rest = galleryRestScrollY(top, height);
+    assert.equal(rest, top + height * .10);
+    assert.ok(rest < top + sectionHeight - height * .23,
+      'gallery must remain interactive at the landing position');
+    assert.equal(galleryExitFade(rest, top, sectionHeight, height), 1,
+      'head and artwork must be fully opaque after landing');
+    assert.equal(galleryExitFade(top + sectionHeight,
+      top, sectionHeight, height), 0,
+      'head and artwork must clear completely before About');
+    assert.ok(galleryExitFade(top + sectionHeight - height * .30,
+      top, sectionHeight, height) < 1,
+      'the gallery should gently fade on departure');
+  }
+  assert.equal(shouldAutoLand(.8899, 100, 200, 'idle'), false);
+  assert.equal(shouldAutoLand(.89, 100, 200, 'idle'), true);
+  assert.equal(shouldAutoLand(.95, 100, 200, 'idle'), true);
+  assert.equal(shouldAutoLand(.99, 100, 200, 'idle'), false);
+  assert.equal(shouldAutoLand(.95, 200, 100, 'idle'), false,
+    'reverse scrolling must not force a new landing');
+  assert.equal(shouldAutoLand(.95, 100, 200, 'landing'), false);
+  assert.equal(shouldAutoLand(.95, 100, 200, 'settled'), false);
+  assert.equal(shouldAutoLand(.95, 100, 200, 'leaving'), false);
+  assert.equal(shouldAutoLand(.95, NaN, 200, 'idle'), false);
+});
+
+test('Section 2 waits after auto-landing and the next scroll enters About', () => {
+  const source = readFileSync(new URL('../src/ProjectsSequence.jsx',
+    import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../src/ProjectsSequence.css',
+    import.meta.url), 'utf8');
+  const main = readFileSync(new URL('../src/main.jsx',
+    import.meta.url), 'utf8');
+  assert.match(css, /height: 100svh;/);
+  assert.doesNotMatch(css, /740svh|3500px/,
+    'gallery must no longer require seven viewports of scrolling');
+  assert.match(source, /shouldAutoLand\(exact, previous, y, snapState,/);
+  assert.match(source, /startLanding\(\);/);
+  assert.match(source, /animatePageTo\(galleryAnchor\(\),/);
+  assert.match(source, /markGallerySettled/);
+  assert.match(source, /snapState = 'settled'/);
+  assert.match(source, /exitReadyAt = performance\.now\(\) \+ 550/,
+    'the triggering scroll gesture must not immediately skip About');
+  assert.match(source, /const onVerticalWheel = event =>/);
+  assert.match(source, /const onTouchMove = event =>/);
+  assert.match(source, /const onScrollKey = event =>/);
+  assert.match(source, /leaveForAbout\(\)/);
+  assert.match(source, /document\.querySelector\('#about'\)/);
+  assert.match(source, /const scrollFocus = \(\) => 0/,
+    'vertical scrolling must not advance or replace gallery cards');
+  assert.doesNotMatch(source, /stepVh|focusOf\(/);
+  assert.match(source, /window\.addEventListener\('wheel', onVerticalWheel,/);
+  assert.match(source, /window\.removeEventListener\('wheel', onVerticalWheel, true\)/);
+  assert.match(source, /cancelScrollTween\(\)/,
+    'scroll tween must be cleaned up when the component unmounts');
+  assert.match(source, /const headPlacement = galleryHeadPlacement\(p, height\)/);
+  assert.match(source, /settleTo\(stepGalleryFocus\(dragOrigin, direction\)\)/,
+    'one-card swipe interaction must survive the new scroll snap');
+  assert.match(main, /<ProjectsSequence\/>\s*<section id="about"/,
+    'Section 3 remains the existing About section, not a replacement');
 });
