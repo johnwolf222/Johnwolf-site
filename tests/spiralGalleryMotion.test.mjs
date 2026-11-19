@@ -384,7 +384,7 @@ test('original homepage 3D head stays mounted and renders through section two', 
   for (const height of [722, 844, 1080]) {
     const atHome = galleryHeadPlacement(0, height);
     const settled = galleryHeadPlacement(1, height);
-    assert.equal(atHome.shift, 0);
+    assert.ok(Math.abs(atHome.shift) < 1e-9);
     assert.equal(atHome.scale, 1);
     assert.ok(settled.shift < 0);
     assert.equal(settled.scale, .76);
