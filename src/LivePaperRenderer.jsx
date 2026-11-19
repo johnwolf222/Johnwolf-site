@@ -512,14 +512,25 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
       // The optical rays belong to Home. Fade them away as the existing
       // scroll sequence hands sheets into the Projects gallery.
       const rayFade = Math.max(0, Math.min(1, 1 - progress / .18));
-      raysMaterial.uniforms.uRayStrength.value =
-        rayFade * rayFade * (3 - 2 * rayFade);
-      renderer.setRenderTarget(paperTarget);
-      renderer.clear();
-      renderer.render(world, camera);
-      renderer.setRenderTarget(null);
-      renderer.clear();
-      renderer.render(raysScene, raysCamera);
+      const rayStrength = rayFade * rayFade * (3 - 2 * rayFade);
+      raysMaterial.uniforms.uRayStrength.value = rayStrength;
+      if (rayStrength <= .001) {
+        // Once Home's optical rays are gone, Projects needs only the
+        // original 21 paper meshes. Drawing them directly skips the
+        // full-viewport offscreen texture and second shader pass on EVERY
+        // swipe frame. This does not change any pose, texture or head mask.
+        renderer.setRenderTarget(null);
+        renderer.clear();
+        renderer.render(world, camera);
+      } else {
+        // Keep the approved two-pass chromatic rays during Home/transition.
+        renderer.setRenderTarget(paperTarget);
+        renderer.clear();
+        renderer.render(world, camera);
+        renderer.setRenderTarget(null);
+        renderer.clear();
+        renderer.render(raysScene, raysCamera);
+      }
       if (!canvas.classList.contains('is-ready')) {
         canvas.classList.add('is-ready');
         document.body.classList.add('jw-live-paper-ready');
