@@ -8,7 +8,7 @@ import { createHomePaperMotion } from './HomePaperMotion.js';
 import { spiralGalleryPose, galleryHeadPlacement, galleryRowOffset, GALLERY_FOCAL, TRAIN_END } from './SpiralGalleryMotion.js';
 import {
   wrapGalleryFocus, wrappedGalleryDistance, nearestGalleryIndex,
-  advanceGalleryFocus, dragGalleryFocus, gallerySeamOpacity,
+  stepGalleryFocus, dragGalleryFocus, gallerySeamOpacity,
 } from './GalleryLoopMotion.js';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -64,6 +64,9 @@ export default function ProjectsSequence() {
   const copyRef = useRef(null);
   const galleryControlsRef = useRef(null);
   const gestureRef = useRef(null);
+  // A trackpad sends many wheel events for one physical gesture.
+  // Group that stream into ONE step until the horizontal wheel goes quiet.
+  const wheelGestureRef = useRef({ locked: false, timer: null });
   const activeRef = useRef(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [visible, setVisible] = useState(false);
@@ -97,15 +100,13 @@ export default function ProjectsSequence() {
     let homeClock = 3.45;
     let capturedClock = null;
     let lastAnimationFrame = 0;
-    // The scroll choreography owns the landing. After landing, a horizontal
-    // swipe takes over only the seven-card gallery focus. It keeps moving at
-    // constant speed until the next direction change, dot selection or exit.
+    // The scroll choreography owns the landing. Once the gallery is ready,
+    // one swipe/arrow press advances exactly ONE of the seven real sheets.
+    // The index wraps forever, but movement stops after each smooth settle.
     let loopEnabled = false;
     let loopFocus = 0;
-    let loopDirection = 0;
     let loopDragging = false;
     let dragOrigin = 0;
-    let heldDirection = 0;
     let loopTween = null;
 
     function measure() {
@@ -242,7 +243,6 @@ export default function ProjectsSequence() {
         loopTween?.kill();
         loopTween = null;
         loopEnabled = false;
-        loopDirection = 0;
         loopDragging = false;
       }
       if (p > .0001 && capturedClock === null) {
@@ -364,14 +364,8 @@ export default function ProjectsSequence() {
         Math.min(.25, Math.max(0, (now - lastAnimationFrame) / 1000)) : 0;
       lastAnimationFrame = now;
       syncFromScroll();
-      // A swipe sets a constant velocity on the SAME seven paper meshes.
-      // Their wrapped positions are updated every frame without replacing
-      // artwork or moving the fixed GLB head.
-      if (loopEnabled && loopDirection !== 0 && !loopDragging &&
-          canInteract() && !document.hidden && !reduced.matches) {
-        loopFocus = advanceGalleryFocus(loopFocus, loopDirection, dt);
-        render();
-      }
+      // Gallery focus changes only during an intentional drag or a finite
+      // GSAP settle. There is NO idle/autoplay gallery advancement.
       // Idle motion is live (and pause-able), even before scrolling begins.
       // The same 21 card elements are then controlled by ScrollTrigger.
       if (capturedClock === null && travel.progress < .0001 &&
@@ -390,28 +384,50 @@ export default function ProjectsSequence() {
       ScrollTrigger.refresh();
       render();
     };
-    const onReduced = () => {
-      if (reduced.matches) loopDirection = 0;
-      ScrollTrigger.refresh();
-      render();
-    };
-
     const cancelTween = () => {
       loopTween?.kill();
       loopTween = null;
     };
+    const settleTo = index => {
+      cancelTween();
+      const destination = wrapGalleryFocus(index);
+      const delta = wrappedGalleryDistance(destination, loopFocus);
+      if (reduced.matches || Math.abs(delta) < .0001) {
+        loopFocus = destination;
+        render();
+        return;
+      }
+      const from = loopFocus;
+      const tween = { progress: 0 };
+      loopTween = gsap.to(tween, {
+        progress: 1,
+        duration: Math.min(.82, Math.max(.34, Math.abs(delta) * .42)),
+        ease: 'power3.out',
+        onUpdate: () => {
+          loopFocus = wrapGalleryFocus(from + delta * tween.progress);
+          render();
+        },
+        onComplete: () => {
+          loopFocus = destination;
+          loopTween = null;
+          render();
+        },
+      });
+    };
+    const onReduced = () => {
+      if (reduced.matches && loopEnabled) {
+        settleTo(nearestGalleryIndex(loopFocus));
+      }
+      ScrollTrigger.refresh();
+      render();
+    };
     galleryControlsRef.current = {
       canInteract,
       hold() {
-        heldDirection = loopDirection;
-        loopDirection = 0;
         loopTween?.pause();
       },
       resume() {
-        if (!loopDragging) {
-          loopDirection = heldDirection;
-          loopTween?.resume();
-        }
+        if (!loopDragging) loopTween?.resume();
       },
       beginDrag() {
         if (!canInteract()) return;
@@ -420,69 +436,36 @@ export default function ProjectsSequence() {
         loopEnabled = true;
         loopDragging = true;
         dragOrigin = loopFocus;
-        loopDirection = 0;
       },
       drag(deltaX) {
         if (!loopDragging) return;
-        loopFocus = dragGalleryFocus(dragOrigin, deltaX,
-          Math.min(width * .218, 290));
+        const spacing = Math.min(width * .218, 290);
+        // Drag follows the finger, but never previews more than one card.
+        const preview = clamp(deltaX, -spacing * .9, spacing * .9);
+        loopFocus = dragGalleryFocus(dragOrigin, preview, spacing);
         render();
       },
       release(direction) {
         if (!loopDragging) return;
         loopDragging = false;
-        if (reduced.matches) {
-          loopFocus = wrapGalleryFocus(Math.round(dragOrigin) +
-            (direction || 0));
-          loopDirection = 0;
-        } else {
-          loopDirection = direction || heldDirection;
-        }
-        heldDirection = loopDirection;
-        render();
+        // A short/cancelled swipe returns to its original card.
+        // Either intentional direction moves ONE card and then stops.
+        settleTo(stepGalleryFocus(dragOrigin, direction));
       },
       start(direction) {
         if (!canInteract()) return false;
-        cancelTween();
         loopFocus = loopEnabled ? loopFocus : scrollFocus();
         loopEnabled = true;
         loopDragging = false;
-        if (reduced.matches) {
-          loopFocus = wrapGalleryFocus(Math.round(loopFocus) + direction);
-          loopDirection = 0;
-        } else {
-          loopDirection = Math.sign(direction);
-        }
-        heldDirection = loopDirection;
-        render();
+        settleTo(stepGalleryFocus(loopFocus, direction));
         return true;
       },
       select(index) {
         if (!canInteract()) return false;
-        cancelTween();
         loopFocus = loopEnabled ? loopFocus : scrollFocus();
         loopEnabled = true;
         loopDragging = false;
-        loopDirection = 0;
-        heldDirection = 0;
-        const delta = wrappedGalleryDistance(index, loopFocus);
-        if (reduced.matches || Math.abs(delta) < .0001) {
-          loopFocus = wrapGalleryFocus(index);
-          render();
-        } else {
-          const start = loopFocus;
-          const tween = { progress: 0 };
-          loopTween = gsap.to(tween, {
-            progress: 1,
-            duration: Math.min(.85, Math.max(.35, Math.abs(delta) * .26)),
-            ease: 'power2.inOut',
-            onUpdate: () => {
-              loopFocus = wrapGalleryFocus(start + delta * tween.progress);
-              render();
-            },
-            onComplete: () => { loopTween = null; },
-          });
-        }
+        settleTo(index);
         return true;
       },
     };
@@ -516,6 +499,9 @@ export default function ProjectsSequence() {
     return () => {
       disposed = true;
       cancelTween();
+      window.clearTimeout(wheelGestureRef.current.timer);
+      wheelGestureRef.current.locked = false;
+      wheelGestureRef.current.timer = null;
       galleryControlsRef.current = null;
       cancelAnimationFrame(syncFrame);
       observer.disconnect();
@@ -602,11 +588,20 @@ export default function ProjectsSequence() {
     setDragging(false);
   };
   const onGalleryWheel = event => {
-    // Horizontal trackpad swipes should behave like touch swipes; vertical
-    // wheel/trackpad movement must continue scrolling the page normally.
+    // One trackpad gesture can emit dozens of momentum events. Move ONE
+    // card on its first horizontal event; unlock only after the gesture ends.
+    // Vertical wheel/trackpad scrolling remains native.
     if (Math.abs(event.deltaX) < 8 ||
         Math.abs(event.deltaX) <= Math.abs(event.deltaY) * 1.25) return;
-    galleryControlsRef.current?.start(event.deltaX > 0 ? 1 : -1);
+    const wheel = wheelGestureRef.current;
+    window.clearTimeout(wheel.timer);
+    wheel.timer = window.setTimeout(() => {
+      wheel.locked = false;
+      wheel.timer = null;
+    }, 320);
+    if (wheel.locked) return;
+    wheel.locked = Boolean(galleryControlsRef.current?.start(
+      event.deltaX > 0 ? 1 : -1));
   };
   const project = PROJECTS[activeIndex];
   return (
@@ -617,7 +612,7 @@ export default function ProjectsSequence() {
         <div
           className={'jw-projects-stage__swipe-surface' +
             (dragging ? ' is-dragging' : '')}
-          aria-label="Swipe left or right to keep the seven projects moving continuously"
+          aria-label="Swipe left or right to move one project at a time; the seven projects wrap around"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onWheel={onGalleryWheel}
@@ -633,7 +628,7 @@ export default function ProjectsSequence() {
             <p>{project.description}</p>
           </div>
           <div className="jw-projects-stage__controls" aria-label="Featured projects">
-            <button type="button" onClick={previous} aria-label="Move projects continuously right">←</button>
+            <button type="button" onClick={previous} aria-label="Previous project">←</button>
             <div className="jw-projects-stage__dots">
               {PROJECTS.map((item, index) =>
                 <button key={item.image} type="button" onClick={() => goTo(index)}
@@ -642,7 +637,7 @@ export default function ProjectsSequence() {
                   aria-current={activeIndex === index ? 'step' : undefined} />
               )}
             </div>
-            <button type="button" onClick={next} aria-label="Move projects continuously left">→</button>
+            <button type="button" onClick={next} aria-label="Next project">→</button>
             <span className="jw-projects-stage__count">{String(activeIndex + 1).padStart(2, '0')} / 07</span>
           </div>
         </div>
