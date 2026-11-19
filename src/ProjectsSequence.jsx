@@ -493,7 +493,7 @@ export default function ProjectsSequence() {
         return;
       }
       if (snapState !== 'settled' || !restingInGallery()) return;
-      if (event.deltaY <= 9 ||
+      if (event.deltaY <= 0 ||
           Math.abs(event.deltaY) <= Math.abs(event.deltaX) * 1.25) return;
       if (event.cancelable) event.preventDefault();
       const now = performance.now();
