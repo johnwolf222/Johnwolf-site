@@ -352,3 +352,41 @@ test('gallery swipe controls preserve the original scroll and head', () => {
   assert.match(css, /z-index: 50;/);
   assert.match(css, /pointer-events: auto;/);
 });
+
+test('original homepage 3D head stays mounted and renders through section two', () => {
+  const home = readFileSync(new URL('../src/NewHomepage.jsx',
+    import.meta.url), 'utf8');
+  const head = readFileSync(new URL('../src/HomepageHead.jsx',
+    import.meta.url), 'utf8');
+  const sequence = readFileSync(new URL('../src/ProjectsSequence.jsx',
+    import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../src/NewHomepage.css',
+    import.meta.url), 'utf8');
+  assert.match(home, /createPortal\(\s*<div className="jw-continuous-head"/,
+    'Home must mount the ONE persistent head outside the pinned artboard');
+  assert.match(home, /<HomepageHead reducedMotion=\{reduced\}/);
+  assert.match(head, /const HEAD_MODEL = '\/about\/head-interactive\.glb'/,
+    'must retain the approved original GLB model');
+  assert.doesNotMatch(head, /new IntersectionObserver\(/,
+    'pinning must not accidentally pause the visible fixed head');
+  assert.match(head, /const headOnscreen =/);
+  assert.match(head, /requestAnimationFrame\(animate\)/);
+  assert.match(head, /webglcontextlost/);
+  assert.match(head, /setReady\(false\)/,
+    'a lost WebGL context must restore the visible static head');
+  assert.match(head, /head-placeholder\.svg/,
+    'keep the approved static head until the actual GLB is drawn');
+  assert.match(sequence, /head\.style\.opacity = String\(exitFade\)/);
+  assert.match(sequence, /head\.style\.visibility = exitFade < \.005/);
+  assert.match(sequence, /galleryHeadPlacement\(p, height\)/);
+  assert.match(css, /\.jw-continuous-head\s*\{\s*position: fixed;/);
+  assert.match(css, /\.jw-continuous-head__artboard\s*\{[\s\S]*?left: 50%;/);
+  for (const height of [722, 844, 1080]) {
+    const atHome = galleryHeadPlacement(0, height);
+    const settled = galleryHeadPlacement(1, height);
+    assert.equal(atHome.shift, 0);
+    assert.equal(atHome.scale, 1);
+    assert.ok(settled.shift < 0);
+    assert.equal(settled.scale, .76);
+  }
+});
