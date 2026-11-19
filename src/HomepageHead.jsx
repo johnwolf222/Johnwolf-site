@@ -19,11 +19,18 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
   onImpactRef.current = onImpact;
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [contextVersion, setContextVersion] = useState(0);
 
   useEffect(() => {
     const host = stage.current;
     const surface = canvas.current;
     if (!host || !surface) return undefined;
+    // A restored WebGL context must not inherit the old 'ready' state.
+    // Until the first real frame has been drawn, show the approved fallback.
+    if (contextVersion > 0) {
+      setReady(false);
+      setFailed(false);
+    }
 
     let renderer;
     try {
@@ -38,7 +45,9 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
     }
 
     renderer.setClearColor(0xffffff, 0);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // Keep the approved head sharp without exhausting GPU memory while
+    // the independent 21-sheet paper renderer is active on the same page.
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
@@ -68,7 +77,6 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
     const morphTargets = [];
     let live = true;
     let loaded = false;
-    let visible = false;
     let frameId = 0;
     let lastFrame = 0;
     let geometry = null;
@@ -137,9 +145,20 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
     };
     const animate = now => {
       frameId = 0;
-      if (!live || !loaded || !visible || document.hidden) return;
+      if (!live || !loaded || document.hidden) return;
       const dt = lastFrame ? Math.min(0.05, (now - lastFrame) / 1000) : 0;
       lastFrame = now;
+      // The SAME body-level head persists from Home through the gallery.
+      // Do not use IntersectionObserver to pause it: during GSAP pinning,
+      // its fixed portal may be reported as outside the section despite
+      // remaining onscreen. Only skip GPU drawing after its real exit.
+      const headLayer = host.closest('.jw-continuous-head');
+      const headOnscreen = headLayer?.style.visibility !== 'hidden' &&
+        Number(headLayer?.style.opacity || 1) > .005;
+      if (!headOnscreen) {
+        frameId = requestAnimationFrame(animate);
+        return;
+      }
       const motion = controller.update(dt);
       if (reducedRef.current) {
         pivot.position.set(0, -0.115, 0);
@@ -159,7 +178,7 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
       frameId = requestAnimationFrame(animate);
     };
     const start = () => {
-      if (!live || !loaded || !visible || document.hidden || frameId) return;
+      if (!live || !loaded || document.hidden || frameId) return;
       lastFrame = 0;
       frameId = requestAnimationFrame(animate);
     };
@@ -171,12 +190,18 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
       }
     };
     const onVisibility = () => document.hidden ? stop() : start();
-    const observer = new IntersectionObserver(entries => {
-      visible = entries.some(entry => entry.isIntersecting);
-      if (visible) start();
-      else stop();
-    }, { threshold: 0.01 });
-    observer.observe(host);
+    const onContextLost = event => {
+      event.preventDefault();
+      loaded = false;
+      stop();
+      setReady(false);
+      setFailed(true);
+    };
+    const onContextRestored = () => {
+      if (live) setContextVersion(version => version + 1);
+    };
+    surface.addEventListener('webglcontextlost', onContextLost);
+    surface.addEventListener('webglcontextrestored', onContextRestored);
     const resizer = new ResizeObserver(measure);
     resizer.observe(host);
     window.addEventListener('pointermove', onPointerMove, { passive: true });
@@ -228,8 +253,9 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
       live = false;
       stop();
       triggerRef.current = null;
-      observer.disconnect();
       resizer.disconnect();
+      surface.removeEventListener('webglcontextlost', onContextLost);
+      surface.removeEventListener('webglcontextrestored', onContextRestored);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('blur', onBlur);
@@ -240,9 +266,11 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
         const materials = Array.isArray(node.material) ? node.material : [node.material];
         materials.forEach(material => material?.dispose());
       });
-      renderer.dispose();
+      try { renderer.dispose(); } catch {
+        // A lost context may already have disposed its GPU resources.
+      }
     };
-  }, []);
+  }, [contextVersion]);
 
   return (
     <div
@@ -269,6 +297,8 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
         alt=""
         draggable="false"
         aria-hidden="true"
+        loading="eager"
+        decoding="async"
       />
       {failed && <span className="jw-new-home__sr-only">3D rendering is unavailable; a static portrait is displayed.</span>}
     </div>
