@@ -8,8 +8,8 @@ import {
 } from '../src/SpiralGalleryMotion.js';
 
 import {
-  PROJECT_LOOP_SPEED, wrapGalleryFocus, wrappedGalleryDistance,
-  nearestGalleryIndex, advanceGalleryFocus, dragGalleryFocus,
+  wrapGalleryFocus, wrappedGalleryDistance,
+  nearestGalleryIndex, stepGalleryFocus, dragGalleryFocus,
   gallerySeamOpacity,
 } from '../src/GalleryLoopMotion.js';
 
@@ -266,31 +266,40 @@ test('one GLB remains anchored at top center after the paper train lands', () =>
   assert.match(css, /\.jw-continuous-head__artboard\s*\{[\s\S]*?left: 50%;/);
 });
 
-test('horizontal swipes move all seven sheets continuously in either direction', () => {
+test('one swipe advances exactly one project and then settles', () => {
   const spacing = 290;
   assert.equal(dragGalleryFocus(0, -spacing, spacing), 1,
-    'left swipe must advance the gallery to the next project');
+    'left drag previews the next project');
   assert.equal(dragGalleryFocus(0, spacing, spacing), 6,
-    'right swipe must wrap back to the last project');
-  assert.ok(Math.abs(advanceGalleryFocus(6.98, 1, .1) -
-    (6.98 + PROJECT_LOOP_SPEED * .1 - 7)) < 1e-9);
-  assert.ok(Math.abs(advanceGalleryFocus(.02, -1, .1) -
-    (7 + .02 - PROJECT_LOOP_SPEED * .1)) < 1e-9);
-  for (const direction of [-1, 1]) {
-    let focus = 2.35;
-    for (let frame = 0; frame < 8000; frame++)
-      focus = advanceGalleryFocus(focus, direction, 1 / 60);
-    const expected = wrapGalleryFocus(
-      2.35 + direction * 8000 / 60 * PROJECT_LOOP_SPEED);
-    assert.ok(Math.abs(focus - expected) < 1e-8,
-      'constant-speed focus drifted after many complete loops');
+    'right drag previews the previous project');
+  for (let start = 0; start < 7; start++) {
+    assert.equal(stepGalleryFocus(start, 1), (start + 1) % 7,
+      'left swipe advances exactly one card');
+    assert.equal(stepGalleryFocus(start, -1), (start + 6) % 7,
+      'right swipe returns exactly one card');
+    assert.equal(stepGalleryFocus(start, 0), start,
+      'cancelled swipe stays on the current card');
   }
-  assert.equal(nearestGalleryIndex(6.6), 0,
-    'active project must wrap from seventh back to first');
+  let focus = 0;
+  for (let i = 0; i < 35; i++) {
+    focus = stepGalleryFocus(focus, 1);
+    assert.equal(focus, (i + 1) % 7,
+      'five complete loops must never stop at an end');
+  }
+  for (let i = 0; i < 35; i++) {
+    focus = stepGalleryFocus(focus, -1);
+    assert.equal(focus, (35 - i - 1) % 7,
+      'reverse movement must also wrap seamlessly');
+  }
+  assert.equal(stepGalleryFocus(6.8, 1), 1,
+    'interrupted settling animation must advance from nearest card');
+  assert.equal(stepGalleryFocus(.2, -1), 6);
+  assert.equal(stepGalleryFocus(2.49, 0), 2);
+  assert.equal(stepGalleryFocus(2.51, 0), 3);
+  assert.equal(nearestGalleryIndex(6.6), 0);
   assert.equal(nearestGalleryIndex(-.6), 6);
-  assert.equal(advanceGalleryFocus(2.3, 1, 5),
-    advanceGalleryFocus(2.3, 1, .1),
-    'returning from a background tab must not jump the cards');
+  assert.equal(wrapGalleryFocus(7), 0);
+  assert.equal(wrapGalleryFocus(-1), 6);
 });
 
 test('the seven real sheets wrap offscreen without a visible seam', () => {
@@ -343,7 +352,18 @@ test('gallery swipe controls preserve the original scroll and head', () => {
   assert.match(source, /onPointerMove=\{onPointerMove\}/);
   assert.match(source, /onWheel=\{onGalleryWheel\}/);
   assert.match(source, /onPointerUp=\{event => finishPointer\(event\)\}/);
-  assert.match(source, /loopFocus = advanceGalleryFocus\(/);
+  assert.doesNotMatch(source, /advanceGalleryFocus|loopDirection|heldDirection/,
+    'gallery must not keep moving automatically after a swipe');
+  assert.match(source, /settleTo\(stepGalleryFocus\(dragOrigin, direction\)\)/,
+    'a released swipe must settle at one neighboring card');
+  assert.match(source, /settleTo\(stepGalleryFocus\(loopFocus, direction\)\)/,
+    'arrow and trackpad controls must settle at one neighboring card');
+  assert.match(source, /onComplete: \(\) => \{\s*loopFocus = destination;\s*loopTween = null;/,
+    'finite animation must stop precisely on the target card');
+  assert.match(source, /wheel\.locked = Boolean\(galleryControlsRef/,
+    'momentum wheel events must not cause repeated card advances');
+  assert.match(source, /wheel\.timer = window\.setTimeout/,
+    'wheel gesture lock must release after the gesture ends');
   assert.match(source, /galleryControlsRef\.current\?\.start\(1\)/);
   assert.match(source, /galleryControlsRef\.current\?\.start\(-1\)/);
   assert.match(source, /headPlacement = galleryHeadPlacement\(p, height\)/);
