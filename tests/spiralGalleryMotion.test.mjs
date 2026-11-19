@@ -13,6 +13,7 @@ import {
   gallerySeamOpacity, galleryRestScrollY, shouldAutoLand,
   galleryExitFade, GALLERY_LANDING_VH,
   initialGalleryWheelState, galleryWheelGesture,
+  initialGalleryVerticalState, galleryVerticalExitGesture,
 } from '../src/GalleryLoopMotion.js';
 
 const FEATURED = [9, 7, 5, 11, 2, 1, 10];
@@ -481,8 +482,12 @@ test('Section 2 waits after auto-landing and the next scroll enters About', () =
   assert.match(source, /exitReadyAt = performance\.now\(\) \+ 550/,
     'the triggering scroll gesture must not immediately skip About');
   assert.match(source, /const onVerticalWheel = event =>/);
-  assert.match(source, /event\.deltaY <= 0/,
-    'gentle trackpad movement must count as the next intentional scroll');
+  assert.match(source, /galleryVerticalExitGesture\(/,
+    'About must require an intentional downward gesture, not tiny Y noise');
+  assert.match(source, /dy <= 0 \|\| dy <= Math\.abs\(dx\) \* 1\.25/,
+    'horizontal gestures must not be classified as vertical navigation');
+  assert.match(source, /event\.shiftKey && Math\.abs\(event\.deltaX\) < \.2/,
+    'shift-wheel should stay in the horizontal gallery');
   assert.match(source, /const onTouchMove = event =>/);
   assert.match(source, /const onScrollKey = event =>/);
   assert.match(source, /leaveForAbout\(\)/);
@@ -580,4 +585,40 @@ test('rapid swipes use their queued destination, not the half-animated card', ()
   assert.equal(target, 0);
   for (let i = 0; i < 21; i++) target = stepGalleryFocus(target, 1);
   assert.equal(target, 0, 'queued destinations must preserve infinite wrap');
+});
+
+test('tiny vertical noise during sideways swipes never skips to About', () => {
+  let state = initialGalleryVerticalState();
+  for (let i = 0; i < 40; i++) {
+    const next = galleryVerticalExitGesture(state, 8, 2, i * 12);
+    state = next.state;
+    assert.equal(next.exit, false,
+      'horizontal swipe was mistaken for a downward page transition');
+  }
+  assert.equal(state.total, 0);
+  for (let i = 0; i < 12; i++) {
+    const next = galleryVerticalExitGesture(state, 0, 2, 500 + i * 10);
+    state = next.state;
+    assert.equal(next.exit, false,
+      'subthreshold vertical noise must not leave the gallery');
+  }
+  assert.equal(state.total, 24);
+  assert.equal(galleryVerticalExitGesture(state, 0, 2, 620).exit, true,
+    'a sustained deliberate downward swipe must enter About');
+  assert.equal(galleryVerticalExitGesture(
+    initialGalleryVerticalState(), 0, 100, 0).exit, true,
+    'a full mouse-wheel notch must enter About immediately');
+});
+
+test('vertical exit intent resets after a pause or horizontal gesture', () => {
+  let state = initialGalleryVerticalState();
+  state = galleryVerticalExitGesture(state, 0, 14, 0).state;
+  assert.equal(galleryVerticalExitGesture(state, 0, 14, 300).exit, false,
+    'separate small gestures must not add up to an accidental About jump');
+  const sideways = galleryVerticalExitGesture(state, -10, 2, 10);
+  assert.equal(sideways.exit, false);
+  assert.equal(sideways.state.total, 0);
+  const upwards = galleryVerticalExitGesture(state, 0, -20, 10);
+  assert.equal(upwards.exit, false);
+  assert.equal(upwards.state.total, 0);
 });
