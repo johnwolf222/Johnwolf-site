@@ -10,6 +10,7 @@ import {
   wrapGalleryFocus, wrappedGalleryDistance, nearestGalleryIndex,
   stepGalleryFocus, dragGalleryFocus, gallerySeamOpacity,
   galleryRestScrollY, shouldAutoLand, galleryExitFade,
+  initialGalleryWheelState, galleryWheelGesture,
 } from './GalleryLoopMotion.js';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -61,9 +62,9 @@ export default function ProjectsSequence() {
   const copyRef = useRef(null);
   const galleryControlsRef = useRef(null);
   const gestureRef = useRef(null);
-  // A trackpad sends many wheel events for one physical gesture.
-  // Group that stream into ONE step until the horizontal wheel goes quiet.
-  const wheelGestureRef = useRef({ locked: false, timer: null });
+  // Accumulate even subpixel trackpad deltas, and recognize each new
+  // horizontal impulse independently of the previous momentum tail.
+  const wheelGestureRef = useRef(initialGalleryWheelState());
   const activeRef = useRef(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [visible, setVisible] = useState(false);
@@ -102,8 +103,13 @@ export default function ProjectsSequence() {
     // The index wraps forever, but movement stops after each smooth settle.
     let loopEnabled = false;
     let loopFocus = 0;
+    // Keep the requested destination separate from the in-flight position.
+    // Otherwise rapid successive swipes can round to the same card and
+    // appear to be ignored while the previous settle tween is running.
+    let loopTarget = 0;
     let loopDragging = false;
     let dragOrigin = 0;
+    let dragTarget = 0;
     let loopTween = null;
     // Native scroll controls the paper orbit until the returning train
     // enters at TRAIN_START. Then one finite scroll tween completes the
@@ -249,6 +255,7 @@ export default function ProjectsSequence() {
         loopTween = null;
         loopEnabled = false;
         loopDragging = false;
+        loopTarget = 0;
       }
       if (p > .0001 && capturedClock === null) {
         capturedClock = homeClock;
@@ -401,6 +408,7 @@ export default function ProjectsSequence() {
       // only explicit left/right gestures change the active project.
       if (!loopEnabled) {
         loopFocus = 0;
+        loopTarget = 0;
         loopEnabled = true;
       }
       render();
@@ -554,6 +562,7 @@ export default function ProjectsSequence() {
     const settleTo = index => {
       cancelTween();
       const destination = wrapGalleryFocus(index);
+      loopTarget = destination;
       const delta = wrappedGalleryDistance(destination, loopFocus);
       if (reduced.matches || Math.abs(delta) < .0001) {
         loopFocus = destination;
@@ -596,9 +605,11 @@ export default function ProjectsSequence() {
         if (!canInteract()) return;
         cancelTween();
         loopFocus = loopEnabled ? loopFocus : scrollFocus();
+        if (!loopEnabled) loopTarget = nearestGalleryIndex(loopFocus);
         loopEnabled = true;
         loopDragging = true;
         dragOrigin = loopFocus;
+        dragTarget = loopTarget;
       },
       drag(deltaX) {
         if (!loopDragging) return;
@@ -613,19 +624,21 @@ export default function ProjectsSequence() {
         loopDragging = false;
         // A short/cancelled swipe returns to its original card.
         // Either intentional direction moves ONE card and then stops.
-        settleTo(stepGalleryFocus(dragOrigin, direction));
+        settleTo(stepGalleryFocus(dragTarget, direction));
       },
       start(direction) {
         if (!canInteract()) return false;
         loopFocus = loopEnabled ? loopFocus : scrollFocus();
+        if (!loopEnabled) loopTarget = nearestGalleryIndex(loopFocus);
         loopEnabled = true;
         loopDragging = false;
-        settleTo(stepGalleryFocus(loopFocus, direction));
+        settleTo(stepGalleryFocus(loopTarget, direction));
         return true;
       },
       select(index) {
         if (!canInteract()) return false;
         loopFocus = loopEnabled ? loopFocus : scrollFocus();
+        if (!loopEnabled) loopTarget = nearestGalleryIndex(loopFocus);
         loopEnabled = true;
         loopDragging = false;
         settleTo(index);
@@ -661,6 +674,11 @@ export default function ProjectsSequence() {
     window.addEventListener('resize', onResize);
     window.addEventListener('wheel', onVerticalWheel,
       { passive: false, capture: true });
+    // Wheel events must be heard over the artwork, captions AND controls.
+    // Listening only on the swipe plane misses trackpad gestures whenever
+    // a different overlay receives the event.
+    window.addEventListener('wheel', onGalleryWheel,
+      { passive: false, capture: true });
     window.addEventListener('touchstart', onTouchStart, { passive: true });
     window.addEventListener('touchmove', onTouchMove,
       { passive: false, capture: true });
@@ -685,15 +703,14 @@ export default function ProjectsSequence() {
       disposed = true;
       cancelScrollTween();
       cancelTween();
-      window.clearTimeout(wheelGestureRef.current.timer);
-      wheelGestureRef.current.locked = false;
-      wheelGestureRef.current.timer = null;
+      wheelGestureRef.current = initialGalleryWheelState();
       galleryControlsRef.current = null;
       cancelAnimationFrame(syncFrame);
       observer.disconnect();
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
       window.removeEventListener('wheel', onVerticalWheel, true);
+      window.removeEventListener('wheel', onGalleryWheel, true);
       window.removeEventListener('touchstart', onTouchStart);
       window.removeEventListener('touchmove', onTouchMove, true);
       window.removeEventListener('touchend', onTouchEnd);
@@ -752,12 +769,12 @@ export default function ProjectsSequence() {
     const dy = event.clientY - gesture.y;
     if (!gesture.horizontal) {
       // Vertical gestures must remain native page scrolling.
-      if (Math.abs(dy) > 14 && Math.abs(dy) > Math.abs(dx) * 1.25) {
+      if (Math.abs(dy) > 18 && Math.abs(dy) > Math.abs(dx) * 1.5) {
         gestureRef.current = null;
         galleryControlsRef.current?.resume();
         return;
       }
-      if (Math.abs(dx) < 10 || Math.abs(dx) <= Math.abs(dy) * 1.15)
+      if (Math.abs(dx) < 6 || Math.abs(dx) <= Math.abs(dy) * .9)
         return;
       gesture.horizontal = true;
       galleryControlsRef.current?.beginDrag();
@@ -769,9 +786,16 @@ export default function ProjectsSequence() {
     const gesture = gestureRef.current;
     if (!gesture || gesture.id !== event.pointerId) return;
     const dx = event.clientX - gesture.x;
+    const dy = event.clientY - gesture.y;
     if (gesture.horizontal) {
       galleryControlsRef.current?.release(
-        !cancelled && Math.abs(dx) >= 24 ? (dx < 0 ? 1 : -1) : 0);
+        !cancelled && Math.abs(dx) >= 18 ? (dx < 0 ? 1 : -1) : 0);
+    } else if (!cancelled && Math.abs(dx) >= 18 &&
+        Math.abs(dx) > Math.abs(dy) * 1.1) {
+      // Short, fast flicks can finish between two pointermove frames.
+      // They still count as one intentional swipe.
+      galleryControlsRef.current?.beginDrag();
+      galleryControlsRef.current?.release(dx < 0 ? 1 : -1);
     } else {
       galleryControlsRef.current?.resume();
     }
@@ -779,20 +803,25 @@ export default function ProjectsSequence() {
     setDragging(false);
   };
   const onGalleryWheel = event => {
-    // One trackpad gesture can emit dozens of momentum events. Move ONE
-    // card on its first horizontal event; unlock only after the gesture ends.
-    // Vertical wheel/trackpad scrolling remains native.
-    if (Math.abs(event.deltaX) < 8 ||
-        Math.abs(event.deltaX) <= Math.abs(event.deltaY) * 1.25) return;
-    const wheel = wheelGestureRef.current;
-    window.clearTimeout(wheel.timer);
-    wheel.timer = window.setTimeout(() => {
-      wheel.locked = false;
-      wheel.timer = null;
-    }, 320);
-    if (wheel.locked) return;
-    wheel.locked = Boolean(galleryControlsRef.current?.start(
-      event.deltaX > 0 ? 1 : -1));
+    if (!galleryControlsRef.current?.canInteract()) {
+      wheelGestureRef.current = initialGalleryWheelState();
+      return;
+    }
+    // The browser may report pixels, lines or pages. Convert to pixels
+    // before accumulating, so mice and trackpads have equal reliability.
+    const unit = event.deltaMode === 1 ? 16 :
+      event.deltaMode === 2 ? window.innerWidth : 1;
+    const shifted = event.shiftKey && Math.abs(event.deltaX) < .2;
+    const dx = (shifted ? event.deltaY : event.deltaX) * unit;
+    const dy = (shifted ? 0 : event.deltaY) * unit;
+    if (Math.abs(dx) < .2 || Math.abs(dx) < Math.abs(dy) * .95) return;
+    // Horizontal wheel input belongs to the gallery; never let it nudge
+    // the page or accidentally trigger the vertical About transition.
+    if (event.cancelable) event.preventDefault();
+    const result = galleryWheelGesture(wheelGestureRef.current,
+      dx, dy, performance.now());
+    wheelGestureRef.current = result.state;
+    if (result.step) galleryControlsRef.current?.start(result.step);
   };
   const project = PROJECTS[activeIndex];
   return (
@@ -806,7 +835,6 @@ export default function ProjectsSequence() {
           aria-label="Swipe left or right to move one project at a time; the seven projects wrap around"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
-          onWheel={onGalleryWheel}
           onPointerUp={event => finishPointer(event)}
           onPointerCancel={event => finishPointer(event, true)}
           onLostPointerCapture={event => finishPointer(event, true)}
