@@ -93,12 +93,12 @@ export function galleryWheelGesture(state, deltaX, deltaY, now) {
   const sign = Math.sign(deltaX);
   const idle = now - prior.lastAt > 145 || now < prior.lastAt;
   const reversed = prior.fired && sign !== prior.direction &&
-    magnitude >= 2.5;
+    magnitude >= 1.5;
   const slowed = prior.quiet ||
     (prior.fired && prior.previous <= Math.max(3, prior.peak * .18));
   const newImpulse = prior.fired && slowed &&
-    now - prior.triggerAt >= 155 && magnitude >= 9 &&
-    magnitude >= prior.previous * 1.6;
+    now - prior.triggerAt >= 85 && magnitude >= 5 &&
+    magnitude >= prior.previous * 1.45;
   const reset = idle || reversed || newImpulse;
   const next = reset ? initialGalleryWheelState() : { ...prior };
   next.lastAt = now;
@@ -110,7 +110,9 @@ export function galleryWheelGesture(state, deltaX, deltaY, now) {
   // Accumulate small events, including subpixel trackpad movement.
   // A single wheel notch (often deltaMode=line) can also fire immediately.
   next.total += deltaX;
-  if (Math.abs(next.total) < 10) return { state: next, step: 0 };
+  // Low threshold means the first two or three small trackpad events
+  // start the card immediately, instead of accumulating a visible pause.
+  if (Math.abs(next.total) < 4) return { state: next, step: 0 };
   next.fired = true;
   next.direction = Math.sign(next.total);
   next.triggerAt = now;
@@ -136,4 +138,30 @@ export function galleryVerticalExitGesture(state, deltaX, deltaY, now) {
   next.lastAt = now;
   next.total += deltaY;
   return { state: next, exit: next.total >= 26 };
+}
+
+/**
+ * Snap duration for a direct, interruptible card carousel. A normal
+ * one-card step settles in roughly a quarter-second rather than the old
+ * .42s (or .82s for successive gestures during an active animation).
+ * Very short corrections are faster; a multi-card target remains bounded.
+ */
+export function gallerySnapDuration(distance) {
+  const d = Math.abs(Number.isFinite(distance) ? distance : 0);
+  return Math.max(.14, Math.min(.28, .14 + d * .09));
+}
+
+/**
+ * Release a direct drag based on distance OR a quick flick. A fast short
+ * flick should count even when no extra pointermove arrived before release.
+ * Diagonal/vertical gestures never change cards.
+ */
+export function gallerySwipeDirection(dx, dy, velocityX = 0, cancelled = false) {
+  if (cancelled || ![dx, dy, velocityX].every(Number.isFinite))
+    return 0;
+  if (Math.abs(dx) <= Math.abs(dy) * .9) return 0;
+  if (Math.abs(dx) >= 16 ||
+      (Math.abs(dx) >= 6 && Math.abs(velocityX) >= .3))
+    return dx < 0 ? 1 : -1;
+  return 0;
 }
