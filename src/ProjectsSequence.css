@@ -211,3 +211,19 @@
   .jw-projects-stage__controls > button,
   .jw-projects-stage__dots button { transition: none; }
 }
+
+/* Case-study controls belong above the gesture plane and remain independently clickable. */
+.jw-projects-stage__details{pointer-events:auto;}
+.jw-projects-stage__details .jw-case-open-button{
+ display:inline-flex;align-items:center;justify-content:center;
+ cursor:pointer;pointer-events:auto;
+ margin:18px 9px 0 0;padding:10px 14px;
+ background:rgba(126,63,208,.10);color:#6835a4;
+ border:1px solid rgba(126,63,208,.26);border-radius:999px;
+ font:700 clamp(12px,1vw,14px) 'DM Sans',Arial,sans-serif;
+ transition:background .2s ease,transform .2s ease;
+}
+.jw-projects-stage__details .jw-case-open-button:hover{background:rgba(126,63,208,.18);transform:translateY(-1px)}
+.jw-projects-stage__details .jw-case-open-button:focus-visible{outline:3px solid #8750f1;outline-offset:2px}
+.jw-projects-stage__details .jw-case-open-all{background:transparent;border-color:transparent}
+@media(max-width:800px){.jw-projects-stage__details .jw-case-open-button{margin-top:8px;padding:7px 9px;font-size:10px}}
