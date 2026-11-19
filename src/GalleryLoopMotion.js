@@ -42,3 +42,25 @@ export function gallerySeamOpacity(distance, count = PROJECT_LOOP_COUNT) {
     (count / 2 - Math.abs(distance)) / .4));
   return t * t * (3 - 2 * t);
 }
+
+/** Section 2 is one resting viewport; landing is a finite scroll snap. */
+export const GALLERY_LANDING_VH = .10;
+
+export function galleryRestScrollY(sectionTop, viewportHeight) {
+  return sectionTop + viewportHeight * GALLERY_LANDING_VH;
+}
+
+export function shouldAutoLand(phase, previousY, currentY, state,
+  trainStart = .89, trainEnd = .99) {
+  return state === 'idle' && phase >= trainStart &&
+    phase < trainEnd && Number.isFinite(previousY) &&
+    currentY > previousY + .5;
+}
+
+export function galleryExitFade(scrollY, sectionTop, sectionHeight,
+  viewportHeight) {
+  const start = sectionTop + sectionHeight - viewportHeight * .54;
+  const span = Math.max(1, viewportHeight * .43);
+  const t = Math.max(0, Math.min(1, (scrollY - start) / span));
+  return 1 - t * t * (3 - 2 * t);
+}
