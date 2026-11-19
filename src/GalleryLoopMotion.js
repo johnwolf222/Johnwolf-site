@@ -1,10 +1,9 @@
 /**
  * Gallery-only interaction math. The seven approved sheets keep their
- * established 3D positions; these helpers move the focus continuously
- * around their circular index space without duplicating or swapping art.
+ * established 3D positions. Each gesture advances ONE project and settles;
+ * indices wrap infinitely without automatic motion or duplicated artwork.
  */
 export const PROJECT_LOOP_COUNT = 7;
-export const PROJECT_LOOP_SPEED = .64; // cards per second, constant after swipe
 
 export function wrapGalleryFocus(focus, count = PROJECT_LOOP_COUNT) {
   if (!Number.isFinite(focus) || count <= 0) return 0;
@@ -23,12 +22,12 @@ export function nearestGalleryIndex(focus, count = PROJECT_LOOP_COUNT) {
   return Math.round(wrapGalleryFocus(focus, count)) % count;
 }
 
-export function advanceGalleryFocus(focus, direction, dt,
-  speed = PROJECT_LOOP_SPEED, count = PROJECT_LOOP_COUNT) {
-  // A backgrounded tab must not leap forward on its first visible frame.
-  const seconds = Math.max(0, Math.min(.1, Number.isFinite(dt) ? dt : 0));
-  return wrapGalleryFocus(focus + Math.sign(direction) *
-    seconds * speed, count);
+export function stepGalleryFocus(focus, direction,
+  count = PROJECT_LOOP_COUNT) {
+  // One swipe = exactly one neighboring card, even if the previous
+  // settling animation was interrupted halfway through.
+  return wrapGalleryFocus(nearestGalleryIndex(focus, count) +
+    Math.sign(direction), count);
 }
 
 export function dragGalleryFocus(start, deltaX, spacing,
