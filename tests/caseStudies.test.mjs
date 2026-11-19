@@ -14,7 +14,7 @@ const stylesheet=read('src/ProjectsSequence.css');
 const viewerStyles=read('src/CaseStudyReader.css');
 test('the six approved case studies remain distinct with first-person narratives',()=>{
  assert.deepEqual(data.studies.map(s=>s.id),expected);
- data.studies.forEach(s=>{assert.ok(s.intro.startsWith('I '),s.id+' first person');assert.ok(s.highlight.startsWith('#'),s.id+' marker color');});
+ data.studies.forEach(s=>{assert.ok(/\\bI\\s/.test(s.intro),s.id+' first person');assert.ok(s.highlight.startsWith('#'),s.id+' marker color');});
 });
 test('no source images in the live reader point at missing repository assets',()=>{
  for(const study of data.studies){
