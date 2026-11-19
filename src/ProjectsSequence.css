@@ -1,9 +1,10 @@
-/* Projects, first scroll-locked section after the approved Hole 01 homepage.
-   Home's video, original head, title and navigation are never restyled here. */
+/* Projects is ONE viewport after the scroll-pinned Home choreography.
+   Once the seven sheets land, the gallery rests until the next deliberate
+   downward scroll goes to About. No seven-card vertical scroll marathon. */
 #root .jw-projects-journey {
   position: relative;
-  height: 740svh;
-  min-height: 3500px;
+  height: 100svh;
+  min-height: 550px;
   background: transparent;
   scroll-margin-top: 0;
 }
