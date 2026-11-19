@@ -46,14 +46,12 @@ function StoryMedia({section,cycle}){
 }
 function OneCycle({study,cycle}){
  return <div className="jw-case-cycle">
-  <div className="jw-case-hero">
-   {study.cover?<img className="jw-case-hero__art" src={study.cover} alt={study.name+' brand artwork'} loading={cycle===1?'eager':'lazy'}/>:<div className="jw-case-hero__plain" aria-hidden="true">{study.name}</div>}
-   <div className="jw-case-hero__label"><span>{study.eyebrow}</span><h2>{study.name}</h2></div>
-  </div>
   <div className="jw-case-narrative">
-   <span className="jw-case-section-label">THE IDEA & THE EXECUTION</span>
+   <span className="jw-case-section-label">{study.eyebrow} · THE IDEA & THE EXECUTION</span>
+   <h2 className="jw-case-study-heading">{study.name}</h2>
    <p><Ink phrases={study.highlights}>{study.intro}</Ink></p>
   </div>
+  {study.cover&&<figure className="jw-case-image"><img src={study.cover} alt={study.name+' original brand artwork'} loading={cycle===1?'eager':'lazy'} decoding="async"/></figure>}
   {study.sections.map((section,i)=><StoryMedia key={i} section={section} cycle={cycle}/>)}
   {study.beats?.length>0&&<div className="jw-case-beats">{study.beats.map((text,i)=>
    <p key={i}><Ink phrases={study.highlights}>{text}</Ink></p>)}</div>}
