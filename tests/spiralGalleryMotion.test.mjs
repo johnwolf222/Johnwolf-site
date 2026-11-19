@@ -434,6 +434,9 @@ test('the train automatically lands at a safe single-viewport gallery stop', () 
   assert.equal(shouldAutoLand(.89, 100, 200, 'idle'), true);
   assert.equal(shouldAutoLand(.95, 100, 200, 'idle'), true);
   assert.equal(shouldAutoLand(.99, 100, 200, 'idle'), false);
+  assert.equal(shouldAutoLand(.99, 100, 200, 'idle', .89, 1.001), true,
+    'a large wheel jump over the train end still triggers landing');
+  assert.equal(shouldAutoLand(1, 100, 200, 'idle', .89, 1.001), true);
   assert.equal(shouldAutoLand(.95, 200, 100, 'idle'), false,
     'reverse scrolling must not force a new landing');
   assert.equal(shouldAutoLand(.95, 100, 200, 'landing'), false);
@@ -453,6 +456,9 @@ test('Section 2 waits after auto-landing and the next scroll enters About', () =
   assert.doesNotMatch(css, /740svh|3500px/,
     'gallery must no longer require seven viewports of scrolling');
   assert.match(source, /shouldAutoLand\(exact, previous, y, snapState,/);
+  assert.match(source, /TRAIN_START, 1\.001\)/);
+  assert.match(source, /y < galleryAnchor\(\) - height \* \.04/,
+    'the auto-landing trigger must not hijack a visitor already at the gallery');
   assert.match(source, /startLanding\(\);/);
   assert.match(source, /animatePageTo\(galleryAnchor\(\),/);
   assert.match(source, /markGallerySettled/);
@@ -468,6 +474,10 @@ test('Section 2 waits after auto-landing and the next scroll enters About', () =
   assert.match(source, /const onScrollKey = event =>/);
   assert.match(source, /leaveForAbout\(\)/);
   assert.match(source, /document\.querySelector\('#about'\)/);
+  assert.match(source, /const navigatePastGallery = event =>/,
+    'explicit About and Contact navigation must bypass the auto-landing');
+  assert.match(source, /snapState = 'leaving';\s*animatePageTo\(docTop\(destination\)/);
+  assert.match(source, /document\.removeEventListener\('click', navigatePastGallery\)/);
   assert.match(source, /const scrollFocus = \(\) => 0/,
     'vertical scrolling must not advance or replace gallery cards');
   assert.doesNotMatch(source, /stepVh|focusOf\(/);
