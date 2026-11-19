@@ -12,6 +12,7 @@ import {
   nearestGalleryIndex, stepGalleryFocus, dragGalleryFocus,
   gallerySeamOpacity, galleryRestScrollY, shouldAutoLand,
   galleryExitFade, GALLERY_LANDING_VH,
+  initialGalleryWheelState, galleryWheelGesture,
 } from '../src/GalleryLoopMotion.js';
 
 const FEATURED = [9, 7, 5, 11, 2, 1, 10];
@@ -351,20 +352,30 @@ test('gallery swipe controls preserve the original scroll and head', () => {
     import.meta.url), 'utf8');
   assert.match(source, /onPointerDown=\{onPointerDown\}/);
   assert.match(source, /onPointerMove=\{onPointerMove\}/);
-  assert.match(source, /onWheel=\{onGalleryWheel\}/);
+  assert.match(source, /window\.addEventListener\('wheel', onGalleryWheel,/,
+    'trackpad input must be captured over artwork, captions and controls');
+  assert.doesNotMatch(source, /onWheel=\{onGalleryWheel\}/,
+    'a second local listener would count each swipe twice');
   assert.match(source, /onPointerUp=\{event => finishPointer\(event\)\}/);
   assert.doesNotMatch(source, /advanceGalleryFocus|loopDirection|heldDirection/,
     'gallery must not keep moving automatically after a swipe');
-  assert.match(source, /settleTo\(stepGalleryFocus\(dragOrigin, direction\)\)/,
-    'a released swipe must settle at one neighboring card');
-  assert.match(source, /settleTo\(stepGalleryFocus\(loopFocus, direction\)\)/,
-    'arrow and trackpad controls must settle at one neighboring card');
+  assert.match(source, /settleTo\(stepGalleryFocus\(dragTarget, direction\)\)/,
+    'a released swipe must advance from its last requested destination');
+  assert.match(source, /settleTo\(stepGalleryFocus\(loopTarget, direction\)\)/,
+    'rapid swipes must queue relative to the requested target, not a partial tween');
   assert.match(source, /onComplete: \(\) => \{\s*loopFocus = destination;\s*loopTween = null;/,
     'finite animation must stop precisely on the target card');
-  assert.match(source, /wheel\.locked = Boolean\(galleryControlsRef/,
-    'momentum wheel events must not cause repeated card advances');
-  assert.match(source, /wheel\.timer = window\.setTimeout/,
-    'wheel gesture lock must release after the gesture ends');
+  assert.match(source, /galleryWheelGesture\(wheelGestureRef\.current,/,
+    'wheel input must accumulate tiny events and recognize new impulses');
+  assert.match(source, /initialGalleryWheelState\(\)/);
+  assert.match(source, /window\.removeEventListener\('wheel', onGalleryWheel, true\)/,
+    'global capture listener must be removed on unmount');
+  assert.doesNotMatch(source, /wheel\.locked|wheel\.timer/,
+    'the old long momentum lock must not discard the next swipe');
+  assert.match(source, /const shifted = event\.shiftKey/,
+    'shift-wheel horizontal navigation should work');
+  assert.match(source, /Math\.abs\(dx\) >= 18/,
+    'a quick flick ending between pointermove frames should still count');
   assert.match(source, /galleryControlsRef\.current\?\.start\(1\)/);
   assert.match(source, /galleryControlsRef\.current\?\.start\(-1\)/);
   assert.match(source, /headPlacement = galleryHeadPlacement\(p, height\)/);
@@ -488,8 +499,85 @@ test('Section 2 waits after auto-landing and the next scroll enters About', () =
   assert.match(source, /cancelScrollTween\(\)/,
     'scroll tween must be cleaned up when the component unmounts');
   assert.match(source, /const headPlacement = galleryHeadPlacement\(p, height\)/);
-  assert.match(source, /settleTo\(stepGalleryFocus\(dragOrigin, direction\)\)/,
+  assert.match(source, /settleTo\(stepGalleryFocus\(dragTarget, direction\)\)/,
     'one-card swipe interaction must survive the new scroll snap');
   assert.match(main, /<ProjectsSequence\/>\s*<section id="about"/,
     'Section 3 remains the existing About section, not a replacement');
+});
+
+test('tiny trackpad deltas accumulate into exactly one horizontal step', () => {
+  let state = initialGalleryWheelState();
+  const steps = [];
+  for (let i = 0; i < 22; i++) {
+    const next = galleryWheelGesture(state, .55, .18, i * 8);
+    state = next.state;
+    if (next.step) steps.push(next.step);
+  }
+  assert.deepEqual(steps, [1], 'subpixel swipes must not be ignored');
+  for (const dx of [7, 5, 3, 2, 1, .7, .5, .3]) {
+    const next = galleryWheelGesture(state, dx, 0, state.lastAt + 12);
+    state = next.state;
+    assert.equal(next.step, 0, 'momentum tail advanced a second card');
+  }
+});
+
+test('fast left/right reversals each register even during the old momentum tail', () => {
+  let state = initialGalleryWheelState();
+  const steps = [];
+  let time = 0;
+  for (const dx of [3, 7, 14, 9, 5, -3, -5, -8, -13, -4,
+    3, 6, 9, 12]) {
+    const next = galleryWheelGesture(state, dx, 0, time);
+    state = next.state;
+    if (next.step) steps.push(next.step);
+    time += 16;
+  }
+  assert.deepEqual(steps, [1, -1, 1],
+    'every deliberate direction change should move one card');
+});
+
+test('a new same-direction swipe re-arms after slowing without 320ms silence', () => {
+  let state = initialGalleryWheelState();
+  const steps = [];
+  for (const [time, dx] of [
+    [0, 2], [16, 4], [32, 10], [48, 12],
+    [64, 6], [80, 3], [96, 1],
+    [218, 3], [234, 6], [250, 11], [266, 14],
+  ]) {
+    const next = galleryWheelGesture(state, dx, 0, time);
+    state = next.state;
+    if (next.step) steps.push(next.step);
+  }
+  assert.deepEqual(steps, [1, 1],
+    'a second deliberate swipe should not be discarded by residual inertia');
+});
+
+test('vertical and incidental diagonal scrolling cannot change gallery focus', () => {
+  let state = initialGalleryWheelState();
+  for (let i = 0; i < 30; i++) {
+    const result = galleryWheelGesture(state, i % 2 ? 2 : -2, 12, i * 12);
+    state = result.state;
+    assert.equal(result.step, 0);
+  }
+  assert.equal(state.total, 0);
+  const bad = galleryWheelGesture(state, NaN, 1, 400);
+  assert.equal(bad.step, 0);
+  assert.deepEqual(bad.state, state);
+});
+
+test('rapid swipes use their queued destination, not the half-animated card', () => {
+  let target = 0;
+  target = stepGalleryFocus(target, 1);
+  assert.equal(target, 1);
+  // The previous tween might be only 20% complete. Using the old focus
+  // would round 0.2 back to 0, losing this second swipe.
+  assert.equal(stepGalleryFocus(.2, 1), 1);
+  target = stepGalleryFocus(target, 1);
+  assert.equal(target, 2, 'the second forward swipe must advance again');
+  target = stepGalleryFocus(target, -1);
+  assert.equal(target, 1, 'reverse swipe must work during an active tween');
+  target = stepGalleryFocus(target, -1);
+  assert.equal(target, 0);
+  for (let i = 0; i < 21; i++) target = stepGalleryFocus(target, 1);
+  assert.equal(target, 0, 'queued destinations must preserve infinite wrap');
 });
