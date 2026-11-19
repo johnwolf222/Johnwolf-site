@@ -116,3 +116,24 @@ export function galleryWheelGesture(state, deltaX, deltaY, now) {
   next.triggerAt = now;
   return { state: next, step: next.direction };
 }
+
+/**
+ * A horizontal swipe often includes a few tiny positive Y deltas.
+ * Only a deliberate, sustained downward gesture may leave the gallery.
+ * Mouse wheel notches still pass in one event; trackpad deltas accumulate.
+ */
+export function initialGalleryVerticalState() {
+  return { lastAt: -Infinity, total: 0 };
+}
+
+export function galleryVerticalExitGesture(state, deltaX, deltaY, now) {
+  const prior = state || initialGalleryVerticalState();
+  if (![deltaX, deltaY, now].every(Number.isFinite) ||
+      deltaY <= 0 || deltaY <= Math.abs(deltaX) * 1.25)
+    return { state: initialGalleryVerticalState(), exit: false };
+  const reset = now - prior.lastAt > 150 || now < prior.lastAt;
+  const next = reset ? initialGalleryVerticalState() : { ...prior };
+  next.lastAt = now;
+  next.total += deltaY;
+  return { state: next, exit: next.total >= 26 };
+}
