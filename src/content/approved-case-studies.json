@@ -203,12 +203,17 @@
         "old-school grain",
         "a signature they could proudly leave behind"
       ],
-      "cover": "/logos/inkzilla.webp",
+      "cover": "/brands/inkzilla/primary-wordmark.webp",
       "sections": [
         {
           "type": "image",
-          "src": "/logos/inkzilla.webp",
-          "alt": "Original Inkzilla tattoo shop wordmark"
+          "src": "/brands/inkzilla/tattoo-session.webp",
+          "alt": "Inkzilla tattoo artist working on a detailed tattoo beneath the original white Inkzilla wordmark"
+        },
+        {
+          "type": "image",
+          "src": "/brands/inkzilla/tattooed-hands.webp",
+          "alt": "Tattooed hands photographed with original white Inkzilla wordmark"
         },
         {
           "type": "text",
@@ -217,19 +222,56 @@
             "octopus detail",
             "signature of its own"
           ]
+        },
+        {
+          "type": "image",
+          "src": "/brands/inkzilla/neon-sign.webp",
+          "alt": "Original Inkzilla wordmark displayed as a glowing red neon sign"
+        },
+        {
+          "type": "compare",
+          "title": "Inkzilla wordmark applications",
+          "before": "/brands/inkzilla/primary-wordmark.webp",
+          "after": "/brands/inkzilla/white-wordmark-portrait.webp",
+          "beforeLabel": "Black wordmark",
+          "afterLabel": "White wordmark"
+        },
+        {
+          "type": "video",
+          "src": "/brands/inkzilla/inkzilla-film.mp4",
+          "poster": "/brands/inkzilla/tattoo-session.webp",
+          "title": "Inkzilla tattoo shop film"
         }
       ],
       "mediaToAttach": [
-        "3(4).png",
-        "4(3).png",
-        "5(2).png",
-        "6(2).png",
-        "Recreate image 1 with the logo i 797596 g24.png",
-        "Inkzilla.mp4"
+        {
+          "original": "5(2).png",
+          "web": "public/brands/inkzilla/primary-wordmark.webp"
+        },
+        {
+          "original": "3(4).png",
+          "web": "public/brands/inkzilla/tattoo-session.webp"
+        },
+        {
+          "original": "4(3).png",
+          "web": "public/brands/inkzilla/tattooed-hands.webp"
+        },
+        {
+          "original": "Recreate image 1 with the logo i 797596 g24.png",
+          "web": "public/brands/inkzilla/neon-sign.webp"
+        },
+        {
+          "original": "6(2).png",
+          "web": "public/brands/inkzilla/white-wordmark-portrait.webp"
+        },
+        {
+          "original": "Inkzilla.mp4",
+          "web": "public/brands/inkzilla/inkzilla-film.mp4"
+        }
       ],
-      "layoutToPreserve": "Image 5 and image 6 function as one drag comparison, not separate pages.",
+      "layoutToPreserve": "Original full-screen Branding Guidelines reader; first-person narrative; two real tattoo photography applications; original neon sign; images 5 and 6 share one interactive comparison slider; the supplied 40.9-second film autoplays muted in the active cycle, loops and stays inline.",
       "source": "approved case-study specification and provided artwork",
-      "assetState": "original uploaded files reviewed; pending transfer to public website asset directory"
+      "assetState": "media package prepared from original user uploads; binary assets require transfer to public/brands/inkzilla before production deployment"
     },
     {
       "id": "brewty",
