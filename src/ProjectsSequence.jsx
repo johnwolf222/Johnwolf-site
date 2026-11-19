@@ -12,6 +12,7 @@ import {
   galleryRestScrollY, shouldAutoLand, galleryExitFade,
   initialGalleryWheelState, galleryWheelGesture,
   initialGalleryVerticalState, galleryVerticalExitGesture,
+  gallerySnapDuration, gallerySwipeDirection,
 } from './GalleryLoopMotion.js';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -593,8 +594,10 @@ export default function ProjectsSequence() {
       const tween = { progress: 0 };
       loopTween = gsap.to(tween, {
         progress: 1,
-        duration: Math.min(.82, Math.max(.34, Math.abs(delta) * .42)),
-        ease: 'power3.out',
+        // A carousel should respond at once and settle promptly. Never
+        // stretch an interrupted or queued swipe into a long animation.
+        duration: gallerySnapDuration(delta),
+        ease: 'power2.out',
         onUpdate: () => {
           loopFocus = wrapGalleryFocus(from + delta * tween.progress);
           render();
@@ -776,9 +779,11 @@ export default function ProjectsSequence() {
   const onPointerDown = event => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     if (!galleryControlsRef.current?.canInteract()) return;
+    const now = performance.now();
     gestureRef.current = {
       id: event.pointerId, x: event.clientX, y: event.clientY,
-      horizontal: false,
+      lastX: event.clientX, lastAt: now, startedAt: now,
+      velocityX: 0, horizontal: false,
     };
     galleryControlsRef.current.hold();
     event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -788,6 +793,14 @@ export default function ProjectsSequence() {
     if (!gesture || gesture.id !== event.pointerId) return;
     const dx = event.clientX - gesture.x;
     const dy = event.clientY - gesture.y;
+    const now = performance.now();
+    const dt = now - gesture.lastAt;
+    if (dt > 0) {
+      const instantaneous = (event.clientX - gesture.lastX) / dt;
+      gesture.velocityX = .65 * instantaneous + .35 * gesture.velocityX;
+    }
+    gesture.lastX = event.clientX;
+    gesture.lastAt = now;
     if (!gesture.horizontal) {
       // Vertical gestures must remain native page scrolling.
       if (Math.abs(dy) > 18 && Math.abs(dy) > Math.abs(dx) * 1.5) {
@@ -808,15 +821,19 @@ export default function ProjectsSequence() {
     if (!gesture || gesture.id !== event.pointerId) return;
     const dx = event.clientX - gesture.x;
     const dy = event.clientY - gesture.y;
+    const now = performance.now();
+    const totalVelocity = dx / Math.max(1, now - gesture.startedAt);
+    const recentVelocity = now - gesture.lastAt < 85
+      ? gesture.velocityX : 0;
+    const velocity = Math.abs(recentVelocity) > Math.abs(totalVelocity)
+      ? recentVelocity : totalVelocity;
+    const direction = gallerySwipeDirection(dx, dy, velocity, cancelled);
     if (gesture.horizontal) {
-      galleryControlsRef.current?.release(
-        !cancelled && Math.abs(dx) >= 18 ? (dx < 0 ? 1 : -1) : 0);
-    } else if (!cancelled && Math.abs(dx) >= 18 &&
-        Math.abs(dx) > Math.abs(dy) * 1.1) {
-      // Short, fast flicks can finish between two pointermove frames.
-      // They still count as one intentional swipe.
+      galleryControlsRef.current?.release(direction);
+    } else if (direction) {
+      // Flicks that finish before the next pointermove still count.
       galleryControlsRef.current?.beginDrag();
-      galleryControlsRef.current?.release(dx < 0 ? 1 : -1);
+      galleryControlsRef.current?.release(direction);
     } else {
       galleryControlsRef.current?.resume();
     }
