@@ -35,12 +35,9 @@ const smooth = (n, a, b) => {
   return t * t * (3 - 2 * t);
 };
 const mix = (a, b, t) => a + (b - a) * t;
-const landingVh = .28;
-const stepVh = .78;
+// Section 2 is ONE stationary gallery viewport, not seven scroll steps.
+const landingVh = .10;
 const docTop = node => window.scrollY + node.getBoundingClientRect().top;
-const focusOf = (index, scrollY, top, h) =>
-  clamp((scrollY - (top + h * landingVh)) / (h * stepVh),
-    0, PROJECTS.length - 1);
 
 /**
  * ONE reversible GSAP scroll choreography:
@@ -108,6 +105,15 @@ export default function ProjectsSequence() {
     let loopDragging = false;
     let dragOrigin = 0;
     let loopTween = null;
+    // Native scroll controls the paper orbit until the returning train
+    // enters at TRAIN_START. Then one finite scroll tween completes the
+    // landing and places the visitor at the gallery's resting position.
+    // The NEXT independent downward gesture enters Section 3 (About).
+    let scrollTween = null;
+    let snapState = 'idle'; // idle | landing | settled | leaving
+    let exitReadyAt = 0;
+    let previousScrollBehavior = null;
+    let touchOrigin = null;
 
     function measure() {
       sectionTop = docTop(section);
@@ -132,8 +138,7 @@ export default function ProjectsSequence() {
       return homeMotion.pose(index, age);
     }
 
-    const scrollFocus = () =>
-      focusOf(0, window.scrollY, sectionTop, height);
+    const scrollFocus = () => 0; // Vertical scrolling never cycles projects.
     const canInteract = () =>
       travel.progress >= TRAIN_END - .0001 &&
       window.scrollY >= sectionTop - height * .25 &&
@@ -257,8 +262,10 @@ export default function ProjectsSequence() {
       const galleryFocus = loopEnabled && travel.progress >= TRAIN_END
         ? loopFocus : scrollFocus();
       const galleryActive = scrollY >= sectionTop - height * .25;
-      const exitAt = sectionTop + sectionHeight - height * 1.16;
-      const exitFade = 1 - smooth(scrollY, exitAt, exitAt + height * .8);
+      // One viewport for Projects: remain fully visible while locked,
+      // then gently fade the shared head/cards as About takes the screen.
+      const exitAt = sectionTop + sectionHeight - height * .54;
+      const exitFade = 1 - smooth(scrollY, exitAt, exitAt + height * .43);
       const stageOpacity = smooth(p, .09, .19) * exitFade;
       const isShown = stageOpacity > .008 &&
         scrollY < sectionTop + sectionHeight - height * .23;
@@ -346,11 +353,78 @@ export default function ProjectsSequence() {
     let lastPinStart = NaN;
     let lastPinEnd = NaN;
     let syncFrame = 0;
+    const galleryAnchor = () => docTop(section) + height * landingVh;
+    const restingInGallery = () =>
+      travel.progress >= TRAIN_END - .0001 &&
+      window.scrollY >= sectionTop - height * .10 &&
+      window.scrollY < sectionTop + sectionHeight - height * .23;
+
+    const restoreScrollBehavior = () => {
+      if (previousScrollBehavior === null) return;
+      document.documentElement.style.scrollBehavior = previousScrollBehavior;
+      previousScrollBehavior = null;
+    };
+    const cancelScrollTween = () => {
+      scrollTween?.kill();
+      scrollTween = null;
+      restoreScrollBehavior();
+    };
+    const animatePageTo = (target, duration, onDone) => {
+      cancelScrollTween();
+      const root = document.documentElement;
+      previousScrollBehavior = root.style.scrollBehavior;
+      // The global stylesheet sets scroll-behavior:smooth. Override it
+      // temporarily so each GSAP frame is an exact, reversible scroll seek.
+      root.style.scrollBehavior = 'auto';
+      if (reduced.matches) {
+        window.scrollTo(0, target);
+        restoreScrollBehavior();
+        onDone();
+        return;
+      }
+      const cursor = { y: window.scrollY };
+      scrollTween = gsap.to(cursor, {
+        y: target, duration, ease: 'power3.inOut',
+        onUpdate: () => window.scrollTo(0, cursor.y),
+        onComplete: () => {
+          window.scrollTo(0, target);
+          scrollTween = null;
+          restoreScrollBehavior();
+          onDone();
+        },
+      });
+    };
+    const markGallerySettled = () => {
+      snapState = 'settled';
+      exitReadyAt = performance.now() + 550;
+      // Freeze the first project in its approved position. From here
+      // only explicit left/right gestures change the active project.
+      if (!loopEnabled) {
+        loopFocus = 0;
+        loopEnabled = true;
+      }
+      render();
+    };
+    const startLanding = () => {
+      if (snapState === 'landing' || snapState === 'leaving') return;
+      snapState = 'landing';
+      animatePageTo(galleryAnchor(), 1.35, markGallerySettled);
+    };
+    const leaveForAbout = () => {
+      if (snapState !== 'settled') return;
+      const about = document.querySelector('#about');
+      if (!about) return;
+      snapState = 'leaving';
+      animatePageTo(docTop(about), 1.0, () => {
+        snapState = 'idle';
+      });
+    };
     const syncFromScroll = () => {
       if (disposed) return;
       const y = window.scrollY;
       if (y === lastNativePosition && pinned.start === lastPinStart &&
         pinned.end === lastPinEnd) return;
+      const previous = lastNativePosition;
       lastNativePosition = y;
       lastPinStart = pinned.start;
       lastPinEnd = pinned.end;
@@ -358,6 +432,17 @@ export default function ProjectsSequence() {
         Math.max(pinned.end - pinned.start, 1));
       timeline.progress(exact);
       render();
+      if (snapState === 'idle' && exact >= TRAIN_START &&
+          exact < TRAIN_END && y > previous + .5) {
+        startLanding();
+      } else if (snapState === 'idle' && restingInGallery()) {
+        // Direct #work navigation, browser history, or reverse from About.
+        markGallerySettled();
+      } else if (snapState === 'settled' &&
+          (y < sectionTop - height * .25 ||
+           y >= sectionTop + sectionHeight - height * .18)) {
+        snapState = 'idle';
+      }
     };
     const frameSync = now => {
       const dt = lastAnimationFrame ?
@@ -380,9 +465,76 @@ export default function ProjectsSequence() {
       syncFromScroll();
     };
     const onResize = () => {
+      const wasLanding = snapState === 'landing';
+      cancelScrollTween();
       measure();
       ScrollTrigger.refresh();
+      if (wasLanding) {
+        document.documentElement.style.scrollBehavior = 'auto';
+        window.scrollTo(0, galleryAnchor());
+        document.documentElement.style.scrollBehavior = '';
+        markGallerySettled();
+      }
       render();
+    };
+    const onVerticalWheel = event => {
+      if (snapState === 'landing' || snapState === 'leaving') {
+        if (event.cancelable) event.preventDefault();
+        return;
+      }
+      if (snapState !== 'settled' || !restingInGallery()) return;
+      if (event.deltaY <= 9 ||
+          Math.abs(event.deltaY) <= Math.abs(event.deltaX) * 1.25) return;
+      if (event.cancelable) event.preventDefault();
+      const now = performance.now();
+      if (now < exitReadyAt) {
+        // Absorb the momentum tail of the gesture that triggered landing.
+        exitReadyAt = now + 220;
+        return;
+      }
+      leaveForAbout();
+    };
+    const onTouchStart = event => {
+      if (snapState !== 'settled' || !restingInGallery()) return;
+      const point = event.touches[0];
+      if (point) touchOrigin = { x: point.clientX, y: point.clientY,
+        up: false };
+    };
+    const onTouchMove = event => {
+      if (snapState === 'landing' || snapState === 'leaving') {
+        if (event.cancelable) event.preventDefault();
+        return;
+      }
+      if (snapState !== 'settled' || !touchOrigin) return;
+      const point = event.touches[0];
+      if (!point) return;
+      const dx = point.clientX - touchOrigin.x;
+      const dy = point.clientY - touchOrigin.y;
+      if (dy < -12 && Math.abs(dy) > Math.abs(dx) * 1.25) {
+        touchOrigin.up = true;
+        if (event.cancelable) event.preventDefault();
+      }
+    };
+    const onTouchEnd = event => {
+      const origin = touchOrigin;
+      touchOrigin = null;
+      if (!origin || !origin.up || snapState !== 'settled' ||
+          performance.now() < exitReadyAt) return;
+      const point = event.changedTouches[0];
+      if (point && point.clientY - origin.y < -35) leaveForAbout();
+    };
+    const onScrollKey = event => {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey ||
+          event.metaKey || event.target?.closest?.(
+            'input, textarea, select, button, a, [contenteditable]')) return;
+      if (!['ArrowDown', 'PageDown', ' '].includes(event.key)) return;
+      if (snapState === 'landing' || snapState === 'leaving') {
+        event.preventDefault();
+        return;
+      }
+      if (snapState !== 'settled' || !restingInGallery()) return;
+      event.preventDefault();
+      if (performance.now() >= exitReadyAt) leaveForAbout();
     };
     const cancelTween = () => {
       loopTween?.kill();
@@ -482,6 +634,13 @@ export default function ProjectsSequence() {
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);
+    window.addEventListener('wheel', onVerticalWheel,
+      { passive: false, capture: true });
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove,
+      { passive: false, capture: true });
+    window.addEventListener('touchend', onTouchEnd, { passive: true });
+    window.addEventListener('keydown', onScrollKey);
     document.addEventListener('click', navigateToGallery);
     reduced.addEventListener?.('change', onReduced);
     const observer = new ResizeObserver(() => {
@@ -498,6 +657,7 @@ export default function ProjectsSequence() {
 
     return () => {
       disposed = true;
+      cancelScrollTween();
       cancelTween();
       window.clearTimeout(wheelGestureRef.current.timer);
       wheelGestureRef.current.locked = false;
@@ -507,6 +667,11 @@ export default function ProjectsSequence() {
       observer.disconnect();
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('wheel', onVerticalWheel, true);
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove, true);
+      window.removeEventListener('touchend', onTouchEnd);
+      window.removeEventListener('keydown', onScrollKey);
       document.removeEventListener('click', navigateToGallery);
       reduced.removeEventListener?.('change', onReduced);
       pinned.kill();
@@ -526,9 +691,8 @@ export default function ProjectsSequence() {
     if (galleryControlsRef.current?.select(index)) return;
     const section = sectionRef.current;
     if (!section) return;
-    const i = clamp(index, 0, PROJECTS.length - 1);
     window.scrollTo({
-      top: docTop(section) + window.innerHeight * (landingVh + i * stepVh),
+      top: docTop(section) + window.innerHeight * landingVh,
       behavior: 'smooth',
     });
   }
