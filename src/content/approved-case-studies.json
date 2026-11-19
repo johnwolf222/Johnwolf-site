@@ -243,35 +243,22 @@
           "title": "Inkzilla tattoo shop film"
         }
       ],
-      "mediaToAttach": [
-        {
-          "original": "5(2).png",
-          "web": "public/brands/inkzilla/primary-wordmark.webp"
-        },
-        {
-          "original": "3(4).png",
-          "web": "public/brands/inkzilla/tattoo-session.webp"
-        },
-        {
-          "original": "4(3).png",
-          "web": "public/brands/inkzilla/tattooed-hands.webp"
-        },
-        {
-          "original": "Recreate image 1 with the logo i 797596 g24.png",
-          "web": "public/brands/inkzilla/neon-sign.webp"
-        },
-        {
-          "original": "6(2).png",
-          "web": "public/brands/inkzilla/white-wordmark-portrait.webp"
-        },
-        {
-          "original": "Inkzilla.mp4",
-          "web": "public/brands/inkzilla/inkzilla-film.mp4"
-        }
-      ],
+      "mediaToAttach": [],
       "layoutToPreserve": "Original full-screen Branding Guidelines reader; first-person narrative; two real tattoo photography applications; original neon sign; images 5 and 6 share one interactive comparison slider; the supplied 40.9-second film autoplays muted in the active cycle, loops and stays inline.",
       "source": "approved case-study specification and provided artwork",
-      "assetState": "media package prepared from original user uploads; binary assets require transfer to public/brands/inkzilla before production deployment"
+      "assetState": "installed: 5 user-supplied original images encoded as high-quality WebP, and full-length 40.92-second film optimized to 720p H.264/AAC in public/brands/inkzilla",
+      "filmDetails": {
+        "original": "Inkzilla.mp4",
+        "durationSeconds": 40.92,
+        "sourceWidth": 1920,
+        "sourceHeight": 1080,
+        "webWidth": 1280,
+        "webHeight": 720,
+        "autoplay": true,
+        "muted": true,
+        "loop": true,
+        "playsInline": true
+      }
     },
     {
       "id": "brewty",
