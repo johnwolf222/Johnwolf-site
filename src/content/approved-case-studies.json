@@ -264,7 +264,7 @@
       "id": "brewty",
       "name": "Brewty",
       "eyebrow": "COFFEE · VISUAL IDENTITY",
-      "highlight": "#0C59AF",
+      "highlight": "#0A58AA",
       "intro": "I wanted Brewty to feel like more than a coffee brand. My vision was to create an identity that captured the warmth, calmness, and simple pleasure of enjoying a good cup of coffee. The name brings brew and beauty together, echoed in the slogan Life's a Brewty. Brown represents the richness of coffee, blue introduces a sense of calm, and cream brings the two together. The flowing squiggly patterns were inspired by steam rising from freshly brewed coffee, carrying its aroma toward your nose. The identity captures not just how coffee looks, but how the experience feels.",
       "beats": [],
       "highlights": [
@@ -274,8 +274,41 @@
         "cream",
         "steam rising"
       ],
-      "cover": null,
-      "sections": [],
+      "cover": "/brands/brewty/packaging.webp",
+      "sections": [
+        {
+          "type": "grid",
+          "columns": 3,
+          "variant": "brewty",
+          "srcs": [
+            "/brands/brewty/steam-pattern.webp",
+            "/brands/brewty/packaging.webp",
+            "/brands/brewty/line-art-character.webp"
+          ],
+          "alts": [
+            "Original Brewty blue steam-flow pattern on cream",
+            "Original Brewty dark roast coffee package with logo and character",
+            "Original black and white Brewty character illustration and logo"
+          ]
+        },
+        {
+          "type": "image",
+          "src": "/brands/brewty/colored-character.webp",
+          "alt": "Original full-color Brewty coffee character illustration in blue, cream and brown"
+        },
+        {
+          "type": "video",
+          "src": "/brands/brewty/steam-pattern-film.mp4",
+          "poster": "/brands/brewty/steam-pattern.webp",
+          "title": "Brewty animated steam pattern — 43.5-second continuous loop"
+        },
+        {
+          "type": "video",
+          "src": "/brands/brewty/brand-film.mp4",
+          "poster": "/brands/brewty/packaging.webp",
+          "title": "Brewty brand film — 25-second continuous loop"
+        }
+      ],
       "mediaToAttach": [
         "3(5).png",
         "2(3).png",
@@ -284,9 +317,10 @@
         "Brewty aimation with pattern.mp4",
         "Brewty vid.mp4"
       ],
-      "layoutToPreserve": "The first three uploaded images must share a single row of three evenly spaced equal-sized columns. Both films autoplay muted and loop.",
+      "layoutToPreserve": "The three original images shown first (steam pattern, coffee bag and black-and-white character) share one row of three equal-width, evenly spaced, uncropped tiles. Colored character follows. Both full-length films autoplay muted, inline, loop.",
       "source": "approved case-study specification and provided artwork",
-      "assetState": "original uploaded files reviewed; pending transfer to public website asset directory"
+      "assetState": "original uploaded artwork and both films committed; films reconstructed and verified during build",
+      "coverInGrid": true
     },
     {
       "id": "chit-chat",

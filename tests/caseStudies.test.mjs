@@ -30,6 +30,12 @@ test('brand-specific approved layouts and effects remain captured',()=>{
  assert.ok(byId['bring-love-back'].sections.some(s=>s.type==='compare'));
  assert.ok(byId['bring-love-back'].sections.some(s=>s.type==='video'));
  assert.ok(byId.brewty.layoutToPreserve.includes('three'));
+ assert.equal(byId.brewty.sections[0].type,'grid');
+ assert.equal(byId.brewty.sections[0].columns,3);
+ assert.equal(byId.brewty.sections[0].srcs.length,3);
+ assert.equal(byId.brewty.sections.filter(s=>s.type==='video').length,2);
+ assert.ok(byId.brewty.sections[0].srcs[0].includes('steam-pattern'));
+ assert.equal(byId.brewty.coverInGrid,true);
  assert.ok(byId.inkzilla.layoutToPreserve.includes('comparison'));
  assert.ok(byId['chit-chat'].layoutToPreserve.includes('clock-it'));
 });
@@ -38,6 +44,10 @@ test('reader has navigation, looping media, comparison and marker rules',()=>{
   assert.ok(reader.includes(token),token);
  assert.ok(viewerStyles.includes('jw-case-marker'));
  assert.ok(viewerStyles.includes('jw-case-grid--3'));
+ assert.ok(viewerStyles.includes('jw-case-grid--brewty'));
+ assert.ok(reader.includes('IntersectionObserver'));
+ assert.ok(reader.includes('video.defaultMuted=true'));
+ assert.ok(reader.includes('video.loop=true'));
 });
 test('existing 21-card choreography remains; gallery case study actions clickable',()=>{
  assert.ok(gallery.includes('const CARD_COUNT = 21'));

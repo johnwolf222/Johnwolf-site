@@ -34,13 +34,43 @@ function Comparison({section}){
   <figcaption><span>{section.beforeLabel}</span><span>{section.afterLabel}</span></figcaption>
  </figure>;
 }
+function LoopingFilm({section,cycle}){
+ const ref=useRef(null);
+ useEffect(()=>{
+  const video=ref.current;
+  if(!video)return;
+  video.defaultMuted=true;
+  video.muted=true;
+  video.loop=true;
+  video.playsInline=true;
+  const root=video.closest('.jw-case-scroll');
+  const play=()=>{if(video.paused)video.play().catch(()=>{});};
+  if(!('IntersectionObserver' in window)){play();return;}
+  const observer=new IntersectionObserver(entries=>{
+   for(const entry of entries){
+    if(entry.isIntersecting && entry.intersectionRatio>=.14 && !document.hidden) play();
+    else video.pause();
+   }
+  },{root,threshold:[0,.14,.5]});
+  observer.observe(video);
+  const onVisibility=()=>{if(document.hidden)video.pause();else if(video.getBoundingClientRect().top<window.innerHeight && video.getBoundingClientRect().bottom>0)play();};
+  document.addEventListener('visibilitychange',onVisibility);
+  return()=>{observer.disconnect();document.removeEventListener('visibilitychange',onVisibility);video.pause();};
+ },[section.src,cycle]);
+ return <figure className="jw-case-video">
+  <video ref={ref} src={section.src} poster={section.poster||undefined}
+    autoPlay muted loop playsInline controls preload="metadata"
+    disablePictureInPicture aria-label={section.title}/>
+  <figcaption>{section.title}</figcaption>
+ </figure>;
+}
 function StoryMedia({section,cycle}){
  if(section.type==='image')return <figure className="jw-case-image"><img src={section.src} alt={section.alt} loading="lazy" decoding="async"/></figure>;
- if(section.type==='grid')return <div className={'jw-case-grid jw-case-grid--'+section.columns} aria-label="Editorial art direction">
+ if(section.type==='grid')return <div className={'jw-case-grid jw-case-grid--'+section.columns+(section.variant?' jw-case-grid--'+section.variant:'')} aria-label="Editorial art direction">
   {section.srcs.map((src,i)=><img key={src} src={src} alt={section.alts?.[i]||'Brand identity artwork'} loading="lazy" decoding="async"/>)}
  </div>;
  if(section.type==='text')return <div className="jw-case-interlude"><p><Ink phrases={section.emphasis}>{section.body}</Ink></p></div>;
- if(section.type==='video')return <figure className="jw-case-video"><video src={section.src} poster={section.poster} autoPlay={cycle===1} muted loop playsInline controls preload={cycle===1?'metadata':'none'} aria-label={section.title}/><figcaption>{section.title}</figcaption></figure>;
+ if(section.type==='video')return <LoopingFilm section={section} cycle={cycle}/>;
  if(section.type==='compare')return <Comparison section={section}/>;
  return null;
 }
@@ -51,7 +81,7 @@ function OneCycle({study,cycle}){
    <h2 className="jw-case-study-heading">{study.name}</h2>
    <p><Ink phrases={study.highlights}>{study.intro}</Ink></p>
   </div>
-  {study.cover&&<figure className="jw-case-image"><img src={study.cover} alt={study.name+' original brand artwork'} loading={cycle===1?'eager':'lazy'} decoding="async"/></figure>}
+  {study.cover&&!study.coverInGrid&&<figure className="jw-case-image"><img src={study.cover} alt={study.name+' original brand artwork'} loading={cycle===1?'eager':'lazy'} decoding="async"/></figure>}
   {study.sections.map((section,i)=><StoryMedia key={i} section={section} cycle={cycle}/>)}
   {study.beats?.length>0&&<div className="jw-case-beats">{study.beats.map((text,i)=>
    <p key={i}><Ink phrases={study.highlights}>{text}</Ink></p>)}</div>}

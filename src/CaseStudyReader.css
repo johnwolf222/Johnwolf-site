@@ -105,3 +105,8 @@
  .jw-case-bottom-nav span{font-size:11px;white-space:normal}
  .jw-case-bottom-nav button{font-size:19px;padding:7px 9px}
 }
+
+/* Brewty: preserve all three original panels without cropping and keep them equal-sized. */
+.jw-case-grid--brewty{grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(10px,1.5vw,22px);align-items:stretch}
+.jw-case-grid--brewty img{width:100%;height:auto;aspect-ratio:4/5;object-fit:contain;background:#fcf3e5;box-shadow:none}
+@media(max-width:520px){.jw-case-grid--brewty{gap:6px}}
