@@ -9,6 +9,7 @@ import { spiralGalleryPose, galleryHeadPlacement, galleryRowOffset, GALLERY_FOCA
 import {
   wrapGalleryFocus, wrappedGalleryDistance, nearestGalleryIndex,
   stepGalleryFocus, dragGalleryFocus, gallerySeamOpacity,
+  galleryRestScrollY, shouldAutoLand, galleryExitFade,
 } from './GalleryLoopMotion.js';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -36,7 +37,6 @@ const smooth = (n, a, b) => {
 };
 const mix = (a, b, t) => a + (b - a) * t;
 // Section 2 is ONE stationary gallery viewport, not seven scroll steps.
-const landingVh = .10;
 const docTop = node => window.scrollY + node.getBoundingClientRect().top;
 
 /**
@@ -264,8 +264,8 @@ export default function ProjectsSequence() {
       const galleryActive = scrollY >= sectionTop - height * .25;
       // One viewport for Projects: remain fully visible while locked,
       // then gently fade the shared head/cards as About takes the screen.
-      const exitAt = sectionTop + sectionHeight - height * .54;
-      const exitFade = 1 - smooth(scrollY, exitAt, exitAt + height * .43);
+      const exitFade = galleryExitFade(scrollY, sectionTop,
+        sectionHeight, height);
       const stageOpacity = smooth(p, .09, .19) * exitFade;
       const isShown = stageOpacity > .008 &&
         scrollY < sectionTop + sectionHeight - height * .23;
@@ -353,7 +353,7 @@ export default function ProjectsSequence() {
     let lastPinStart = NaN;
     let lastPinEnd = NaN;
     let syncFrame = 0;
-    const galleryAnchor = () => docTop(section) + height * landingVh;
+    const galleryAnchor = () => galleryRestScrollY(docTop(section), height);
     const restingInGallery = () =>
       travel.progress >= TRAIN_END - .0001 &&
       window.scrollY >= sectionTop - height * .10 &&
@@ -407,8 +407,12 @@ export default function ProjectsSequence() {
     };
     const startLanding = () => {
       if (snapState === 'landing' || snapState === 'leaving') return;
+      if (snapState === 'settled' && restingInGallery()) return;
       snapState = 'landing';
-      animatePageTo(galleryAnchor(), 1.35, markGallerySettled);
+      const viewports = Math.abs(galleryAnchor() - window.scrollY) /
+        Math.max(1, height);
+      animatePageTo(galleryAnchor(), Math.min(2, 1.2 + viewports * .15),
+        markGallerySettled);
     };
     const leaveForAbout = () => {
       if (snapState !== 'settled') return;
@@ -432,8 +436,8 @@ export default function ProjectsSequence() {
         Math.max(pinned.end - pinned.start, 1));
       timeline.progress(exact);
       render();
-      if (snapState === 'idle' && exact >= TRAIN_START &&
-          exact < TRAIN_END && y > previous + .5) {
+      if (shouldAutoLand(exact, previous, y, snapState,
+          .89, TRAIN_END)) {
         startLanding();
       } else if (snapState === 'idle' && restingInGallery()) {
         // Direct #work navigation, browser history, or reverse from About.
@@ -466,14 +470,19 @@ export default function ProjectsSequence() {
     };
     const onResize = () => {
       const wasLanding = snapState === 'landing';
+      const wasLeaving = snapState === 'leaving';
       cancelScrollTween();
       measure();
       ScrollTrigger.refresh();
       if (wasLanding) {
-        document.documentElement.style.scrollBehavior = 'auto';
+        const root = document.documentElement;
+        const original = root.style.scrollBehavior;
+        root.style.scrollBehavior = 'auto';
         window.scrollTo(0, galleryAnchor());
-        document.documentElement.style.scrollBehavior = '';
+        root.style.scrollBehavior = original;
         markGallerySettled();
+      } else if (wasLeaving) {
+        snapState = 'idle';
       }
       render();
     };
@@ -627,10 +636,7 @@ export default function ProjectsSequence() {
         event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
       window.history.replaceState(null, '', '#work');
-      window.scrollTo({
-        top: docTop(section) + window.innerHeight * landingVh,
-        behavior: reduced.matches ? 'instant' : 'smooth',
-      });
+      startLanding();
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);
@@ -692,7 +698,7 @@ export default function ProjectsSequence() {
     const section = sectionRef.current;
     if (!section) return;
     window.scrollTo({
-      top: docTop(section) + window.innerHeight * landingVh,
+      top: galleryRestScrollY(docTop(section), window.innerHeight),
       behavior: 'smooth',
     });
   }
