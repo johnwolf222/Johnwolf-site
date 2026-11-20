@@ -8,7 +8,11 @@ const entries=content.studies;
 const upcoming=content.upcoming||[];
 const lookup=Object.fromEntries(entries.map(item=>[item.id,item]));
 const labelFor=name=>{
- const candidate=entries.find(item=>item.name.toLowerCase()===name?.toLowerCase());
+ const normalized=String(name||'').trim().toLowerCase();
+ // The approved featured card is labeled "Nurusa", while its story is NURUSH.
+ // Resolve that existing card to the correct case study without changing its artwork.
+ if(normalized==='nurusa')return 'nurush';
+ const candidate=entries.find(item=>item.name.toLowerCase()===normalized);
  return candidate?.id||null;
 };
 const esc=s=>s.replace(/[.*+?^$\{\}()|[\]\\]/g,'\\$&');

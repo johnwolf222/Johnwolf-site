@@ -52,6 +52,13 @@ test('reader has navigation, looping media, comparison and marker rules',()=>{
  assert.ok(reader.includes('video.defaultMuted=true'));
  assert.ok(reader.includes('video.loop=true'));
 });
+test('NURUSH opens from both its case-study cover and the approved Nurusa featured card',()=>{
+ assert.equal(byId.nurush.name,'NURUSH');
+ assert.ok(reader.includes("if(normalized==='nurusa')return 'nurush'"));
+ assert.ok(reader.includes('onClick={()=>{setActive(item.id);setDetails(false);}}'));
+ assert.ok(reader.includes('const lookup=Object.fromEntries(entries.map(item=>[item.id,item]))'));
+ assert.ok(gallery.includes("name: 'Nurusa'"));
+});
 test('existing 21-card choreography remains; gallery case study actions clickable',()=>{
  assert.ok(gallery.includes('const CARD_COUNT = 21'));
  assert.ok(gallery.includes('LivePaperRenderer'));
