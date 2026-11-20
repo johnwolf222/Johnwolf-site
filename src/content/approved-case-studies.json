@@ -335,6 +335,7 @@
         "everyone gets to speak, laugh, and be heard"
       ],
       "cover": "/brands/chit-chat/speech-bubble-logo.webp",
+      "tileCover": "/brands/chit-chat/stories-cover.webp",
       "sections": [
         {
           "type": "text",
@@ -366,6 +367,15 @@
       "layoutToPreserve": "Speech-bubble logo is the identity; doodles are supporting visual storytelling. The C is a clock-it finger gesture. Use microphone visual without RODE lettering.",
       "source": "approved case-study specification and provided artwork",
       "assetState": "existing website assets"
+    }
+  ],
+  "upcoming": [
+    {
+      "id": "nurush",
+      "name": "NURUSH",
+      "highlight": "#126311",
+      "tileCover": "/brands/nurush/stories-cover.webp",
+      "status": "Case study coming soon"
     }
   ]
 }

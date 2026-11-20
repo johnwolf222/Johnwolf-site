@@ -110,3 +110,9 @@
 .jw-case-grid--brewty{grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(10px,1.5vw,22px);align-items:stretch}
 .jw-case-grid--brewty img{width:100%;height:auto;aspect-ratio:4/5;object-fit:contain;background:#fcf3e5;box-shadow:none}
 @media(max-width:520px){.jw-case-grid--brewty{gap:6px}}
+
+/* Preserve complete supplied cover compositions in the case-study index. */
+.jw-case-tile--custom-cover img{object-fit:contain;background:#f5f4f2}
+.jw-case-tile--upcoming{cursor:default}
+.jw-case-tile--upcoming:hover{transform:none;box-shadow:none}
+.jw-case-tile--upcoming b{font-size:13px;letter-spacing:.02em;white-space:nowrap}

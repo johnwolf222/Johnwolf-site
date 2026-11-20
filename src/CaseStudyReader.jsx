@@ -5,6 +5,7 @@ import content from './content/approved-case-studies.json';
 import './CaseStudyReader.css';
 
 const entries=content.studies;
+const upcoming=content.upcoming||[];
 const lookup=Object.fromEntries(entries.map(item=>[item.id,item]));
 const labelFor=name=>{
  const candidate=entries.find(item=>item.name.toLowerCase()===name?.toLowerCase());
@@ -207,11 +208,14 @@ export default function CaseStudyReader({selectedProject,onClose}){
    <button type="button" className="jw-case-details-toggle" onClick={()=>setDetails(x=>!x)} aria-expanded={details}>{details?'Close details':'View details'}</button>
    {details&&<aside className="jw-case-details"><h3>{study?.name||'Case studies'}</h3><p>{study?.intro||'Six identities created by John Wolf.'}</p><p>Scroll or drag vertically. The gallery repeats continuously.</p></aside>}
    {!study?<div className="jw-case-library" aria-label="Choose a case study">
-     <div className="jw-case-library__intro"><span>JOHN WOLF · SELECTED WORK</span><h2>Stories behind the work.</h2><p>Six identities and the thinking behind each one.</p></div>
-     <div className="jw-case-library__grid">{entries.map(item=><button type="button" className="jw-case-tile" key={item.id} onClick={()=>{setActive(item.id);setDetails(false);}} style={{'--jw-case-color':item.highlight}}>
-       {item.cover?<img src={item.cover} alt="" loading="lazy"/>:<div className="jw-case-tile__type">{item.name}</div>}
+     <div className="jw-case-library__intro"><span>JOHN WOLF · SELECTED WORK</span><h2>Stories behind the work.</h2><p>Six case studies and one upcoming project.</p></div>
+     <div className="jw-case-library__grid">{entries.map(item=><button type="button" className={'jw-case-tile'+(item.tileCover?' jw-case-tile--custom-cover':'')} key={item.id} onClick={()=>{setActive(item.id);setDetails(false);}} style={{'--jw-case-color':item.highlight}}>
+       {(item.tileCover||item.cover)?<img src={item.tileCover||item.cover} alt="" loading="lazy"/>:<div className="jw-case-tile__type">{item.name}</div>}
        <span>{item.name}<b>↗</b></span>
-     </button>)}</div>
+     </button>)}{upcoming.map(item=><div className="jw-case-tile jw-case-tile--custom-cover jw-case-tile--upcoming" key={item.id} style={{'--jw-case-color':item.highlight}} aria-label={item.name+', case study coming soon'}>
+        <img src={item.tileCover} alt={item.name+' cover artwork'} loading="lazy"/>
+        <span>{item.name}<b>Coming soon</b></span>
+      </div>)}</div>
     </div>:<div ref={scrollRef} className="jw-case-scroll" style={{'--jw-case-color':study.highlight}} onScroll={cycleScroll} key={study.id} tabIndex={0} aria-label={study.name+' case study, scroll or drag vertically'}>
      {[0,1,2].map(cycle=><OneCycle key={cycle} study={study} cycle={cycle}/>)}
     </div>}
