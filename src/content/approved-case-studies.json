@@ -334,17 +334,38 @@
         "clock it",
         "everyone gets to speak, laugh, and be heard"
       ],
-      "cover": null,
-      "sections": [],
-      "mediaToAttach": [
-        "Chi chat bubble2 copy.png",
-        "chi chat mood 2.png",
-        "chitchat_podcast_microphone_setup.png",
-        "Untitled Design (1)(1).png"
+      "cover": "/brands/chit-chat/speech-bubble-logo.webp",
+      "sections": [
+        {
+          "type": "text",
+          "body": "The speech bubble gives conversation a visual home. Inside the letter C, a subtle finger gesture adds a playful nod to “clock it”—recognizing what is being said and calling attention to the moment.",
+          "emphasis": [
+            "speech bubble",
+            "clock it"
+          ]
+        },
+        {
+          "type": "image",
+          "src": "/brands/chit-chat/microphone-doodles.webp",
+          "alt": "Chit-Chat podcast logo, clean microphone setup and expressive black-and-yellow doodles"
+        },
+        {
+          "type": "text",
+          "body": "Yellow, black, and white give the identity its confidence and energy. Doodles and expressive details support the conversation without distracting from the original logo.",
+          "emphasis": [
+            "Yellow, black, and white"
+          ]
+        },
+        {
+          "type": "image",
+          "src": "/brands/chit-chat/podcast-hosts.webp",
+          "alt": "Chit-Chat concept scene featuring two podcast hosts in yellow chairs"
+        }
       ],
+      "mediaToAttach": [],
       "layoutToPreserve": "Speech-bubble logo is the identity; doodles are supporting visual storytelling. The C is a clock-it finger gesture. Use microphone visual without RODE lettering.",
       "source": "approved case-study specification and provided artwork",
-      "assetState": "original uploaded files reviewed; pending transfer to public website asset directory"
+      "assetState": "existing website assets"
     }
   ]
 }
