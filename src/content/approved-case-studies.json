@@ -285,7 +285,7 @@
           "type": "video",
           "src": "/brands/brewty/steam-pattern-film.mp4",
           "poster": "/brands/brewty/steam-pattern.webp",
-          "title": "Brewty animated steam pattern — 43.5-second continuous loop"
+          "title": "Brewty animated pattern — 24.98-second continuous loop"
         },
         {
           "type": "video",
@@ -302,9 +302,9 @@
         "Brewty aimation with pattern.mp4",
         "Brewty vid.mp4"
       ],
-      "layoutToPreserve": "Display the user-supplied combined Brewty.png image once, full-width and uncropped. Keep animated steam film unchanged. Play the newly supplied 5-second Brewty.mp4 in the original brand-film position, autoplay muted, inline and looping.",
+      "layoutToPreserve": "Display the user-supplied combined Brewty.png image once, full-width and uncropped. Replace the first Brewty animated-pattern film with the supplied Brewty vid(1).mp4, autoplay muted, inline and looping. Preserve the newer 5-second Brewty brand film unchanged.",
       "source": "approved case-study specification and provided artwork",
-      "assetState": "Original user-supplied Brewty combined character artwork; brand film replaced with uploaded Brewty.mp4, with SHA-256 verified at build; animated steam pattern film unchanged",
+      "assetState": "User-supplied combined Brewty artwork and brand film preserved; animated pattern video replaced with uploaded Brewty vid(1).mp4, verified by SHA-256 during build",
       "coverInGrid": true
     },
     {
