@@ -277,24 +277,9 @@
       "cover": "/brands/brewty/packaging.webp",
       "sections": [
         {
-          "type": "grid",
-          "columns": 3,
-          "variant": "brewty",
-          "srcs": [
-            "/brands/brewty/steam-pattern.webp",
-            "/brands/brewty/packaging.webp",
-            "/brands/brewty/line-art-character.webp"
-          ],
-          "alts": [
-            "Original Brewty blue steam-flow pattern on cream",
-            "Original Brewty dark roast coffee package with logo and character",
-            "Original black and white Brewty character illustration and logo"
-          ]
-        },
-        {
           "type": "image",
-          "src": "/brands/brewty/colored-character.webp",
-          "alt": "Original full-color Brewty coffee character illustration in blue, cream and brown"
+          "src": "/brands/brewty/combined-artwork.webp",
+          "alt": "Original combined Brewty comparison artwork: black-and-white coffee character on the left and blue-brown full-color character on the right"
         },
         {
           "type": "video",
@@ -317,9 +302,9 @@
         "Brewty aimation with pattern.mp4",
         "Brewty vid.mp4"
       ],
-      "layoutToPreserve": "The three original images shown first (steam pattern, coffee bag and black-and-white character) share one row of three equal-width, evenly spaced, uncropped tiles. Colored character follows. Both full-length films autoplay muted, inline, loop.",
+      "layoutToPreserve": "Display the user-supplied combined Brewty.png image once, full-width and uncropped, precisely where the previous three-image row and large colored character appeared. Keep both existing full-length films autoplaying muted, inline and looping.",
       "source": "approved case-study specification and provided artwork",
-      "assetState": "original uploaded artwork and both films committed; films reconstructed and verified during build",
+      "assetState": "User-supplied combined Brewty character artwork installed; existing brand films retained and reconstructed during build",
       "coverInGrid": true
     },
     {

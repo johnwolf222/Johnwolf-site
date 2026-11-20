@@ -32,12 +32,13 @@ test('brand-specific approved layouts and effects remain captured',()=>{
  assert.ok(byId.riches.sections.some(s=>s.type==='grid'&&s.columns===2&&s.srcs.length===4));
  assert.ok(byId['bring-love-back'].sections.some(s=>s.type==='compare'));
  assert.ok(byId['bring-love-back'].sections.some(s=>s.type==='video'));
- assert.ok(byId.brewty.layoutToPreserve.includes('three'));
- assert.equal(byId.brewty.sections[0].type,'grid');
- assert.equal(byId.brewty.sections[0].columns,3);
- assert.equal(byId.brewty.sections[0].srcs.length,3);
+ assert.equal(byId.brewty.sections[0].type,'image');
+ assert.equal(byId.brewty.sections[0].src,'/brands/brewty/combined-artwork.webp');
+ assert.equal(byId.brewty.sections.length,3);
  assert.equal(byId.brewty.sections.filter(s=>s.type==='video').length,2);
- assert.ok(byId.brewty.sections[0].srcs[0].includes('steam-pattern'));
+ assert.ok(!byId.brewty.sections.some(s=>s.type==='grid'));
+ assert.ok(!byId.brewty.sections.some(s=>s.src==='/brands/brewty/colored-character.webp'));
+ assert.ok(byId.brewty.layoutToPreserve.includes('combined Brewty.png'));
  assert.equal(byId.brewty.coverInGrid,true);
  assert.ok(byId.inkzilla.layoutToPreserve.includes('comparison'));
  assert.ok(byId['chit-chat'].layoutToPreserve.includes('clock-it'));
