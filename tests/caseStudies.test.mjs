@@ -36,6 +36,8 @@ test('brand-specific approved layouts and effects remain captured',()=>{
  assert.equal(byId.brewty.sections[0].src,'/brands/brewty/combined-artwork.webp');
  assert.equal(byId.brewty.sections.length,3);
  assert.equal(byId.brewty.sections.filter(s=>s.type==='video').length,2);
+ assert.ok(byId.brewty.sections.find(s=>s.src==='/brands/brewty/brand-film.mp4')?.title.includes('5-second'));
+ assert.ok(read('scripts/restore-brewty-media.mjs').includes("name:'brand-film.mp4',parts:7,bytes:2780133"));
  assert.ok(!byId.brewty.sections.some(s=>s.type==='grid'));
  assert.ok(!byId.brewty.sections.some(s=>s.src==='/brands/brewty/colored-character.webp'));
  assert.ok(byId.brewty.layoutToPreserve.includes('combined Brewty.png'));

@@ -291,7 +291,7 @@
           "type": "video",
           "src": "/brands/brewty/brand-film.mp4",
           "poster": "/brands/brewty/packaging.webp",
-          "title": "Brewty brand film — 25-second continuous loop"
+          "title": "Brewty brand film — 5-second continuous loop"
         }
       ],
       "mediaToAttach": [
@@ -302,9 +302,9 @@
         "Brewty aimation with pattern.mp4",
         "Brewty vid.mp4"
       ],
-      "layoutToPreserve": "Display the user-supplied combined Brewty.png image once, full-width and uncropped, precisely where the previous three-image row and large colored character appeared. Keep both existing full-length films autoplaying muted, inline and looping.",
+      "layoutToPreserve": "Display the user-supplied combined Brewty.png image once, full-width and uncropped. Keep animated steam film unchanged. Play the newly supplied 5-second Brewty.mp4 in the original brand-film position, autoplay muted, inline and looping.",
       "source": "approved case-study specification and provided artwork",
-      "assetState": "User-supplied combined Brewty character artwork installed; existing brand films retained and reconstructed during build",
+      "assetState": "Original user-supplied Brewty combined character artwork; brand film replaced with uploaded Brewty.mp4, with SHA-256 verified at build; animated steam pattern film unchanged",
       "coverInGrid": true
     },
     {

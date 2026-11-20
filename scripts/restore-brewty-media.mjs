@@ -4,7 +4,7 @@ import {resolve,join} from 'node:path';
 const root=resolve(import.meta.dirname,'..');
 const videoFiles=[
  {name:'steam-pattern-film.mp4',parts:8,bytes:3618348,sha256:'9341714336f3ed9d54e222e1a00057bb289b1d498a7f92cb7550c4484043df18'},
- {name:'brand-film.mp4',parts:6,bytes:2418742,sha256:'46700bbe05029df4642a5fd558099e42f0e6944651a377baa38277adfe46403b'}
+ {name:'brand-film.mp4',parts:7,bytes:2780133,sha256:'292a743805ef17dc047d4b8c6f06d926b8ca7255afb49a8b9008f0770b94f2a6'}
 ];
 const sha256=bytes=>createHash('sha256').update(bytes).digest('hex');
 for(const media of videoFiles){
