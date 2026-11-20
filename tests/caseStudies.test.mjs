@@ -6,13 +6,13 @@ import {resolve} from 'node:path';
 const root=resolve(import.meta.dirname,'..');
 const read=path=>readFileSync(resolve(root,path),'utf8');
 const data=JSON.parse(read('src/content/approved-case-studies.json'));
-const expected=['chick-muy-caliente','riches','bring-love-back','inkzilla','brewty','chit-chat'];
+const expected=['chick-muy-caliente','riches','bring-love-back','inkzilla','brewty','chit-chat','nurush'];
 const byId=Object.fromEntries(data.studies.map(s=>[s.id,s]));
 const reader=read('src/CaseStudyReader.jsx');
 const gallery=read('src/ProjectsSequence.jsx');
 const stylesheet=read('src/ProjectsSequence.css');
 const viewerStyles=read('src/CaseStudyReader.css');
-test('the six approved case studies remain distinct with first-person narratives',()=>{
+test('the seven approved case studies remain distinct with first-person narratives',()=>{
  assert.deepEqual(data.studies.map(s=>s.id),expected);
  data.studies.forEach(s=>{assert.ok(s.intro.includes('I '),s.id+' first person');assert.ok(s.highlight.startsWith('#'),s.id+' marker color');});
 });
@@ -24,6 +24,9 @@ test('no source images in the live reader point at missing repository assets',()
 });
 test('brand-specific approved layouts and effects remain captured',()=>{
  assert.equal(byId['chit-chat'].highlight.toUpperCase(),'#F7B00B');
+ assert.equal(byId.nurush.highlight.toUpperCase(),'#126311');
+ assert.equal(byId.nurush.cover,'/brands/nurush/stories-cover.webp');
+ assert.ok(byId.nurush.sections.some(s=>s.src==='/brands/nurush/green-identity.webp'));
  assert.equal(byId['inkzilla'].highlight.toUpperCase(),'#DC342E');
  assert.equal(byId['chick-muy-caliente'].highlight.toUpperCase(),'#F0BB28');
  assert.ok(byId.riches.sections.some(s=>s.type==='grid'&&s.columns===2&&s.srcs.length===4));
@@ -54,7 +57,7 @@ test('existing 21-card choreography remains; gallery case study actions clickabl
  assert.ok(gallery.includes('LivePaperRenderer'));
  assert.ok(gallery.includes('HomePaperMotion'));
  assert.ok(gallery.includes('CaseStudyReader'));
- assert.ok(gallery.includes('Explore all six'));
+ assert.ok(gallery.includes('Explore all seven'));
  assert.ok(gallery.includes('setOpenedProject(PROJECTS[activeRef.current])'));
  assert.ok(stylesheet.includes('.jw-projects-stage__details{pointer-events:auto;}'));
 });

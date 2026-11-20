@@ -367,15 +367,78 @@
       "layoutToPreserve": "Speech-bubble logo is the identity; doodles are supporting visual storytelling. The C is a clock-it finger gesture. Use microphone visual without RODE lettering.",
       "source": "approved case-study specification and provided artwork",
       "assetState": "existing website assets"
-    }
-  ],
-  "upcoming": [
+    },
     {
       "id": "nurush",
       "name": "NURUSH",
+      "eyebrow": "HEALTHY FOOD SERVICE · BRAND IDENTITY",
       "highlight": "#126311",
+      "intro": "I set out to create more than a name for a healthy food service. The challenge was to shape a name and feeling that would be memorable, timeless, and immediately connected to nourishment. I wanted the identity to feel fresh without following a passing trend, and simple enough to remain recognizable wherever the brand appears.",
+      "beats": [
+        "The result is a distinctive direction, not a claim of measured market performance. The name, logo, and green palette give NURUSH a cohesive foundation designed for recognition and longevity.",
+        "My goal was for the identity to communicate care and freshness at a glance, while leaving the name room to grow with the brand."
+      ],
+      "highlights": [
+        "memorable",
+        "timeless",
+        "NURUSH",
+        "nourish",
+        "name, logo, and color",
+        "green palette",
+        "cohesive foundation"
+      ],
+      "cover": "/brands/nurush/stories-cover.webp",
       "tileCover": "/brands/nurush/stories-cover.webp",
-      "status": "Case study coming soon"
+      "sections": [
+        {
+          "type": "text",
+          "body": "The brand problem was to create a name and feeling that people could remember and that would stay relevant over time. I approached the challenge through three connected decisions: name, logo, and color.",
+          "emphasis": [
+            "name and feeling",
+            "name, logo, and color"
+          ]
+        },
+        {
+          "type": "image",
+          "src": "/brands/nurush/green-identity.webp",
+          "alt": "NURUSH identity in white against a food photography composition with a transparent green overlay and white frame"
+        },
+        {
+          "type": "text",
+          "body": "NURUSH is a play on the word nourish. The familiar meaning suggests food, care, and wellbeing, while the altered spelling gives the name a distinct personality. I built the logo around bold, approachable lettering and a sprout detail to connect the identity to freshness and growth.",
+          "emphasis": [
+            "NURUSH",
+            "nourish",
+            "sprout detail"
+          ]
+        },
+        {
+          "type": "image",
+          "src": "/logos/nurush.webp",
+          "alt": "NURUSH green wordmark and sprout symbol"
+        },
+        {
+          "type": "text",
+          "body": "The green color reinforces the idea of freshness and nourishment. Paired with white and food imagery, it creates an identity that can feel clear, grounded, and energetic without adding unnecessary complexity.",
+          "emphasis": [
+            "green color",
+            "freshness and nourishment"
+          ]
+        },
+        {
+          "type": "text",
+          "body": "The design outcome is a memorable name and a coordinated logo and color direction. This is an assessment of the creative solution—not an assertion of tested customer recall, market growth, or other unmeasured business results.",
+          "emphasis": [
+            "memorable name",
+            "coordinated logo and color direction"
+          ]
+        }
+      ],
+      "mediaToAttach": [],
+      "layoutToPreserve": "Original supplied clean Stories Behind the Work cover stays unchanged. Case study uses the user's green food composition and approved NURUSH logo, with NURUSH green highlights; no fabricated market performance.",
+      "source": "user-provided NURUSH brand images and creative brief",
+      "assetState": "original cover and logo existing; additional supplied green identity artwork installed"
     }
-  ]
+  ],
+  "upcoming": []
 }
