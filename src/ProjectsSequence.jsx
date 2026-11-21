@@ -6,11 +6,15 @@ import './ProjectsSequence.css';
 import LivePaperRenderer from './LivePaperRenderer.jsx';
 import CaseStudyReader from './CaseStudyReader.jsx';
 import { createHomePaperMotion } from './HomePaperMotion.js';
+import {
+  aboutHandoffProgress, departingCardOffset, aboutHeadPose,
+  aboutHeadOpacity,
+} from './AboutHandoffMotion.js';
 import { spiralGalleryPose, galleryHeadPlacement, galleryRowOffset, GALLERY_FOCAL, TRAIN_START, TRAIN_END } from './SpiralGalleryMotion.js';
 import {
   wrapGalleryFocus, wrappedGalleryDistance, nearestGalleryIndex,
   stepGalleryFocus, dragGalleryFocus, gallerySeamOpacity,
-  galleryRestScrollY, shouldAutoLand, galleryExitFade,
+  galleryRestScrollY, shouldAutoLand,
   initialGalleryWheelState, galleryWheelGesture,
   initialGalleryVerticalState, galleryVerticalExitGesture,
   gallerySnapDuration, gallerySwipeDirection,
@@ -92,6 +96,7 @@ export default function ProjectsSequence() {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     let sectionTop = 0;
     let sectionHeight = 0;
+    let aboutBottom = Infinity;
     let width = window.innerWidth;
     let height = window.innerHeight;
     let homeMotion = createHomePaperMotion(width, height);
@@ -130,6 +135,8 @@ export default function ProjectsSequence() {
     function measure() {
       sectionTop = docTop(section);
       sectionHeight = section.getBoundingClientRect().height;
+      const about = document.querySelector('#about');
+      aboutBottom = about ? docTop(about) + about.getBoundingClientRect().height : Infinity;
       const nextWidth = window.innerWidth;
       const nextHeight = window.innerHeight;
       if (width !== nextWidth || height !== nextHeight) {
@@ -154,7 +161,7 @@ export default function ProjectsSequence() {
     const canInteract = () =>
       travel.progress >= TRAIN_END - .0001 &&
       window.scrollY >= sectionTop - height * .25 &&
-      window.scrollY < sectionTop + sectionHeight - height * .23;
+      window.scrollY < sectionTop + sectionHeight - height * .70;
 
     function targetForCard(id, galleryFocus) {
       const spotlightIndex = PROJECTS.findIndex(project => project.image === id);
@@ -177,7 +184,7 @@ export default function ProjectsSequence() {
       };
     }
 
-    function positionCard(card, index, phase, galleryFocus, exitFade) {
+    function positionCard(card, index, phase, galleryFocus, handoff) {
       const id = index + 1;
       const target = targetForCard(id, galleryFocus);
       const spotlight = PROJECTS.findIndex(project => project.image === id);
@@ -194,14 +201,17 @@ export default function ProjectsSequence() {
       const motion = spiralGalleryPose(phase, index, rank,
         width, height, target);
       const started = phase >= motion.start;
-      const finalX = started ? motion.x : flight.x;
-      const finalY = started ? motion.y : flight.y;
+      // The existing seven gallery sheets travel RIGHT together during
+      // Projects → About; the remaining Home papers stay offscreen left.
+      const depart = departingCardOffset(handoff, rank, width, height);
+      const finalX = (started ? motion.x : flight.x) + depart.x;
+      const finalY = (started ? motion.y : flight.y) + depart.y;
       const finalZ = started ? motion.z : flight.z;
       const finalScale = started ? motion.scale : flight.scale;
       const rotX = started ? motion.rx : flight.rx;
-      const rotY = started ? motion.ry : flight.ry;
+      const rotY = (started ? motion.ry : flight.ry) + depart.ry;
       const rotZ = started ? motion.rz : flight.rz;
-      const opacity = (started ? motion.opacity : flight.opacity) * exitFade;
+      const opacity = (started ? motion.opacity : flight.opacity) * depart.opacity;
       const front = started && motion.front;
 
       // Skip the duplicate DOM rasterization work while our ONE GPU surface
@@ -246,7 +256,8 @@ export default function ProjectsSequence() {
         wrap: flight.wrap * (1 - smooth(phase, .012, .085)),
       });
       card.dataset.depth = String(finalZ);
-      card.dataset.phase = phase === 0 ? 'home-current' :
+      card.dataset.phase = handoff > .001 && rank >= 0 ? 'depart-right' :
+        phase === 0 ? 'home-current' :
         phase < .272 ? 'rewind' :
           started ? motion.stage : 'behind-head';
     }
@@ -276,32 +287,36 @@ export default function ProjectsSequence() {
       const galleryFocus = loopEnabled && travel.progress >= TRAIN_END
         ? loopFocus : scrollFocus();
       const galleryActive = scrollY >= sectionTop - height * .25;
-      // One viewport for Projects: remain fully visible while locked,
-      // then gently fade the shared head/cards as About takes the screen.
-      const exitFade = galleryExitFade(scrollY, sectionTop,
-        sectionHeight, height);
-      const stageOpacity = smooth(p, .09, .19) * exitFade;
+      // Render the actual cards until they have swept past the RIGHT edge.
+      const handoff = aboutHandoffProgress(scrollY,
+        sectionTop, sectionHeight, height);
+      const stageOpacity = smooth(p, .09, .19) *
+        (1 - smooth(handoff, .96, 1));
       const isShown = stageOpacity > .008 &&
-        scrollY < sectionTop + sectionHeight - height * .09;
-      const sceneOpacity = galleryActive ? exitFade : stageOpacity;
+        scrollY < sectionTop + sectionHeight - height * .01;
+      const sceneOpacity = stageOpacity;
       const textFade = 1 - smooth(p, .035, .252);
       const subFade = 1 - smooth(p, .050, .250);
       const bottomFade = 1 - smooth(p, .018, .210);
-      // Keep the SAME live GLB at the top center of Projects, not offscreen.
-      // Only the eventual departure from the Projects section may fade it.
-      const headPlacement = galleryHeadPlacement(p, height);
+      // Keep the SAME mounted Candidate F GLB, following the scroll down
+      // into the About composition; fade only when Contact approaches.
+      const headPlacement = aboutHeadPose(handoff,
+        galleryHeadPlacement(p, height), width, height);
+      const headOpacity = aboutHeadOpacity(scrollY, aboutBottom, height);
 
       // Fade all Home lettering IN PLACE. Do not move any text off the page,
       // and do not modify the approved per-letter rolling GSAP timeline.
       if (title) title.style.opacity = String(textFade);
-      if (ink) ink.style.opacity = String(textFade * exitFade);
+      if (ink) ink.style.opacity = String(textFade);
       if (subtitle) subtitle.style.opacity = String(subFade);
       if (indicators) indicators.style.opacity = String(subFade);
       if (bottom) bottom.style.opacity = String(bottomFade);
       home.style.setProperty('--jw-home-blow', '0');
 
-      head.style.opacity = String(exitFade);
-      head.style.visibility = exitFade < .005 ? 'hidden' : 'visible';
+      head.style.opacity = String(headOpacity);
+      head.style.visibility = headOpacity < .005 ? 'hidden' : 'visible';
+      head.style.setProperty('--jw-head-x',
+        headPlacement.x.toFixed(2) + 'px');
       head.style.setProperty('--jw-head-shift',
         headPlacement.shift.toFixed(2) + 'px');
       head.style.setProperty('--jw-head-scale',
@@ -311,11 +326,12 @@ export default function ProjectsSequence() {
       stage.style.visibility = isShown ? 'visible' : 'hidden';
       stage.dataset.galleryInteractive = canInteract() && isShown
         ? 'true' : 'false';
-      if (copy) copy.style.opacity = String(smooth(p, .922, .992) * exitFade);
+      if (copy) copy.style.opacity = String(smooth(p, .922, .992) *
+        (1 - smooth(handoff, .02, .38)));
 
       for (let i = 0; i < CARD_COUNT; i++) {
         if (cardRefs.current[i]) {
-          positionCard(cardRefs.current[i], i, p, galleryFocus, exitFade);
+          positionCard(cardRefs.current[i], i, p, galleryFocus, handoff);
         }
       }
       gpuPaperRef.current?.draw(p);
@@ -371,7 +387,7 @@ export default function ProjectsSequence() {
     const restingInGallery = () =>
       travel.progress >= TRAIN_END - .0001 &&
       window.scrollY >= sectionTop - height * .10 &&
-      window.scrollY < sectionTop + sectionHeight - height * .23;
+      window.scrollY < sectionTop + sectionHeight - height * .70;
 
     const restoreScrollBehavior = () => {
       if (previousScrollBehavior === null) return;
@@ -838,6 +854,7 @@ export default function ProjectsSequence() {
         if (el) el.style.opacity = '';
       }
       home.style.removeProperty('--jw-home-blow');
+      head.style.removeProperty('--jw-head-x');
       head.style.removeProperty('--jw-head-shift');
       head.style.removeProperty('--jw-head-scale');
       head.style.opacity = '';
