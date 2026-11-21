@@ -1,0 +1,123 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { setupFloppyDisk } from './about/floppy.js';
+import './AboutExperience.css';
+
+// The words and four chapters are preserved from the original Design Is Life
+// about.html. The same Candidate F GLB continues from Home and Projects;
+// this component NEVER mounts another head, canvas, or page iframe.
+export default function AboutExperience() {
+  const sectionRef = useRef(null);
+  const diskRef = useRef(null);
+  const [visible, setVisible] = useState(false);
+  const [color, setColor] = useState(false);
+  useEffect(() => {
+    const section = sectionRef.current;
+    const diskHost = diskRef.current;
+    if (!section) return undefined;
+    const visibility = new IntersectionObserver(entries => {
+      setVisible(Boolean(entries[0]?.isIntersecting));
+    }, { rootMargin: '80px 0px 80px 0px' });
+    visibility.observe(section);
+    let disposeDisk;
+    const diskObserver = new IntersectionObserver(entries => {
+      if (entries[0]?.isIntersecting && !disposeDisk && diskHost) {
+        // The original glTF is optional; the supplied procedural THREE disk
+        // is the intentional fallback when /floppy/scene.gltf is absent.
+        disposeDisk = setupFloppyDisk(diskHost);
+      }
+    }, { rootMargin: '450px' });
+    if (diskHost) diskObserver.observe(diskHost);
+    const impact = event => {
+      if (!section.getBoundingClientRect().height) return;
+      section.classList.remove('jw-about-impact');
+      void section.offsetWidth;
+      section.classList.add('jw-about-impact');
+      const center = event.detail || {};
+      if (Number.isFinite(center.x) && Number.isFinite(center.y)) {
+        const x = center.x / Math.max(1, window.innerWidth) * 100;
+        const y = center.y / Math.max(1, window.innerHeight) * 100;
+        section.style.setProperty('--about-impact-x', x + '%');
+        section.style.setProperty('--about-impact-y', y + '%');
+      }
+    };
+    const clearImpact = () => section.classList.remove('jw-about-impact');
+    section.addEventListener('animationend', clearImpact);
+    window.addEventListener('jw-about-impact', impact);
+    return () => {
+      visibility.disconnect();
+      diskObserver.disconnect();
+      disposeDisk?.();
+      section.removeEventListener('animationend', clearImpact);
+      window.removeEventListener('jw-about-impact', impact);
+      section.classList.remove('jw-about-three-ready', 'jw-about-impact');
+    };
+  }, []);
+
+  const toggleColor = () => {
+    const next = !color;
+    setColor(next);
+    window.dispatchEvent(new CustomEvent('jw-about-color', {
+      detail: { enabled: next },
+    }));
+  };
+
+  return (
+    <section
+      id="about"
+      ref={sectionRef}
+      className="about jw-about-experience"
+      aria-label="About John Wolf — Design Is Life"
+    >
+      <div className="jw-about-signature" aria-hidden="true">
+        JOHN WOLF <span>●</span> VISION LAB / 01
+      </div>
+      <div className="jw-about-statement" aria-label="Design is life">
+        <div className="jw-about-type-stack">
+          <p className="jw-about-line">Now I can’t speak for</p>
+          <p className="jw-about-line">everyone... But at least for me,</p>
+          <p className="jw-about-line jw-about-line--last">Design is life!</p>
+        </div>
+      </div>
+
+      <div className="jw-about-story-messages" aria-label="My story about design">
+        <article className="jw-about-message story-message story-left" data-story="1">
+          <p>So… what is the human nature of design to me?</p>
+          <p>Well, it's the creation of the mind's eye, a way to take something intangible like dreams, thoughts, imaginations, ideas, and turn them into things that can literally function in the physical world.</p>
+        </article>
+        <article className="jw-about-message story-message story-right story-floppy" data-story="2">
+          <div ref={diskRef} className="jw-about-disk disk-view"
+            aria-label="A slowly rotating 3D floppy disk" />
+          <p>The first design I ever saved was on one of these. What is it?</p>
+          <p>Well… if you know, you know. I was fortunate enough to start early, knowing what makes designs unique and how to communicate that is a practice that can be explained but is better experienced.</p>
+        </article>
+        <article className="jw-about-message story-message story-left" data-story="3">
+          <p>Some people say <em>“art is subjective.”</em> However, I believe there is always a fine line.</p>
+          <p>It twists, turns, it bends, and breaks, but somewhere along those lines, we genuinely agree with appealing visuals that intentional lines create.</p>
+        </article>
+        <article className="jw-about-message story-message story-right" data-story="4">
+          <p>What am I good at? <em>Let's see.</em></p>
+          <p>Photoshop, Illustrator, Procreate, graphic design, copywriting, visual design, brand identity, logo development, presentations, and recently website development, machine learning, and AI prompt writing. Just to keep it short.</p>
+        </article>
+      </div>
+
+      {visible && <button
+        type="button"
+        className="jw-about-color-switch"
+        aria-label={color ? 'Return head to black and white' : 'Reveal head in color'}
+        aria-pressed={color}
+        title="Change perspective"
+        onClick={toggleColor}
+      >
+        <span aria-hidden="true" />
+      </button>}
+      <div className="jw-about-footer">
+        JOHN WOLF <span aria-hidden="true">·</span> DESIGN IS LIFE.
+        <small>Floppy disk 3D model reference: <a
+          href="https://sketchfab.com/3d-models/floppy-disk-15444a8efd38476f9457acce300edf0c"
+          target="_blank" rel="noopener noreferrer">drumdorf / Sketchfab</a>
+          {' '}· <a href="https://creativecommons.org/licenses/by-sa/4.0/"
+            target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a></small>
+      </div>
+    </section>
+  );
+}
