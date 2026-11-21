@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import {
   spiralGalleryPose, clockwiseTrack, galleryCameraProgress, galleryHeadPlacement,
   galleryRowOffset, CAMERA_DESCENT, UNWIND_START, OFFSCREEN_START,
@@ -781,7 +781,7 @@ test('original Design Is Life About uses the ONE approved GLB and scrolls throug
   assert.match(about, /everyone\.\.\. But at least for me,/);
   assert.match(about, /Design is life!/);
   assert.match(about, /the human nature of design to me/);
-  assert.match(about, /first design I ever saved/);
+  assert.match(about, /I was fortunate enough to start early/);
   assert.match(about, /art is subjective/);
   assert.match(about, /Photoshop, Illustrator, Procreate/);
   assert.match(originalPage, /Now I can’t speak for/);
@@ -795,7 +795,8 @@ test('original Design Is Life About uses the ONE approved GLB and scrolls throug
   assert.match(head, /floatingStory\.update\(dt\)/);
   assert.match(head, /opticalRipple\.render\(controller\.time\)/);
   assert.match(head, /window\.addEventListener\('jw-about-color', onAboutColor\)/);
-  assert.match(about, /setupFloppyDisk\(diskHost\)/);
+  assert.doesNotMatch(about, /setupFloppyDisk|disk-view|floppy|Sketchfab/i,
+    'deleted drive must not reappear in the live About page');
   assert.match(aboutCSS, /jw-about-three-ready/);
   assert.match(motion, /observer\.observe\(aboutNode\)/);
   assert.doesNotMatch(head, /!live \|\| !loaded \|\| !visible/,
@@ -927,4 +928,30 @@ test('Section 3 ABOUT heading precisely matches Section 2 PROJECTS purple displa
     'About heading must also match the Projects mobile font scale');
   assert.match(aboutCss, /top: clamp\(94px, 14vh, 127px\);/,
     'mobile heading must align with Projects top spacing');
+});
+
+test('3D drive is completely absent from both About pages and no unused renderer remains', () => {
+  const live = readFileSync(new URL('../src/AboutExperience.jsx', import.meta.url), 'utf8');
+  const liveCss = readFileSync(new URL('../src/AboutExperience.css', import.meta.url), 'utf8');
+  const standalone = readFileSync(new URL('../about.html', import.meta.url), 'utf8');
+  const standaloneJs = readFileSync(new URL('../src/about/main.js', import.meta.url), 'utf8');
+  const standaloneCss = readFileSync(new URL('../src/about/style.css', import.meta.url), 'utf8');
+  const story = readFileSync(new URL('../src/about/floating-story.js', import.meta.url), 'utf8');
+
+  for (const [label, content] of [
+    ['live About', live], ['live CSS', liveCss],
+    ['standalone About', standalone], ['standalone controller', standaloneJs],
+    ['standalone CSS', standaloneCss], ['3D narrative', story],
+  ]) {
+    assert.doesNotMatch(content, /floppy|disk.view|diskRef|diskHost|setupFloppyDisk|sketchfab|story-floppy|jw-about-disk|first design I ever saved/i,
+      label + ' must not reference or initialize the deleted drive');
+  }
+  assert.equal(existsSync(new URL('../src/about/floppy.js', import.meta.url)), false,
+    'standalone Three.js drive implementation must be deleted, not merely hidden');
+  assert.equal((live.match(/data-story="/g) || []).length, 4,
+    'four About chapters must remain');
+  assert.match(live, /jw-about-heading">ABOUT<\/h2>/,
+    'approved purple ABOUT heading must remain');
+  assert.match(live, /I was fortunate enough to start early/,
+    'second chapter must remain coherent without a model');
 });
