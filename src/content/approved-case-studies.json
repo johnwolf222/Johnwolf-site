@@ -106,7 +106,7 @@
         {
           "type": "grid",
           "columns": 2,
-          "variant": "uncropped",
+          "variant": "riches",
           "srcs": [
             "/brands/riches/editorial-portrait.webp",
             "/brands/riches/the-code.webp",
