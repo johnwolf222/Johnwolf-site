@@ -485,8 +485,10 @@ test('Section 2 waits after auto-landing and the next scroll enters About', () =
   assert.match(source, /scrollY < sectionTop \+ sectionHeight - height \* \.01/,
     'overlay must remain mounted until its fade finishes');
   assert.match(source, /snapState = 'settled'/);
-  assert.match(source, /exitReadyAt = performance\.now\(\) \+ 550/,
-    'the triggering scroll gesture must not immediately skip About');
+  assert.match(source, /exitReadyAt = performance\.now\(\) \+ 220/,
+    'brief fixed grace protects landing without trapping scrolling');
+  assert.doesNotMatch(source, /exitReadyAt = now \+ 220/,
+    'trackpad momentum must never extend the exit lock indefinitely');
   assert.match(source, /const onVerticalWheel = event =>/);
   assert.match(source, /galleryVerticalExitGesture\(/,
     'About must require an intentional downward gesture, not tiny Y noise');
@@ -602,15 +604,15 @@ test('tiny vertical noise during sideways swipes never skips to About', () => {
       'horizontal swipe was mistaken for a downward page transition');
   }
   assert.equal(state.total, 0);
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 3; i++) {
     const next = galleryVerticalExitGesture(state, 0, 2, 500 + i * 10);
     state = next.state;
     assert.equal(next.exit, false,
       'subthreshold vertical noise must not leave the gallery');
   }
-  assert.equal(state.total, 24);
-  assert.equal(galleryVerticalExitGesture(state, 0, 2, 620).exit, true,
-    'a sustained deliberate downward swipe must enter About');
+  assert.equal(state.total, 6);
+  assert.equal(galleryVerticalExitGesture(state, 0, 2, 530).exit, true,
+    'one deliberate trackpad swipe must enter About promptly');
   assert.equal(galleryVerticalExitGesture(
     initialGalleryVerticalState(), 0, 100, 0).exit, true,
     'a full mouse-wheel notch must enter About immediately');
@@ -618,8 +620,8 @@ test('tiny vertical noise during sideways swipes never skips to About', () => {
 
 test('vertical exit intent resets after a pause or horizontal gesture', () => {
   let state = initialGalleryVerticalState();
-  state = galleryVerticalExitGesture(state, 0, 14, 0).state;
-  assert.equal(galleryVerticalExitGesture(state, 0, 14, 300).exit, false,
+  state = galleryVerticalExitGesture(state, 0, 4, 0).state;
+  assert.equal(galleryVerticalExitGesture(state, 0, 4, 300).exit, false,
     'separate small gestures must not add up to an accidental About jump');
   const sideways = galleryVerticalExitGesture(state, -10, 2, 10);
   assert.equal(sideways.exit, false);
@@ -809,8 +811,8 @@ test('Section 2 → About stays fluid from gallery rest to original title reveal
   assert.match(source, /aboutIntroPose\(handoff, height\)/);
   assert.match(source, /setProperty\('--jw-about-intro-opacity'/);
   assert.match(source, /setProperty\('--jw-about-intro-lift'/);
-  assert.match(source, /animatePageTo\(docTop\(about\), 1\.65,/,
-    'the gallery-to-About journey must not whip by in one second');
+  assert.match(source, /animatePageTo\(docTop\(about\), 1\.08,/,
+    'gallery exit should begin promptly and still ease smoothly');
   assert.match(source, /}, 'sine\.inOut'\)/);
   assert.match(aboutCSS, /opacity: var\(--jw-about-intro-opacity, 1\)/);
   assert.match(aboutCSS, /transform: translate3d\(0, var\(--jw-about-intro-lift, 0px\), 0\)/);
@@ -860,4 +862,35 @@ test('Section 2 → About stays fluid from gallery rest to original title reveal
     assert.deepEqual(aboutIntroPose(.68, height), aboutIntroPose(.68, height),
       'reverse scroll must restore precisely the same intro pose');
   }
+});
+
+
+test('Section 2 scroll unlock never postpones itself with continued trackpad motion', () => {
+  const source = readFileSync(new URL('../src/ProjectsSequence.jsx',
+    import.meta.url), 'utf8');
+  const helper = readFileSync(new URL('../src/GalleryLoopMotion.js',
+    import.meta.url), 'utf8');
+  assert.match(source, /exitReadyAt = performance\.now\(\) \+ 220;/);
+  const wheelHandler = source.slice(source.indexOf('const onVerticalWheel = event =>'),
+    source.indexOf('const onTouchStart = event =>'));
+  assert.match(wheelHandler, /if \(now < exitReadyAt\)/);
+  assert.doesNotMatch(wheelHandler, /exitReadyAt\s*=/,
+    'incoming wheel events must not reset or extend the lock');
+  assert.match(source, /animatePageTo\(docTop\(about\), 1\.08,/);
+  assert.match(helper, /next\.total >= 8/);
+
+  let state = initialGalleryVerticalState();
+  const inputs = [1.4, 1.9, 2.3, 2.5];
+  let exits = 0;
+  for (let i = 0; i < inputs.length; i++) {
+    const result = galleryVerticalExitGesture(state, .1, inputs[i], i * 12);
+    state = result.state;
+    if (result.exit) exits++;
+  }
+  assert.equal(exits, 1,
+    'a single short vertical trackpad impulse must unlock without repeated scrolling');
+  const horizontal = galleryVerticalExitGesture(
+    initialGalleryVerticalState(), 9, 2, 0);
+  assert.equal(horizontal.exit, false,
+    'horizontal card navigation must remain separate from About scroll');
 });
