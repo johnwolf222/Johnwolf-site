@@ -145,7 +145,9 @@ export function galleryVerticalExitGesture(state, deltaX, deltaY, now) {
   const next = reset ? initialGalleryVerticalState() : { ...prior };
   next.lastAt = now;
   next.total += deltaY;
-  return { state: next, exit: next.total >= 26 };
+  // One mouse-wheel notch or the first few trackpad pixels must be enough
+  // after the short fixed landing grace. Keep sideways-noise rejection above.
+  return { state: next, exit: next.total >= 8 };
 }
 
 /**
