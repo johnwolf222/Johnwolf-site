@@ -449,9 +449,14 @@ export default function ProjectsSequence() {
         Math.max(pinned.end - pinned.start, 1));
       timeline.progress(exact);
       render();
-      if (shouldAutoLand(exact, previous, y, snapState,
-          TRAIN_START, 1.001) &&
-          y < galleryAnchor() - height * .04) {
+      // A fast wheel gesture can skip the narrow train phase entirely.
+      // Land whenever forward scrolling has reached the gallery approach,
+      // even if the pinned transition completed between scroll events.
+      const approachingGallery = snapState === 'idle' &&
+        Number.isFinite(previous) && y > previous + .5 &&
+        exact >= TRAIN_START &&
+        y < galleryAnchor() - height * .04;
+      if (approachingGallery) {
         startLanding();
       } else if (snapState === 'idle' && restingInGallery()) {
         // Direct #work navigation, browser history, or reverse from About.
