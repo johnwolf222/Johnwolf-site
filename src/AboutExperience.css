@@ -14,6 +14,29 @@
   scroll-margin-top: 0;
 }
 .jw-about-experience * { box-sizing: border-box; }
+/* Match the large PROJECTS title in Section 2; do not alter the gallery. */
+#root .about.jw-about-experience > .jw-about-heading {
+  position: absolute;
+  z-index: 10;
+  left: 5.5%;
+  top: clamp(108px, 15.5vh, 170px);
+  margin: 0;
+  color: #8750f1;
+  font-family: 'DM Sans', Arial, sans-serif;
+  font-weight: 700;
+  font-size: clamp(42px, 5.5vw, 90px);
+  letter-spacing: -.055em;
+  line-height: 1;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+@media (max-width: 800px) {
+  #root .about.jw-about-experience > .jw-about-heading {
+    top: clamp(94px, 14vh, 127px);
+    left: 4.4%;
+    font-size: clamp(25px, 6vw, 43px);
+  }
+}
 .jw-about-signature {
   position: absolute;
   z-index: 7;
