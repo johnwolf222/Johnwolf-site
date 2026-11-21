@@ -6,7 +6,7 @@ import './LivePaperRenderer.css';
 
 const TOTAL = 21;
 const FOCAL = 1350;
-const imageFor = index => index === 8 ? '/brands/riches-01.webp' : '/new-homepage/approved-cards/' +
+const imageFor = index => index === 8 ? '/brands/riches-approved-vertical.png' : '/new-homepage/approved-cards/' +
   String(index + 1).padStart(2, '0') + (index >= 13 ? '.avif' : '.webp');
 
 const VERTEX = `
