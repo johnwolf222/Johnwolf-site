@@ -234,6 +234,7 @@ export function installFloatingStory(scene,camera,stage,about){
    impactY=clientY-rect.top;
    impactAt=performance.now()/1000;
   },
+  setVisible(visible){root.visible=Boolean(visible)},
   update,dispose(){
   window.removeEventListener('resize',resize);
   clear();scene.remove(root);
