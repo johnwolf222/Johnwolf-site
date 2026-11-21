@@ -167,9 +167,6 @@ export function installFloatingStory(scene,camera,stage,about){
    positions[index]={top:nextTop,height:offset};
    nextTop+=offset+Math.max(vh*.085,58);
   });
-  // Keep the existing independent 3D floppy visible near the second chapter.
-  const floppy=articles[1];
-  if(floppy)floppy.style.top=(positions[1].top/vh*100-12)+'svh';
   about.style.minHeight=Math.ceil((nextTop+vh*.17)/vh*100)+'svh';
  }
  function update(dt,modelBounds){
