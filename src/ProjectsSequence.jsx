@@ -74,6 +74,7 @@ export default function ProjectsSequence() {
   const [visible, setVisible] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [openedProject, setOpenedProject] = useState(null);
+  const hoveredRef = useRef(-1);
 
   useEffect(() => {
     const home = document.querySelector('#home');
@@ -244,6 +245,7 @@ export default function ProjectsSequence() {
           (1 - motion.settle),
         wrap: flight.wrap * (1 - smooth(phase, .012, .085)),
       });
+      card.dataset.depth = String(finalZ);
       card.dataset.phase = phase === 0 ? 'home-current' :
         phase < .272 ? 'rewind' :
           started ? motion.stage : 'behind-head';
@@ -591,7 +593,7 @@ export default function ProjectsSequence() {
       loopTween?.kill();
       loopTween = null;
     };
-    const settleTo = index => {
+    const settleTo = (index, onDone) => {
       cancelTween();
       const destination = wrapGalleryFocus(index);
       loopTarget = destination;
@@ -599,6 +601,7 @@ export default function ProjectsSequence() {
       if (reduced.matches || Math.abs(delta) < .0001) {
         loopFocus = destination;
         render();
+        onDone?.();
         return;
       }
       const from = loopFocus;
@@ -617,6 +620,7 @@ export default function ProjectsSequence() {
           loopFocus = destination;
           loopTween = null;
           render();
+          onDone?.();
         },
       });
     };
@@ -627,8 +631,67 @@ export default function ProjectsSequence() {
       ScrollTrigger.refresh();
       render();
     };
+    const allowedCards = PROJECTS.map(project => project.image - 1);
+    const pickGalleryCard = (clientX, clientY) => {
+      if (!canInteract()) return -1;
+      if (gpuPaperRef.current?.ready) {
+        const imageIndex = gpuPaperRef.current.pickCard(
+          clientX, clientY, allowedCards);
+        return PROJECTS.findIndex(project => project.image - 1 === imageIndex);
+      }
+      // The same selection works for reduced motion / software WebGL.
+      const matches = PROJECTS.map((project, index) => {
+        const card = cardRefs.current[project.image - 1];
+        if (!card || card.style.visibility === 'hidden') return null;
+        const bounds = card.getBoundingClientRect();
+        if (clientX < bounds.left || clientX > bounds.right ||
+            clientY < bounds.top || clientY > bounds.bottom) return null;
+        return { index, depth: Number(card.dataset.depth || -10000) };
+      }).filter(Boolean).sort((a, b) => b.depth - a.depth);
+      return matches[0]?.index ?? -1;
+    };
+    const hoverGalleryCard = index => {
+      if (hoveredRef.current === index) return;
+      const previous = hoveredRef.current;
+      hoveredRef.current = index;
+      if (previous >= 0) cardRefs.current[PROJECTS[previous].image - 1]
+        ?.classList.remove('is-hovered');
+      if (index >= 0) cardRefs.current[PROJECTS[index].image - 1]
+        ?.classList.add('is-hovered');
+      gpuPaperRef.current?.setHovered(
+        index < 0 ? -1 : PROJECTS[index].image - 1);
+      if (stageRef.current) stageRef.current.dataset.hoveredCard =
+        index >= 0 ? 'true' : 'false';
+    };
     galleryControlsRef.current = {
       canInteract,
+      pick: pickGalleryCard,
+      hover: hoverGalleryCard,
+      selectAndOpen(index) {
+        if (!canInteract() || index < 0 || index >= PROJECTS.length)
+          return false;
+        hoverGalleryCard(-1);
+        loopFocus = loopEnabled ? loopFocus : scrollFocus();
+        if (!loopEnabled) loopTarget = nearestGalleryIndex(loopFocus);
+        loopEnabled = true;
+        loopDragging = false;
+        // Focus the chosen side sheet FIRST; open its existing reader only
+        // after the paper is in the approved central position.
+        settleTo(index, () => setOpenedProject(PROJECTS[index]));
+        return true;
+      },
+      returnToGallery() {
+        measure();
+        cancelScrollTween();
+        const root = document.documentElement;
+        const previous = root.style.scrollBehavior;
+        root.style.scrollBehavior = 'auto';
+        window.scrollTo(0, galleryAnchor());
+        root.style.scrollBehavior = previous;
+        pinned.update();
+        syncFromScroll();
+        markGallerySettled();
+      },
       hold() {
         loopTween?.pause();
       },
@@ -662,6 +725,7 @@ export default function ProjectsSequence() {
       },
       start(direction) {
         if (!canInteract()) return false;
+        hoverGalleryCard(-1);
         loopFocus = loopEnabled ? loopFocus : scrollFocus();
         if (!loopEnabled) loopTarget = nearestGalleryIndex(loopFocus);
         loopEnabled = true;
@@ -671,6 +735,7 @@ export default function ProjectsSequence() {
       },
       select(index) {
         if (!canInteract()) return false;
+        hoverGalleryCard(-1);
         loopFocus = loopEnabled ? loopFocus : scrollFocus();
         if (!loopEnabled) loopTarget = nearestGalleryIndex(loopFocus);
         loopEnabled = true;
@@ -739,6 +804,7 @@ export default function ProjectsSequence() {
       cancelTween();
       wheelGestureRef.current = initialGalleryWheelState();
       verticalGestureRef.current = initialGalleryVerticalState();
+      hoverGalleryCard(-1);
       galleryControlsRef.current = null;
       cancelAnimationFrame(syncFrame);
       observer.disconnect();
@@ -796,12 +862,19 @@ export default function ProjectsSequence() {
       lastX: event.clientX, lastAt: now, startedAt: now,
       velocityX: 0, horizontal: false,
     };
+    gestureRef.current.tappedIndex =
+      galleryControlsRef.current.pick(event.clientX, event.clientY);
     galleryControlsRef.current.hold();
     event.currentTarget.setPointerCapture?.(event.pointerId);
   };
   const onPointerMove = event => {
     const gesture = gestureRef.current;
-    if (!gesture || gesture.id !== event.pointerId) return;
+    if (!gesture || gesture.id !== event.pointerId) {
+      if (event.pointerType === 'mouse')
+        galleryControlsRef.current?.hover(
+          galleryControlsRef.current.pick(event.clientX, event.clientY));
+      return;
+    }
     const dx = event.clientX - gesture.x;
     const dy = event.clientY - gesture.y;
     const now = performance.now();
@@ -822,6 +895,7 @@ export default function ProjectsSequence() {
       if (Math.abs(dx) < 6 || Math.abs(dx) <= Math.abs(dy) * .9)
         return;
       gesture.horizontal = true;
+      galleryControlsRef.current?.hover(-1);
       galleryControlsRef.current?.beginDrag();
       setDragging(true);
     }
@@ -847,12 +921,10 @@ export default function ProjectsSequence() {
       galleryControlsRef.current?.release(direction);
     } else {
       galleryControlsRef.current?.resume();
-      const withinCard = event.clientX >= window.innerWidth * .34 &&
-        event.clientX <= window.innerWidth * .66 &&
-        event.clientY >= window.innerHeight * .22 &&
-        event.clientY <= window.innerHeight * .85;
-      if (!cancelled && withinCard && galleryControlsRef.current?.canInteract())
-        setOpenedProject(PROJECTS[activeRef.current]);
+      const target = galleryControlsRef.current?.pick(
+        event.clientX, event.clientY) ?? -1;
+      if (!cancelled && target >= 0 && target === gesture.tappedIndex)
+        galleryControlsRef.current?.selectAndOpen(target);
     }
     gestureRef.current = null;
     setDragging(false);
@@ -879,12 +951,13 @@ export default function ProjectsSequence() {
     if (result.step) galleryControlsRef.current?.start(result.step);
   };
   const project = PROJECTS[activeIndex];
-  useEffect(() => {
-    if (!openedProject) return;
-    const close = event => { if (event.key === 'Escape') setOpenedProject(null); };
-    window.addEventListener('keydown', close);
-    return () => window.removeEventListener('keydown', close);
-  }, [openedProject]);
+  const closeCaseStudy = React.useCallback(() => {
+    setOpenedProject(null);
+    // Wait for the reader's body-scroll lock to be released, then restore
+    // the exact Section 2 gallery anchor instead of falling into About.
+    requestAnimationFrame(() =>
+      galleryControlsRef.current?.returnToGallery());
+  }, []);
   return (
     <>
     <section id="work" ref={sectionRef} className="jw-projects-journey" aria-labelledby="jw-projects-heading">
@@ -893,9 +966,10 @@ export default function ProjectsSequence() {
         <div
           className={'jw-projects-stage__swipe-surface' +
             (dragging ? ' is-dragging' : '')}
-          aria-label="Swipe left or right to move one project at a time; tap the center project to open its case study"
+          aria-label="Swipe left or right to change projects; select any visible card to bring it to the front and open its case study"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
+          onPointerLeave={() => galleryControlsRef.current?.hover(-1)}
           onPointerUp={event => finishPointer(event)}
           onPointerCancel={event => finishPointer(event, true)}
           onLostPointerCapture={event => finishPointer(event, true)}
@@ -907,7 +981,7 @@ export default function ProjectsSequence() {
             <h3>{project.name}</h3>
             <p>{project.description}</p>
             <button className="jw-case-open-button" type="button" onClick={() => setOpenedProject(project)} aria-label={'Open case study for ' + project.name}>View case study ↗</button>
-            <button className="jw-case-open-button jw-case-open-all" type="button" onClick={() => setOpenedProject({name:'Explore all case studies'})}>Explore all seven ↗</button>
+            <button className="jw-case-open-button jw-case-open-all" type="button" onClick={() => setOpenedProject({name:'Explore all case studies'})}>Explore all ↗</button>
           </div>
           <div className="jw-projects-stage__controls" aria-label="Featured projects">
             <button type="button" onClick={previous} aria-label="Previous project">←</button>
@@ -925,7 +999,7 @@ export default function ProjectsSequence() {
         </div>
       </div>
     </section>
-    {openedProject && <CaseStudyReader selectedProject={openedProject} onClose={() => setOpenedProject(null)} />}
+    {openedProject && <CaseStudyReader selectedProject={openedProject} onClose={closeCaseStudy} />}
     <LivePaperRenderer ref={gpuPaperRef} />
     {CARD_IDS.map((id, index) => createPortal(
       <div className="jw-projects-stage__card" key={id}
