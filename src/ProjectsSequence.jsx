@@ -820,6 +820,10 @@ export default function ProjectsSequence() {
       render();
     });
     observer.observe(section);
+    const aboutNode = document.querySelector('#about');
+    // The original 3D story sizes its own chapter space after Three.js
+    // initializes; refresh the shared head exit boundary when it does.
+    if (aboutNode) observer.observe(aboutNode);
 
     // Create the pin before measuring the gallery's document coordinates.
     ScrollTrigger.refresh();
