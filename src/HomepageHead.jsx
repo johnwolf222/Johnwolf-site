@@ -4,6 +4,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { HeadController } from './about/controller.js';
 import { installSurfaceRipple } from './about/ripple.js';
+import { installFloatingStory } from './about/floating-story.js';
+import { installOpticalRipple } from './about/optical-ripple.js';
 
 // The exact 20 MB, SHA-verified Candidate F head already used by /about.html.
 // Reuse the model and motion controller, not a generated or approximate portrait.
@@ -75,6 +77,41 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
     const targets = [];
     const rippleSurfaces = new Map();
     const morphTargets = [];
+    const aboutSection = document.querySelector('.jw-about-experience');
+    const aboutLines = aboutSection
+      ? [...aboutSection.querySelectorAll('.jw-about-line')] : [];
+    // Both effects live in this exact existing renderer, not a second head.
+    // The text-planes remain hidden until Section 3 is actually onscreen.
+    const floatingStory = aboutSection && !reducedRef.current &&
+      window.innerWidth > 800
+      ? installFloatingStory(scene, camera, host, aboutSection) : null;
+    floatingStory?.setVisible(false);
+    const opticalRipple = aboutSection && !reducedRef.current
+      ? installOpticalRipple(renderer, scene, camera, pivot, aboutLines) : null;
+    let aboutColorTarget = 0;
+    let aboutColorAmount = 0;
+    const onAboutColor = event => {
+      aboutColorTarget = event.detail?.enabled ? 1 : 0;
+    };
+    window.addEventListener('jw-about-color', onAboutColor);
+    const aboutBounds = () => aboutSection?.getBoundingClientRect();
+    const aboutIsVisible = () => {
+      const rect = aboutBounds();
+      return Boolean(rect && rect.top < window.innerHeight &&
+        rect.bottom > 0);
+    };
+    const fireImpact = center => {
+      if (aboutIsVisible()) {
+        floatingStory?.triggerImpact(center.x, center.y);
+        opticalRipple?.trigger(center.x, center.y,
+          surface.getBoundingClientRect(), controller.time);
+        window.dispatchEvent(new CustomEvent('jw-about-impact', {
+          detail: center,
+        }));
+      } else {
+        onImpactRef.current?.(center);
+      }
+    };
     let live = true;
     let loaded = false;
     let frameId = 0;
@@ -92,6 +129,7 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
+      opticalRipple?.resize();
     };
     const onPointerMove = event => {
       if (!live || !loaded || event.pointerType === 'touch') return;
@@ -134,7 +172,7 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
       const side = projected.x < -0.07 ? -1 : projected.x > 0.07 ? 1 : 0;
       if (controller.hit(side)) {
         rippleSurfaces.get(contact.object)?.trigger(contact.point, controller.time, 1);
-        onImpactRef.current?.(headScreenCenter());
+        fireImpact(headScreenCenter());
       }
     };
 
@@ -170,11 +208,39 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
         pivot.rotation.set(motion.pitch, motion.yaw, motion.roll, 'YXZ');
         orient.scale.setScalar(scale * motion.scale);
       }
-      for (const ripple of rippleSurfaces.values()) ripple.update(controller.time);
+      const aboutActive = aboutIsVisible();
+      const rect = aboutBounds();
+      aboutSection?.classList.toggle('jw-about-reading',
+        aboutActive && rect.top < -window.innerHeight * .62);
+      if (!aboutActive) aboutColorTarget = 0;
+      aboutColorAmount += (aboutColorTarget - aboutColorAmount) *
+        (1 - Math.exp(-dt * 5.5));
+      for (const ripple of rippleSurfaces.values()) {
+        ripple.colorMix.value = aboutColorAmount;
+        ripple.update(controller.time);
+      }
+      // On desktop reuse the original shader-driven scroll layout. On
+      // phones/reduced-motion retain the exact source paragraphs as DOM
+      // text, where a full-height CSS transform cannot clip the prose.
+      const storyActive = aboutActive && floatingStory &&
+        window.innerWidth > 800 && !reducedRef.current;
+      if (storyActive) {
+        floatingStory.update(dt);
+        floatingStory.setVisible(true);
+        aboutSection.classList.add('jw-about-three-ready');
+      } else {
+        floatingStory?.setVisible(false);
+        aboutSection?.classList.remove('jw-about-three-ready');
+      }
       for (const { mesh, index } of morphTargets) {
         mesh.morphTargetInfluences[index] = motion.blink;
       }
-      renderer.render(scene, camera);
+      if (aboutActive && opticalRipple && !reducedRef.current) {
+        opticalRipple.setEnabled(true);
+        opticalRipple.render(controller.time);
+      } else {
+        renderer.render(scene, camera);
+      }
       frameId = requestAnimationFrame(animate);
     };
     const start = () => {
@@ -185,7 +251,7 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
     triggerRef.current = () => {
       if (!live || !loaded) return;
       if (controller.hit(0)) {
-        onImpactRef.current?.(headScreenCenter());
+        fireImpact(headScreenCenter());
         start();
       }
     };
@@ -254,6 +320,10 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
       stop();
       triggerRef.current = null;
       resizer.disconnect();
+      window.removeEventListener('jw-about-color', onAboutColor);
+      floatingStory?.dispose();
+      opticalRipple?.dispose();
+      aboutSection?.classList.remove('jw-about-three-ready', 'jw-about-reading');
       surface.removeEventListener('webglcontextlost', onContextLost);
       surface.removeEventListener('webglcontextrestored', onContextRestored);
       window.removeEventListener('pointermove', onPointerMove);
