@@ -71,7 +71,30 @@ test('existing 21-card choreography remains; gallery case study actions clickabl
  assert.ok(gallery.includes('LivePaperRenderer'));
  assert.ok(gallery.includes('HomePaperMotion'));
  assert.ok(gallery.includes('CaseStudyReader'));
- assert.ok(gallery.includes('Explore all seven'));
+ assert.ok(gallery.includes('Explore all ↗'));
  assert.ok(gallery.includes('setOpenedProject(PROJECTS[activeRef.current])'));
  assert.ok(stylesheet.includes('.jw-projects-stage__details{pointer-events:auto;}'));
+});
+
+test('all visible gallery sheets can be outlined and selected before the reader opens',()=>{
+ const renderer=read('src/LivePaperRenderer.jsx');
+ assert.ok(renderer.includes('new THREE.Raycaster()'), 'GPU card picking');
+ assert.ok(renderer.includes('new THREE.LineLoop('), 'perspective-correct purple outline');
+ assert.ok(renderer.includes('color: 0x8750f1'), 'signature purple');
+ assert.ok(gallery.includes('selectAndOpen(index) {'), 'side sheets are actionable');
+ assert.ok(gallery.includes('settleTo(index, () => setOpenedProject(PROJECTS[index]))'),
+   'selected side sheet settles in front before opening');
+ assert.ok(gallery.includes('galleryControlsRef.current.pick(event.clientX, event.clientY)'),
+   'a click must hit an actual card, not only the center rectangle');
+ assert.ok(!gallery.includes('const withinCard ='), 'old center-only hit target removed');
+ assert.ok(stylesheet.includes('data-hovered-card'), 'pointer changes over any card');
+});
+test('every case-study close restores section two and the gallery button reads Explore all',()=>{
+ assert.ok(gallery.includes('const closeCaseStudy = React.useCallback('));
+ assert.ok(gallery.includes('onClose={closeCaseStudy}'));
+ assert.ok(gallery.includes('returnToGallery() {'));
+ assert.ok(gallery.includes('window.scrollTo(0, galleryAnchor())'));
+ assert.ok(gallery.includes('markGallerySettled()'));
+ assert.ok(gallery.includes('>Explore all ↗</button>'));
+ assert.ok(!gallery.includes('Explore all seven'));
 });
