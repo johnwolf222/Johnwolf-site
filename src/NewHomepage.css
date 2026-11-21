@@ -236,7 +236,7 @@
   width: min(100vw, calc(100svh * 16 / 9));
   aspect-ratio: 16 / 9;
   transform: translate(-50%, -50%)
-    translate3d(0, var(--jw-head-shift, 0px), 0)
+    translate3d(var(--jw-head-x, 0px), var(--jw-head-shift, 0px), 0)
     scale(var(--jw-head-scale, 1));
   transform-origin: center center;
   will-change: transform;
