@@ -15,7 +15,15 @@ export default function AboutExperience() {
     const diskHost = diskRef.current;
     if (!section) return undefined;
     const visibility = new IntersectionObserver(entries => {
-      setVisible(Boolean(entries[0]?.isIntersecting));
+      const active = Boolean(entries[0]?.isIntersecting);
+      setVisible(active);
+      if (!active) {
+        // Home retains its approved monochrome head if visitors scroll back.
+        setColor(false);
+        window.dispatchEvent(new CustomEvent('jw-about-color', {
+          detail: { enabled: false },
+        }));
+      }
     }, { rootMargin: '80px 0px 80px 0px' });
     visibility.observe(section);
     let disposeDisk;
@@ -23,7 +31,14 @@ export default function AboutExperience() {
       if (entries[0]?.isIntersecting && !disposeDisk && diskHost) {
         // The original glTF is optional; the supplied procedural THREE disk
         // is the intentional fallback when /floppy/scene.gltf is absent.
-        disposeDisk = setupFloppyDisk(diskHost);
+        try {
+          disposeDisk = setupFloppyDisk(diskHost);
+        } catch (error) {
+          // The original floppy asset is optional. A GPU failure must never
+          // interrupt the personal story or its single shared head.
+          console.warn('[About] 3D floppy fallback unavailable', error);
+          diskHost.dataset.unavailable = 'true';
+        }
       }
     }, { rootMargin: '450px' });
     if (diskHost) diskObserver.observe(diskHost);
