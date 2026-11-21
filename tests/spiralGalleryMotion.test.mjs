@@ -512,8 +512,8 @@ test('Section 2 waits after auto-landing and the next scroll enters About', () =
   assert.match(source, /const headPlacement = aboutHeadPose\(handoff,/);
   assert.match(source, /settleTo\(stepGalleryFocus\(dragTarget, direction\)\)/,
     'one-card swipe interaction must survive the new scroll snap');
-  assert.match(main, /<ProjectsSequence\/>\s*<section id="about"/,
-    'Section 3 remains the existing About section, not a replacement');
+  assert.match(main, /<ProjectsSequence\/>\s*<AboutExperience\/>/,
+    'Section 3 must render the restored original About experience');
 });
 
 test('tiny trackpad deltas accumulate into exactly one horizontal step', () => {
@@ -688,7 +688,7 @@ test('Projects → About sends the same seven papers offscreen right while the o
     import.meta.url), 'utf8');
   const headCSS = readFileSync(new URL('../src/NewHomepage.css',
     import.meta.url), 'utf8');
-  const aboutCSS = readFileSync(new URL('../src/style.css',
+  const aboutCSS = readFileSync(new URL('../src/AboutExperience.css',
     import.meta.url), 'utf8');
   assert.match(sequence, /departingCardOffset\(handoff, rank, width, height\)/);
   assert.match(sequence, /const handoff = aboutHandoffProgress\(scrollY,/);
@@ -698,8 +698,8 @@ test('Projects → About sends the same seven papers offscreen right while the o
     'old fade-first exit must not hide approved sheets while still visible');
   assert.match(headCSS, /var\(--jw-head-x, 0px\)/,
     'reuse the permanent canvas with a horizontal translation');
-  assert.match(aboutCSS, /#root \.about \{[\s\S]*?padding-right: 48vw;/,
-    'existing About copy must reserve the head landing area');
+  assert.match(aboutCSS, /#root \.about\.jw-about-experience \{/,
+    'restored original About must keep all styles scoped');
 
   for (const [width, height] of sizes) {
     const galleryTop = 5000;
@@ -739,7 +739,8 @@ test('Projects → About sends the same seven papers offscreen right while the o
     assert.equal(start.scale, galleryPose.scale);
     assert.ok(arrived.shift > start.shift, 'head must move DOWN');
     assert.ok(arrived.scale >= .9, 'keep approved 3D head clearly visible');
-    assert.equal(arrived.x, width > 800 ? Math.min(width * .25, 410) : 0);
+    assert.equal(arrived.x, 0,
+      'original About head should land at the center of the 3D story');
     assert.deepEqual(aboutHeadPose(.5, galleryPose, width, height),
       aboutHeadPose(.5, galleryPose, width, height),
       'reverse scrolling must seek the exact same head pose');
@@ -749,4 +750,45 @@ test('Projects → About sends the same seven papers offscreen right while the o
     assert.equal(aboutHeadOpacity(aboutBottom, aboutBottom, height), 0,
       'head clears before Contact');
   }
+});
+
+test('original Design Is Life About uses the ONE approved GLB and scrolls through all four chapters', () => {
+  const main = readFileSync(new URL('../src/main.jsx',
+    import.meta.url), 'utf8');
+  const about = readFileSync(new URL('../src/AboutExperience.jsx',
+    import.meta.url), 'utf8');
+  const aboutCSS = readFileSync(new URL('../src/AboutExperience.css',
+    import.meta.url), 'utf8');
+  const head = readFileSync(new URL('../src/HomepageHead.jsx',
+    import.meta.url), 'utf8');
+  const motion = readFileSync(new URL('../src/ProjectsSequence.jsx',
+    import.meta.url), 'utf8');
+  const originalPage = readFileSync(new URL('../about.html',
+    import.meta.url), 'utf8');
+
+  assert.match(main, /<ProjectsSequence\/>\s*<AboutExperience\/>\s*<Contact\/>/);
+  assert.match(about, /className="about jw-about-experience"/);
+  assert.match(about, /Now I can’t speak for/);
+  assert.match(about, /everyone\.\.\. But at least for me,/);
+  assert.match(about, /Design is life!/);
+  assert.match(about, /the human nature of design to me/);
+  assert.match(about, /first design I ever saved/);
+  assert.match(about, /art is subjective/);
+  assert.match(about, /Photoshop, Illustrator, Procreate/);
+  assert.match(originalPage, /Now I can’t speak for/);
+  assert.equal((about.match(/className="jw-about-message/g) || []).length, 4,
+    'four chapters must remain from the approved standalone About page');
+  assert.doesNotMatch(about, /<iframe|<HomepageHead|head-interactive\.glb/,
+    'Section 3 must not create a second head or iframe');
+  assert.equal((head.match(/const HEAD_MODEL\s*=/g) || []).length, 1);
+  assert.match(head, /installFloatingStory\(scene, camera, host, aboutSection\)/);
+  assert.match(head, /installOpticalRipple\(renderer, scene, camera, pivot, aboutLines\)/);
+  assert.match(head, /floatingStory\.update\(dt\)/);
+  assert.match(head, /opticalRipple\.render\(controller\.time\)/);
+  assert.match(head, /window\.addEventListener\('jw-about-color', onAboutColor\)/);
+  assert.match(about, /setupFloppyDisk\(diskHost\)/);
+  assert.match(aboutCSS, /jw-about-three-ready/);
+  assert.match(motion, /observer\.observe\(aboutNode\)/);
+  assert.doesNotMatch(head, /!live \|\| !loaded \|\| !visible/,
+    '3D hit test must never refer to an undeclared variable');
 });
