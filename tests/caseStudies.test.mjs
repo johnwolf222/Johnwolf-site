@@ -72,7 +72,7 @@ test('existing 21-card choreography remains; gallery case study actions clickabl
  assert.ok(gallery.includes('HomePaperMotion'));
  assert.ok(gallery.includes('CaseStudyReader'));
  assert.ok(gallery.includes('All case studies'));
- assert.ok(gallery.includes('setOpenedProject(PROJECTS[activeRef.current])'));
+ assert.ok(gallery.includes('onClick={() => setOpenedProject(project)}'));
  assert.ok(stylesheet.includes('.jw-projects-stage__details{pointer-events:auto;}'));
 });
 
