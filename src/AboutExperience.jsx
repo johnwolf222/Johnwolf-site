@@ -83,6 +83,7 @@ export default function AboutExperience() {
       className="about jw-about-experience"
       aria-label="About John Wolf — Design Is Life"
     >
+      <h2 id="jw-about-heading" className="jw-about-heading">ABOUT</h2>
       <div className="jw-about-signature" aria-hidden="true">
         JOHN WOLF <span>●</span> VISION LAB / 01
       </div>
