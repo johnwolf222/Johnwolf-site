@@ -227,3 +227,18 @@
 .jw-projects-stage__details .jw-case-open-button:focus-visible{outline:3px solid #8750f1;outline-offset:2px}
 .jw-projects-stage__details .jw-case-open-all{background:transparent;border-color:transparent}
 @media(max-width:800px){.jw-projects-stage__details .jw-case-open-button{margin-top:8px;padding:7px 9px;font-size:10px}}
+
+
+/* The active pointer target is whichever perspective-correct gallery sheet
+   is under the cursor, not merely the center of the screen. */
+.jw-projects-stage[data-hovered-card="true"]
+  .jw-projects-stage__swipe-surface {
+  cursor: pointer;
+}
+/* GPU cards receive their actual 3D outline in LivePaperRenderer.
+   Keep the same purple affordance for reduced-motion/software fallback. */
+body:not(.jw-live-paper-ready)
+  .jw-projects-stage__card.is-hovered img {
+  outline: 2px solid #8750f1;
+  outline-offset: 2px;
+}
