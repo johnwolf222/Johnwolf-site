@@ -3,7 +3,6 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
 import {HeadController} from './controller.js';
 import {installSurfaceRipple} from './ripple.js';
-import {setupFloppyDisk} from './floppy.js';
 import {installFloatingStory} from './floating-story.js';
 import {installOpticalRipple} from './optical-ripple.js';
 import './style.css';
@@ -102,7 +101,6 @@ async function load(){
  retryButton.hidden=false;
 }
 load();
-setupFloppyDisk(document.querySelector('#disk-view'));
 floatingStory=installFloatingStory(scene,camera,stage,document.querySelector('.about-journey'));
 function coordinates(e){
  const r=canvas.getBoundingClientRect();
