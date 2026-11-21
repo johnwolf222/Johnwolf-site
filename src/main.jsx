@@ -4,6 +4,7 @@ import './style.css';
 import NewHomepage from './NewHomepage.jsx';
 import ProjectsSequence from './ProjectsSequence.jsx';
 import VisualContinuity from './VisualContinuity.jsx';
+import AboutExperience from './AboutExperience.jsx';
 
 function PurpleCursor(){
  useEffect(()=>{
@@ -84,7 +85,7 @@ function App(){
   <main id="top">
    <NewHomepage/>
    <ProjectsSequence/>
-   <section id="about" className="about"><span className="kicker">CREATIVE PRACTICE</span><h2>Design is how<br/>I make ideas <i>felt.</i></h2><p>I'm John Wolf. My work connects logo design, brand identity, and digital experiences through clarity and purpose.</p><a href="#contact" className="contact-note">Let’s work together ↗</a></section>
+   <AboutExperience/>
    <Contact/>
   </main>
   <footer><span>JOHN WOLF © {new Date().getFullYear()}</span><a href="#home">Back to top ↑</a></footer>
