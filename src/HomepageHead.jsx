@@ -140,7 +140,11 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
     };
     const onBlur = () => controller.movePointer(0, 0);
     const getContact = event => {
-      if (!live || !loaded || !visible) return null;
+      // The old `visible` identifier was undeclared and could throw on any
+      // pointer hit. Read the real shared head layer instead.
+      const layer = host.closest('.jw-continuous-head');
+      if (!live || !loaded || layer?.style.visibility === 'hidden' ||
+          Number(layer?.style.opacity || 1) <= .005) return null;
       const bounds = surface.getBoundingClientRect();
       if (event.clientX < bounds.left || event.clientX > bounds.right ||
           event.clientY < bounds.top || event.clientY > bounds.bottom) return null;
