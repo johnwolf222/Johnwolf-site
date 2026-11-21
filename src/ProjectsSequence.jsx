@@ -8,7 +8,7 @@ import CaseStudyReader from './CaseStudyReader.jsx';
 import { createHomePaperMotion } from './HomePaperMotion.js';
 import {
   aboutHandoffProgress, departingCardOffset, aboutHeadPose,
-  aboutHeadOpacity,
+  aboutIntroPose, aboutHeadOpacity,
 } from './AboutHandoffMotion.js';
 import { spiralGalleryPose, galleryHeadPlacement, galleryRowOffset, GALLERY_FOCAL, TRAIN_START, TRAIN_END } from './SpiralGalleryMotion.js';
 import {
@@ -91,6 +91,7 @@ export default function ProjectsSequence() {
     const indicators = document.querySelector('.jw-new-home__indicators');
     const bottom = document.querySelector('.jw-new-home__bottom-bar');
     const copy = copyRef.current;
+    const aboutSection = document.querySelector('#about');
     if (!home || !section || !stage || !head) return undefined;
 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -303,6 +304,9 @@ export default function ProjectsSequence() {
       const headPlacement = aboutHeadPose(handoff,
         galleryHeadPlacement(p, height), width, height);
       const headOpacity = aboutHeadOpacity(scrollY, aboutBottom, height);
+      const intro = reduced.matches
+        ? { opacity: 1, lift: 0 }
+        : aboutIntroPose(handoff, height);
 
       // Fade all Home lettering IN PLACE. Do not move any text off the page,
       // and do not modify the approved per-letter rolling GSAP timeline.
@@ -313,6 +317,16 @@ export default function ProjectsSequence() {
       if (bottom) bottom.style.opacity = String(bottomFade);
       home.style.setProperty('--jw-home-blow', '0');
 
+      // The original About title rises into place only as the departing
+      // sheets clear the right edge. Native scroll keeps its document position;
+      // opacity/settle are derived from the SAME motion clock, no separate
+      // CSS animation or layout reflow.
+      if (aboutSection) {
+        aboutSection.style.setProperty('--jw-about-intro-opacity',
+          intro.opacity.toFixed(4));
+        aboutSection.style.setProperty('--jw-about-intro-lift',
+          intro.lift.toFixed(2) + 'px');
+      }
       head.style.opacity = String(headOpacity);
       head.style.visibility = headOpacity < .005 ? 'hidden' : 'visible';
       head.style.setProperty('--jw-head-x',
@@ -399,7 +413,7 @@ export default function ProjectsSequence() {
       scrollTween = null;
       restoreScrollBehavior();
     };
-    const animatePageTo = (target, duration, onDone) => {
+    const animatePageTo = (target, duration, onDone, scrollEase = 'power3.inOut') => {
       cancelScrollTween();
       const root = document.documentElement;
       previousScrollBehavior = root.style.scrollBehavior;
@@ -414,7 +428,7 @@ export default function ProjectsSequence() {
       }
       const cursor = { y: window.scrollY };
       scrollTween = gsap.to(cursor, {
-        y: target, duration, ease: 'power3.inOut',
+        y: target, duration, ease: scrollEase,
         onUpdate: () => window.scrollTo(0, cursor.y),
         onComplete: () => {
           window.scrollTo(0, target);
@@ -450,9 +464,11 @@ export default function ProjectsSequence() {
       const about = document.querySelector('#about');
       if (!about) return;
       snapState = 'leaving';
-      animatePageTo(docTop(about), 1.0, () => {
+      // An intentional gallery exit now traverses the actual scroll-driven
+      // 3D movement at a legible pace, instead of the old one-second whip.
+      animatePageTo(docTop(about), 1.65, () => {
         snapState = 'idle';
-      });
+      }, 'sine.inOut');
     };
     const syncFromScroll = () => {
       if (disposed) return;
@@ -858,6 +874,10 @@ export default function ProjectsSequence() {
         if (el) el.style.opacity = '';
       }
       home.style.removeProperty('--jw-home-blow');
+      if (aboutSection) {
+        aboutSection.style.removeProperty('--jw-about-intro-opacity');
+        aboutSection.style.removeProperty('--jw-about-intro-lift');
+      }
       head.style.removeProperty('--jw-head-x');
       head.style.removeProperty('--jw-head-shift');
       head.style.removeProperty('--jw-head-scale');
