@@ -426,6 +426,45 @@
       "layoutToPreserve": "Original supplied clean Stories Behind the Work cover stays unchanged. Case study uses the user's green food composition and approved NURUSH logo, with NURUSH green highlights; no fabricated market performance.",
       "source": "user-provided NURUSH brand images and creative brief",
       "assetState": "original cover and logo existing; additional supplied green identity artwork installed"
+    },
+    {
+      "id": "better-mate",
+      "name": "Better Mate",
+      "eyebrow": "DATING APP · VISUAL IDENTITY & CAMPAIGN",
+      "highlight": "#00AEEF",
+      "intro": "For Better Mate, I carried the heart logo and the line “The choice is yours” from the campaign into a dating-app concept. The three-screen showcase pairs a blue sign-in screen with a profile and a matches view.",
+      "highlights": ["The choice is yours"],
+      "cover": "/brands/better-mate/cover.webp",
+      "featuredOnly": true,
+      "sections": [
+        {
+          "type": "video",
+          "src": "/brands/better-mate/campaign-film-01.mp4",
+          "title": "Better Mate campaign film 1",
+          "controls": false
+        },
+        {
+          "type": "image",
+          "src": "/brands/better-mate/coastal-campaign.webp",
+          "alt": "Better Mate campaign artwork set on a rocky coastline"
+        },
+        {
+          "type": "image",
+          "src": "/brands/better-mate/park-campaign.webp",
+          "alt": "Better Mate campaign artwork showing a couple walking in a park"
+        },
+        {
+          "type": "video",
+          "src": "/brands/better-mate/campaign-film-02.mp4",
+          "title": "Better Mate campaign film 2",
+          "controls": false
+        },
+        {
+          "type": "image",
+          "src": "/brands/better-mate/app-showcase.webp",
+          "alt": "Better Mate dating app concept with sign-in, profile and matches screens"
+        }
+      ]
     }
   ],
   "upcoming": []

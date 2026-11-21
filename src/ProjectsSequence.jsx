@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -26,7 +26,7 @@ export const PROJECTS = [
   { image: 11, name: 'Brewty', description: 'Coffee branding and visual identity.' },
   { image: 2, name: 'Nurusa', description: 'Healthy food service branding.' },
   { image: 1, name: 'Inkzilla', description: 'Tattoo shop identity and visual design.' },
-  { image: 10, name: 'One on One', description: 'Identity and creative presentation.' },
+  { image: 10, name: 'Chit-Chat', description: 'Podcast branding and visual identity.' },
 ];
 const CARD_COUNT = 21;
 const CARD_IDS = Array.from({ length: CARD_COUNT }, (_, i) => i + 1);
@@ -61,6 +61,7 @@ export default function ProjectsSequence() {
   const sectionRef = useRef(null);
   const stageRef = useRef(null);
   const cardRefs = useRef([]);
+  const cardHitRefs = useRef([]);
   const gpuPaperRef = useRef(null);
   const copyRef = useRef(null);
   const galleryControlsRef = useRef(null);
@@ -74,6 +75,7 @@ export default function ProjectsSequence() {
   const [visible, setVisible] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [openedProject, setOpenedProject] = useState(null);
+  const closeReader = useCallback(() => setOpenedProject(null), []);
 
   useEffect(() => {
     const home = document.querySelector('#home');
@@ -93,6 +95,8 @@ export default function ProjectsSequence() {
     let sectionHeight = 0;
     let width = window.innerWidth;
     let height = window.innerHeight;
+    let paperWidth = 0;
+    let paperHeight = 0;
     let homeMotion = createHomePaperMotion(width, height);
     let active = -1;
     let showing = false;
@@ -129,6 +133,8 @@ export default function ProjectsSequence() {
     function measure() {
       sectionTop = docTop(section);
       sectionHeight = section.getBoundingClientRect().height;
+      paperWidth = cardRefs.current[0].offsetWidth;
+      paperHeight = cardRefs.current[0].offsetHeight;
       const nextWidth = window.innerWidth;
       const nextHeight = window.innerHeight;
       if (width !== nextWidth || height !== nextHeight) {
@@ -176,7 +182,7 @@ export default function ProjectsSequence() {
       };
     }
 
-    function positionCard(card, index, phase, galleryFocus, exitFade) {
+    function positionCard(card, index, phase, galleryFocus, exitFade, interactive) {
       const id = index + 1;
       const target = targetForCard(id, galleryFocus);
       const spotlight = PROJECTS.findIndex(project => project.image === id);
@@ -206,16 +212,31 @@ export default function ProjectsSequence() {
       // Skip the duplicate DOM rasterization work while our ONE GPU surface
       // is running. The original DOM images remain a ready fallback, and are
       // re-synchronized on the next frame if WebGL is lost or unsupported.
-      if (!gpuPaperRef.current?.ready) {
+      const gpuReady = gpuPaperRef.current?.ready;
+      const hit = cardHitRefs.current[spotlight];
+      const transform = (!gpuReady || (hit && interactive)) ? 'perspective(' + GALLERY_FOCAL + 'px) translate3d(' +
+        finalX.toFixed(2) + 'px,' + finalY.toFixed(2) + 'px,' +
+        finalZ.toFixed(2) + 'px) rotateY(' +
+        rotY.toFixed(2) + 'deg) rotateX(' + rotX.toFixed(2) +
+        'deg) rotateZ(' + rotZ.toFixed(2) +
+        'deg) scale(' + finalScale.toFixed(4) + ')' : '';
+      if (!gpuReady) {
         card.style.zIndex = String(phase === 0 ? 1 : (front ? 12 : 10));
-        card.style.transform = 'perspective(1350px) translate3d(' +
-          finalX.toFixed(2) + 'px,' + finalY.toFixed(2) + 'px,' +
-          finalZ.toFixed(2) + 'px) rotateY(' +
-          rotY.toFixed(2) + 'deg) rotateX(' + rotX.toFixed(2) +
-          'deg) rotateZ(' + rotZ.toFixed(2) +
-          'deg) scale(' + finalScale.toFixed(4) + ')';
+        card.style.transform = transform;
         card.style.opacity = String(opacity);
         card.style.visibility = opacity < .008 ? 'hidden' : 'visible';
+      }
+      if (hit) {
+        const image = card.firstElementChild;
+        hit.hidden = !interactive || opacity < .008 || !image.naturalWidth;
+        if (!hit.hidden) {
+          const aspect = image.naturalWidth / image.naturalHeight;
+          const fitWidth = Math.min(paperWidth, (gpuReady ? paperWidth : paperHeight) * aspect);
+          hit.style.width = fitWidth + 'px';
+          hit.style.height = fitWidth / aspect + 'px';
+          hit.style.transform = transform;
+          hit.style.zIndex = String(Math.round(1000 + finalZ));
+        }
       }
       // One clock controls the GPU bend and the same 3D trajectory.
       // Sheets flatten only as they approach their final gallery slot.
@@ -307,13 +328,13 @@ export default function ProjectsSequence() {
 
       stage.style.opacity = String(isShown ? sceneOpacity : 0);
       stage.style.visibility = isShown ? 'visible' : 'hidden';
-      stage.dataset.galleryInteractive = canInteract() && isShown
-        ? 'true' : 'false';
+      const interactive = canInteract() && isShown;
+      stage.dataset.galleryInteractive = interactive ? 'true' : 'false';
       if (copy) copy.style.opacity = String(smooth(p, .922, .992) * exitFade);
 
       for (let i = 0; i < CARD_COUNT; i++) {
         if (cardRefs.current[i]) {
-          positionCard(cardRefs.current[i], i, p, galleryFocus, exitFade);
+          positionCard(cardRefs.current[i], i, p, galleryFocus, exitFade, interactive);
         }
       }
       gpuPaperRef.current?.draw(p);
@@ -510,6 +531,7 @@ export default function ProjectsSequence() {
       render();
     };
     const onVerticalWheel = event => {
+      if (event.target.closest?.('.jw-case-reader')) return;
       if (snapState === 'landing' || snapState === 'leaving') {
         if (event.cancelable) event.preventDefault();
         verticalGestureRef.current = initialGalleryVerticalState();
@@ -545,6 +567,7 @@ export default function ProjectsSequence() {
       if (result.exit) leaveForAbout();
     };
     const onTouchStart = event => {
+      if (event.target.closest?.('.jw-case-reader')) return;
       if (snapState !== 'settled' || !restingInGallery()) return;
       const point = event.touches[0];
       if (point) touchOrigin = { x: point.clientX, y: point.clientY,
@@ -576,6 +599,7 @@ export default function ProjectsSequence() {
     const onScrollKey = event => {
       if (event.defaultPrevented || event.altKey || event.ctrlKey ||
           event.metaKey) return;
+      if (event.target.closest?.('.jw-case-reader')) return;
       if (!['ArrowDown', 'PageDown', ' '].includes(event.key)) return;
       if (snapState === 'landing' || snapState === 'leaving') {
         event.preventDefault();
@@ -591,7 +615,7 @@ export default function ProjectsSequence() {
       loopTween?.kill();
       loopTween = null;
     };
-    const settleTo = index => {
+    const settleTo = (index, onSettled) => {
       cancelTween();
       const destination = wrapGalleryFocus(index);
       loopTarget = destination;
@@ -599,6 +623,7 @@ export default function ProjectsSequence() {
       if (reduced.matches || Math.abs(delta) < .0001) {
         loopFocus = destination;
         render();
+        onSettled?.();
         return;
       }
       const from = loopFocus;
@@ -617,6 +642,7 @@ export default function ProjectsSequence() {
           loopFocus = destination;
           loopTween = null;
           render();
+          onSettled?.();
         },
       });
     };
@@ -629,6 +655,9 @@ export default function ProjectsSequence() {
     };
     galleryControlsRef.current = {
       canInteract,
+      refreshCardTargets() {
+        if (canInteract()) render();
+      },
       hold() {
         loopTween?.pause();
       },
@@ -669,13 +698,13 @@ export default function ProjectsSequence() {
         settleTo(stepGalleryFocus(loopTarget, direction));
         return true;
       },
-      select(index) {
+      select(index, onSettled) {
         if (!canInteract()) return false;
         loopFocus = loopEnabled ? loopFocus : scrollFocus();
         if (!loopEnabled) loopTarget = nearestGalleryIndex(loopFocus);
         loopEnabled = true;
         loopDragging = false;
-        settleTo(index);
+        settleTo(index, onSettled);
         return true;
       },
     };
@@ -775,6 +804,11 @@ export default function ProjectsSequence() {
       behavior: 'smooth',
     });
   }
+  function openCaseStudy(index) {
+    galleryControlsRef.current?.select(index, () => {
+      setOpenedProject(current => current ?? PROJECTS[index]);
+    });
+  }
   function next() {
     if (galleryControlsRef.current?.start(1)) return;
     if (activeRef.current >= PROJECTS.length - 1) {
@@ -793,6 +827,7 @@ export default function ProjectsSequence() {
     const now = performance.now();
     gestureRef.current = {
       id: event.pointerId, x: event.clientX, y: event.clientY,
+      projectIndex: event.target.closest('[data-project-index]')?.dataset.projectIndex,
       lastX: event.clientX, lastAt: now, startedAt: now,
       velocityX: 0, horizontal: false,
     };
@@ -847,17 +882,14 @@ export default function ProjectsSequence() {
       galleryControlsRef.current?.release(direction);
     } else {
       galleryControlsRef.current?.resume();
-      const withinCard = event.clientX >= window.innerWidth * .34 &&
-        event.clientX <= window.innerWidth * .66 &&
-        event.clientY >= window.innerHeight * .22 &&
-        event.clientY <= window.innerHeight * .85;
-      if (!cancelled && withinCard && galleryControlsRef.current?.canInteract())
-        setOpenedProject(PROJECTS[activeRef.current]);
+      if (!cancelled && gesture.projectIndex !== undefined && Math.hypot(dx, dy) <= 12)
+        openCaseStudy(Number(gesture.projectIndex));
     }
     gestureRef.current = null;
     setDragging(false);
   };
   const onGalleryWheel = event => {
+    if (event.target.closest?.('.jw-case-reader')) return;
     if (!galleryControlsRef.current?.canInteract()) {
       wheelGestureRef.current = initialGalleryWheelState();
       return;
@@ -879,12 +911,6 @@ export default function ProjectsSequence() {
     if (result.step) galleryControlsRef.current?.start(result.step);
   };
   const project = PROJECTS[activeIndex];
-  useEffect(() => {
-    if (!openedProject) return;
-    const close = event => { if (event.key === 'Escape') setOpenedProject(null); };
-    window.addEventListener('keydown', close);
-    return () => window.removeEventListener('keydown', close);
-  }, [openedProject]);
   return (
     <>
     <section id="work" ref={sectionRef} className="jw-projects-journey" aria-labelledby="jw-projects-heading">
@@ -893,21 +919,30 @@ export default function ProjectsSequence() {
         <div
           className={'jw-projects-stage__swipe-surface' +
             (dragging ? ' is-dragging' : '')}
-          aria-label="Swipe left or right to move one project at a time; tap the center project to open its case study"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={event => finishPointer(event)}
           onPointerCancel={event => finishPointer(event, true)}
           onLostPointerCapture={event => finishPointer(event, true)}
-        />
+        >
+          {PROJECTS.map((item, index) => (
+            <button key={item.image} type="button"
+              className="jw-projects-stage__card-target"
+              ref={node => { cardHitRefs.current[index] = node; }}
+              data-project-index={index} data-project-artwork={item.image}
+              aria-label={item.name + ' project card'}
+              tabIndex={activeIndex === index ? 0 : -1} hidden
+              onClick={event => { if (event.detail === 0) openCaseStudy(index); }} />
+          ))}
+        </div>
 
         <div className="jw-projects-stage__information" ref={copyRef}>
           <h2 id="jw-projects-heading">PROJECTS</h2>
           <div className="jw-projects-stage__details" aria-live="polite" aria-atomic="true">
             <h3>{project.name}</h3>
             <p>{project.description}</p>
-            <button className="jw-case-open-button" type="button" onClick={() => setOpenedProject(project)} aria-label={'Open case study for ' + project.name}>View case study ↗</button>
-            <button className="jw-case-open-button jw-case-open-all" type="button" onClick={() => setOpenedProject({name:'Explore all case studies'})}>Explore all seven ↗</button>
+            <button className="jw-case-open-button" type="button" onClick={() => openCaseStudy(activeIndex)} aria-label={'Open case study for ' + project.name}>View case study ↗</button>
+            <button className="jw-case-open-button jw-case-open-all" type="button" onClick={() => setOpenedProject({})}>All case studies</button>
           </div>
           <div className="jw-projects-stage__controls" aria-label="Featured projects">
             <button type="button" onClick={previous} aria-label="Previous project">←</button>
@@ -925,14 +960,15 @@ export default function ProjectsSequence() {
         </div>
       </div>
     </section>
-    {openedProject && <CaseStudyReader selectedProject={openedProject} onClose={() => setOpenedProject(null)} />}
+    {openedProject && <CaseStudyReader selectedProject={openedProject} onClose={closeReader} />}
     <LivePaperRenderer ref={gpuPaperRef} />
     {CARD_IDS.map((id, index) => createPortal(
       <div className="jw-projects-stage__card" key={id}
         ref={node => { cardRefs.current[index] = node; }}
         data-artwork={id} data-phase="scatter"
         style={{ opacity: 0, visibility: 'hidden', zIndex: 10 }}>
-        <img src={fileFor(id)} alt="" draggable="false" />
+        <img src={fileFor(id)} alt="" draggable="false"
+          onLoad={() => galleryControlsRef.current?.refreshCardTargets()} />
       </div>, document.body, 'project-sheet-' + id
     ))}
   </>

@@ -13,12 +13,12 @@ const gallery=read('src/ProjectsSequence.jsx');
 const stylesheet=read('src/ProjectsSequence.css');
 const viewerStyles=read('src/CaseStudyReader.css');
 test('the seven approved case studies remain distinct with first-person narratives',()=>{
- assert.deepEqual(data.studies.map(s=>s.id),expected);
+ assert.deepEqual(data.studies.filter(s=>!s.featuredOnly).map(s=>s.id),expected);
  data.studies.forEach(s=>{assert.ok(s.intro.includes('I '),s.id+' first person');assert.ok(s.highlight.startsWith('#'),s.id+' marker color');});
 });
 test('no source images in the live reader point at missing repository assets',()=>{
  for(const study of data.studies){
-  const paths=[study.cover,...study.sections.flatMap(s=>[s.src,s.before,s.after,...(s.srcs||[])])].filter(Boolean);
+  const paths=[study.cover,study.tileCover,...study.sections.flatMap(s=>[s.src,s.poster,s.before,s.after,...(s.srcs||[])])].filter(Boolean);
   for(const path of paths) assert.ok(existsSync(resolve(root,'public'+path)),study.id+' missing '+path);
  }
 });
@@ -69,7 +69,19 @@ test('existing 21-card choreography remains; gallery case study actions clickabl
  assert.ok(gallery.includes('LivePaperRenderer'));
  assert.ok(gallery.includes('HomePaperMotion'));
  assert.ok(gallery.includes('CaseStudyReader'));
- assert.ok(gallery.includes('Explore all seven'));
- assert.ok(gallery.includes('setOpenedProject(PROJECTS[activeRef.current])'));
+ assert.ok(gallery.includes('>All case studies</button>'));
+ assert.ok(gallery.includes('openCaseStudy(Number(gesture.projectIndex))'));
  assert.ok(stylesheet.includes('.jw-projects-stage__details{pointer-events:auto;}'));
+});
+test('each featured project has a direct study and Better Mate retains its approved media order',()=>{
+ const projects=gallery.split('export const PROJECTS = [')[1].split('];')[0];
+ const names=[...projects.matchAll(/name: '([^']+)'/g)].map(match=>match[1]);
+ assert.equal(names.length,7);
+ for(const name of names){
+  assert.ok(data.studies.some(study=>name==='Nurusa'?study.id==='nurush':study.name===name),name);
+ }
+ const betterMate=byId['better-mate'];
+ assert.equal(betterMate.featuredOnly,true);
+ assert.deepEqual(betterMate.sections.map(section=>section.type),['video','image','image','video','image']);
+ assert.ok(betterMate.sections.filter(section=>section.type==='video').every(section=>section.controls===false));
 });

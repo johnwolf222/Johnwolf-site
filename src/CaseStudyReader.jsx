@@ -5,6 +5,7 @@ import content from './content/approved-case-studies.json';
 import './CaseStudyReader.css';
 
 const entries=content.studies;
+const libraryEntries=entries.filter(item=>!item.featuredOnly);
 const upcoming=content.upcoming||[];
 const lookup=Object.fromEntries(entries.map(item=>[item.id,item]));
 const labelFor=name=>{
@@ -64,7 +65,7 @@ function LoopingFilm({section,cycle}){
  },[section.src,cycle]);
  return <figure className="jw-case-video">
   <video ref={ref} src={section.src} poster={section.poster||undefined}
-    autoPlay muted loop playsInline controls preload="metadata"
+    autoPlay muted loop playsInline controls={section.controls!==false} preload="metadata"
     disablePictureInPicture aria-label={section.title}/>
   <figcaption>{section.title}</figcaption>
  </figure>;
@@ -109,7 +110,10 @@ export default function CaseStudyReader({selectedProject,onClose}){
   const paper=sheetRef.current;
   if(!paper)return;
   if(window.matchMedia('(prefers-reduced-motion:reduce)').matches){setPullReady(true);return;}
-  const origin=document.querySelector('.jw-projects-stage__details .jw-case-open-button')?.getBoundingClientRect();
+  const trigger=selectedProject?.image
+   ? document.querySelector(`[data-project-artwork="${selectedProject.image}"]`)
+   : document.querySelector('.jw-case-open-all');
+  const origin=trigger&&!trigger.hidden?trigger.getBoundingClientRect():null;
   const r=origin||{left:innerWidth*.42,top:innerHeight*.40,width:innerWidth*.16,height:innerHeight*.22};
   const ctx=gsap.context(()=>{
    gsap.set(paper,{x:r.left,y:r.top,scaleX:Math.max(.04,r.width/innerWidth),scaleY:Math.max(.04,r.height/innerHeight),transformOrigin:'0 0',clipPath:'polygon(1% 4%,50% 0%,97% 5%,100% 96%,50% 100%,0% 95%)'});
@@ -118,7 +122,7 @@ export default function CaseStudyReader({selectedProject,onClose}){
      .to(paper,{x:0,y:0,scaleX:1,scaleY:1,skewY:0,clipPath:'polygon(0 0,100% 0,100% 100%,0 100%)',duration:.2,ease:'power2.out'});
   },paper);
   return()=>ctx.revert();
- },[]);
+ },[selectedProject]);
  useEffect(()=>{
   focusReturn.current=document.activeElement;
   const previous=document.body.style.overflow;
@@ -198,7 +202,6 @@ export default function CaseStudyReader({selectedProject,onClose}){
   };
  },[active]);
  const change=delta=>{
-  if(!study){setActive(entries[0].id);return;}
   const index=entries.findIndex(item=>item.id===study.id);
   setActive(entries[(index+delta+entries.length)%entries.length].id);
  };
@@ -213,7 +216,7 @@ export default function CaseStudyReader({selectedProject,onClose}){
    {details&&<aside className="jw-case-details"><h3>{study?.name||'Case studies'}</h3><p>{study?.intro||'Seven identities created by John Wolf.'}</p><p>Scroll or drag vertically. The gallery repeats continuously.</p></aside>}
    {!study?<div className="jw-case-library" aria-label="Choose a case study">
      <div className="jw-case-library__intro"><span>JOHN WOLF · SELECTED WORK</span><h2>Stories behind the work.</h2><p>Seven case studies and the thinking behind each one.</p></div>
-     <div className="jw-case-library__grid">{entries.map(item=><button type="button" className={'jw-case-tile'+(item.tileCover?' jw-case-tile--custom-cover':'')} key={item.id} onClick={()=>{setActive(item.id);setDetails(false);}} style={{'--jw-case-color':item.highlight}}>
+     <div className="jw-case-library__grid">{libraryEntries.map(item=><button type="button" className={'jw-case-tile'+(item.tileCover?' jw-case-tile--custom-cover':'')} key={item.id} onClick={()=>{setActive(item.id);setDetails(false);}} style={{'--jw-case-color':item.highlight}}>
        {(item.tileCover||item.cover)?<img src={item.tileCover||item.cover} alt="" loading="lazy"/>:<div className="jw-case-tile__type">{item.name}</div>}
        <span>{item.name}<b>↗</b></span>
      </button>)}{upcoming.map(item=><div className="jw-case-tile jw-case-tile--custom-cover jw-case-tile--upcoming" key={item.id} style={{'--jw-case-color':item.highlight}} aria-label={item.name+', case study coming soon'}>
