@@ -8,6 +8,11 @@ import {
 } from '../src/SpiralGalleryMotion.js';
 
 import {
+  aboutHandoffProgress, departingCardOffset, aboutHeadPose,
+  aboutHeadOpacity,
+} from '../src/AboutHandoffMotion.js';
+
+import {
   wrapGalleryFocus, wrappedGalleryDistance,
   nearestGalleryIndex, stepGalleryFocus, dragGalleryFocus,
   gallerySeamOpacity, galleryRestScrollY, shouldAutoLand,
@@ -262,8 +267,8 @@ test('one GLB remains anchored at top center after the paper train lands', () =>
     import.meta.url), 'utf8');
   const css = readFileSync(new URL('../src/NewHomepage.css',
     import.meta.url), 'utf8');
-  assert.match(sequence, /const headPlacement = galleryHeadPlacement\(p, height\)/);
-  assert.match(sequence, /head\.style\.opacity = String\(exitFade\)/);
+  assert.match(sequence, /const headPlacement = aboutHeadPose\(handoff,/);
+  assert.match(sequence, /head\.style\.opacity = String\(headOpacity\)/);
   assert.doesNotMatch(sequence, /headFade|headRise/,
     'old head fade or upward ejection is still present');
   assert.match(css, /\.jw-continuous-head\s*\{[\s\S]*?position: fixed;/);
@@ -380,7 +385,7 @@ test('gallery swipe controls preserve the original scroll and head', () => {
     'short high-velocity flicks must count without waiting for a pointermove');
   assert.match(source, /galleryControlsRef\.current\?\.start\(1\)/);
   assert.match(source, /galleryControlsRef\.current\?\.start\(-1\)/);
-  assert.match(source, /headPlacement = galleryHeadPlacement\(p, height\)/);
+  assert.match(source, /headPlacement = aboutHeadPose\(handoff,/);
   assert.match(css, /touch-action: pan-y;/,
     'horizontal gesture surface must not prevent vertical page scrolling');
   assert.match(css, /z-index: 50;/);
@@ -410,8 +415,8 @@ test('original homepage 3D head stays mounted and renders through section two', 
     'a lost WebGL context must restore the visible static head');
   assert.match(head, /head-placeholder\.svg/,
     'keep the approved static head until the actual GLB is drawn');
-  assert.match(sequence, /head\.style\.opacity = String\(exitFade\)/);
-  assert.match(sequence, /head\.style\.visibility = exitFade < \.005/);
+  assert.match(sequence, /head\.style\.opacity = String\(headOpacity\)/);
+  assert.match(sequence, /head\.style\.visibility = headOpacity < \.005/);
   assert.match(sequence, /galleryHeadPlacement\(p, height\)/);
   assert.match(css, /\.jw-continuous-head\s*\{\s*position: fixed;/);
   assert.match(css, /\.jw-continuous-head__artboard\s*\{[\s\S]*?left: 50%;/);
@@ -475,9 +480,9 @@ test('Section 2 waits after auto-landing and the next scroll enters About', () =
   assert.match(source, /startLanding\(\);/);
   assert.match(source, /animatePageTo\(galleryAnchor\(\),/);
   assert.match(source, /markGallerySettled/);
-  assert.match(source, /const sceneOpacity = galleryActive \? exitFade : stageOpacity/,
+  assert.match(source, /const sceneOpacity = stageOpacity/,
     'gallery overlay must fade with the head rather than vanish abruptly');
-  assert.match(source, /scrollY < sectionTop \+ sectionHeight - height \* \.09/,
+  assert.match(source, /scrollY < sectionTop \+ sectionHeight - height \* \.01/,
     'overlay must remain mounted until its fade finishes');
   assert.match(source, /snapState = 'settled'/);
   assert.match(source, /exitReadyAt = performance\.now\(\) \+ 550/,
@@ -504,7 +509,7 @@ test('Section 2 waits after auto-landing and the next scroll enters About', () =
   assert.match(source, /window\.removeEventListener\('wheel', onVerticalWheel, true\)/);
   assert.match(source, /cancelScrollTween\(\)/,
     'scroll tween must be cleaned up when the component unmounts');
-  assert.match(source, /const headPlacement = galleryHeadPlacement\(p, height\)/);
+  assert.match(source, /const headPlacement = aboutHeadPose\(handoff,/);
   assert.match(source, /settleTo\(stepGalleryFocus\(dragTarget, direction\)\)/,
     'one-card swipe interaction must survive the new scroll snap');
   assert.match(main, /<ProjectsSequence\/>\s*<section id="about"/,
@@ -676,4 +681,72 @@ test('Projects uses one GPU render pass after Home rays finish', () => {
   assert.match(source, /else \{[\s\S]*?renderer\.setRenderTarget\(paperTarget\);/,
     'the approved Hole 01 chromatic rays must retain their two-pass render');
   assert.match(source, /uRayStrength\.value = rayStrength/);
+});
+
+test('Projects → About sends the same seven papers offscreen right while the original head lands', () => {
+  const sequence = readFileSync(new URL('../src/ProjectsSequence.jsx',
+    import.meta.url), 'utf8');
+  const headCSS = readFileSync(new URL('../src/NewHomepage.css',
+    import.meta.url), 'utf8');
+  const aboutCSS = readFileSync(new URL('../src/style.css',
+    import.meta.url), 'utf8');
+  assert.match(sequence, /departingCardOffset\(handoff, rank, width, height\)/);
+  assert.match(sequence, /const handoff = aboutHandoffProgress\(scrollY,/);
+  assert.match(sequence, /aboutHeadPose\(handoff,/);
+  assert.match(sequence, /aboutHeadOpacity\(scrollY, aboutBottom, height\)/);
+  assert.doesNotMatch(sequence, /galleryExitFade\(scrollY,/,
+    'old fade-first exit must not hide approved sheets while still visible');
+  assert.match(headCSS, /var\(--jw-head-x, 0px\)/,
+    'reuse the permanent canvas with a horizontal translation');
+  assert.match(aboutCSS, /#root \.about \{[\s\S]*?padding-right: 48vw;/,
+    'existing About copy must reserve the head landing area');
+
+  for (const [width, height] of sizes) {
+    const galleryTop = 5000;
+    const galleryHeight = Math.max(550, height);
+    const rest = galleryTop + height * .10;
+    const end = galleryTop + galleryHeight;
+    assert.equal(aboutHandoffProgress(rest, galleryTop, galleryHeight, height), 0);
+    assert.equal(aboutHandoffProgress(end, galleryTop, galleryHeight, height), 1);
+    for (let i = 0; i <= 100; i++) {
+      const p = i / 100;
+      const current = aboutHandoffProgress(
+        rest + (end - rest) * p, galleryTop, galleryHeight, height);
+      const prior = aboutHandoffProgress(
+        rest + (end - rest) * Math.max(0, p - .01),
+        galleryTop, galleryHeight, height);
+      assert.ok(current >= prior, 'reverse-seekable monotonic handoff');
+    }
+    for (let rank = 0; rank < 7; rank++) {
+      const atRest = departingCardOffset(0, rank, width, height);
+      const offscreen = departingCardOffset(1, rank, width, height);
+      assert.equal(atRest.x, 0);
+      assert.equal(atRest.opacity, 1);
+      assert.ok(offscreen.x > width * 2.75,
+        'even leftmost gallery sheet must clear RIGHT edge');
+      assert.equal(offscreen.opacity, 0);
+      const mid = departingCardOffset(.5, rank, width, height);
+      assert.ok(mid.x > 0 && mid.opacity === 1,
+        'paper should be visibly moving, not crossfading away');
+    }
+    const nonfeatured = departingCardOffset(.5, -1, width, height);
+    assert.equal(nonfeatured.x, 0,
+      'nonfeatured Home sheets must remain offscreen left');
+    const galleryPose = galleryHeadPlacement(1, height);
+    const start = aboutHeadPose(0, galleryPose, width, height);
+    const arrived = aboutHeadPose(1, galleryPose, width, height);
+    assert.equal(start.shift, galleryPose.shift);
+    assert.equal(start.scale, galleryPose.scale);
+    assert.ok(arrived.shift > start.shift, 'head must move DOWN');
+    assert.ok(arrived.scale >= .9, 'keep approved 3D head clearly visible');
+    assert.equal(arrived.x, width > 800 ? Math.min(width * .25, 410) : 0);
+    assert.deepEqual(aboutHeadPose(.5, galleryPose, width, height),
+      aboutHeadPose(.5, galleryPose, width, height),
+      'reverse scrolling must seek the exact same head pose');
+    const aboutBottom = end + height * 1.25;
+    assert.equal(aboutHeadOpacity(end, aboutBottom, height), 1,
+      'head remains visible when entering About');
+    assert.equal(aboutHeadOpacity(aboutBottom, aboutBottom, height), 0,
+      'head clears before Contact');
+  }
 });
