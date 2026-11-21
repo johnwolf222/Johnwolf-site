@@ -440,7 +440,9 @@ export default function ProjectsSequence() {
     };
     const markGallerySettled = () => {
       snapState = 'settled';
-      exitReadyAt = performance.now() + 550;
+      // Fixed short landing grace. Never extend it for each trackpad
+      // momentum packet: that previously trapped visitors in Section 2.
+      exitReadyAt = performance.now() + 220;
       // Freeze the first project in its approved position. From here
       // only explicit left/right gestures change the active project.
       if (!loopEnabled) {
@@ -466,7 +468,7 @@ export default function ProjectsSequence() {
       snapState = 'leaving';
       // An intentional gallery exit now traverses the actual scroll-driven
       // 3D movement at a legible pace, instead of the old one-second whip.
-      animatePageTo(docTop(about), 1.65, () => {
+      animatePageTo(docTop(about), 1.08, () => {
         snapState = 'idle';
       }, 'sine.inOut');
     };
@@ -568,8 +570,9 @@ export default function ProjectsSequence() {
       if (event.cancelable) event.preventDefault();
       const now = performance.now();
       if (now < exitReadyAt) {
-        // Absorb the momentum tail of the gesture that triggered landing.
-        exitReadyAt = now + 220;
+        // Brief fixed protection against the wheel gesture that landed
+        // the gallery. Do NOT move exitReadyAt here: continuous trackpad
+        // packets used to postpone the exit indefinitely.
         verticalGestureRef.current = initialGalleryVerticalState();
         return;
       }
@@ -605,7 +608,7 @@ export default function ProjectsSequence() {
       if (!origin || !origin.up || snapState !== 'settled' ||
           performance.now() < exitReadyAt) return;
       const point = event.changedTouches[0];
-      if (point && point.clientY - origin.y < -35) leaveForAbout();
+      if (point && point.clientY - origin.y < -22) leaveForAbout();
     };
     const onScrollKey = event => {
       if (event.defaultPrevented || event.altKey || event.ctrlKey ||
