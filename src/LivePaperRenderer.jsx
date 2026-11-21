@@ -276,6 +276,10 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
       if (e && index >= 0 && index < TOTAL) e.poses[index] = pose;
     },
     draw(progress) { engineRef.current?.draw(progress); },
+    pickCard(x, y, allowed) {
+      return engineRef.current?.pickCard(x, y, allowed) ?? -1;
+    },
+    setHovered(index) { engineRef.current?.setHovered(index); },
   }), []);
 
   useEffect(() => {
@@ -344,6 +348,9 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
     raysScene.add(new THREE.Mesh(raysGeometry, raysMaterial));
     const camera = new THREE.PerspectiveCamera(42, 1, 1, 9000);
     camera.position.z = FOCAL;
+    const raycaster = new THREE.Raycaster();
+    const hitPointer = new THREE.Vector2();
+    let hoveredIndex = -1;
     const sharedUniforms = {
       uHead: { value: null },
       uHeadBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
@@ -381,11 +388,29 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
         toneMapped: false,
       });
       const mesh = new THREE.Mesh(geometry, material);
+      mesh.userData.galleryIndex = index;
+      // The outline lives on the real 3D sheet, not a rectangular DOM
+      // hotspot. It follows the image's natural aspect and perspective.
+      const outline = new THREE.LineLoop(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(-.502, -.502, .012),
+          new THREE.Vector3(.502, -.502, .012),
+          new THREE.Vector3(.502, .502, .012),
+          new THREE.Vector3(-.502, .502, .012),
+        ]),
+        new THREE.LineBasicMaterial({
+          color: 0x8750f1, transparent: true, opacity: 1,
+          depthTest: false, depthWrite: false,
+        }),
+      );
+      outline.visible = false;
+      outline.renderOrder = 1000;
+      mesh.add(outline);
       mesh.frustumCulled = false;
       mesh.visible = false;
       mesh.rotation.order = 'YXZ';
       world.add(mesh);
-      items.push({ index, geometry, material, mesh,
+      items.push({ index, geometry, material, mesh, outline,
         widthFactor: 1, heightFactor: 1, mapReady: false });
     }
 
@@ -453,6 +478,8 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
           continue;
         }
         item.mesh.visible = true;
+        item.outline.visible = progress >= 0.985 &&
+          hoveredIndex === item.index && pose.opacity > .08;
         item.material.uniforms.uBehind.value = pose.front ? 0 : 1;
         item.mesh.position.set(pose.x, -pose.y, pose.z);
         // The locked Hole 01 card size is 390px on desktop; the Gallery's
@@ -537,7 +564,28 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
       }
     }
 
-    const engine = { poses, draw, get ready() { return ready; } };
+    // GPU ray picking is aligned with the rendered paper meshes, including
+    // the foreshortened cards on the sides of the gallery.
+    function pickCard(clientX, clientY, allowed = []) {
+      if (!ready || disposed) return -1;
+      hitPointer.set(2 * clientX / width - 1, 1 - 2 * clientY / height);
+      camera.updateMatrixWorld();
+      raycaster.setFromCamera(hitPointer, camera);
+      const candidates = items.filter(item => allowed.includes(item.index) &&
+        item.mapReady && item.mesh.visible).map(item => {
+          item.mesh.updateMatrixWorld(true);
+          return item.mesh;
+        });
+      const hit = raycaster.intersectObjects(candidates, false)[0];
+      return hit?.object.userData.galleryIndex ?? -1;
+    }
+    function setHovered(index) {
+      if (hoveredIndex === index) return;
+      hoveredIndex = index;
+      draw(1);
+    }
+    const engine = { poses, draw, pickCard, setHovered,
+      get ready() { return ready; } };
     engineRef.current = engine;
     const contextLost = e => {
       e.preventDefault();
@@ -597,6 +645,8 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
       items.forEach(item => {
         item.geometry.dispose();
         item.material.dispose();
+        item.outline.geometry.dispose();
+        item.outline.material.dispose();
       });
       textures.forEach(texture => texture.dispose());
       maskTexture?.dispose();
