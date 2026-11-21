@@ -20,7 +20,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 // Seven approved featured projects, in their established sequence.
 export const PROJECTS = [
-  { image: 9, name: 'Souly Unboxed', description: 'Brand identity and visual communication.' },
+  { image: 9, name: 'Riches Cosmetics', description: 'Cosmetics branding and visual identity.' },
   { image: 7, name: 'Chick Muy Caliente', description: 'Branding and promotional design.' },
   { image: 5, name: 'Better Mate', description: 'An expressive identity for Better Mate.' },
   { image: 11, name: 'Brewty', description: 'Coffee branding and visual identity.' },
@@ -32,7 +32,7 @@ const CARD_COUNT = 21;
 const CARD_IDS = Array.from({ length: CARD_COUNT }, (_, i) => i + 1);
 // Left-to-right placement in the gallery as viewed from its first focus.
 const ENTRY_ORDER = [4, 5, 6, 0, 1, 2, 3];
-const fileFor = id => '/new-homepage/approved-cards/' +
+const fileFor = id => id === 9 ? '/brands/riches-01.webp' : '/new-homepage/approved-cards/' +
   String(id).padStart(2, '0') + (id > 13 ? '.avif' : '.webp');
 const clamp = (n, a = 0, b = 1) => Math.max(a, Math.min(b, n));
 const smooth = (n, a, b) => {
