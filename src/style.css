@@ -131,3 +131,24 @@ html.purple-native-cursor *::after{cursor:url("data:image/png;base64,iVBORw0KGgo
 .contact-explore-reveal p{margin:0;padding:0 0 22px;font-size:13px;line-height:1.7}
 @media(prefers-reduced-motion:no-preference){.contact-explore-option[open] .contact-explore-reveal{animation:contact-option-in .35s ease both}}
 @keyframes contact-option-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+
+
+/* Section 3 has its own reserved landing space for the SAME persistent GLB.
+   Original About wording and typography remain intact. */
+#root .about {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding-right: 48vw;
+}
+#root .about h2 { max-width: 100%; }
+@media (max-width: 800px) {
+  #root .about {
+    min-height: 125svh;
+    justify-content: flex-start;
+    padding: clamp(110px, 16vh, 160px) 28px 52svh;
+  }
+  #root .about h2 { font-size: clamp(45px, 10vw, 70px); }
+}
