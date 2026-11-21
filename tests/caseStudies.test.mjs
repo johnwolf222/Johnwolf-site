@@ -88,6 +88,8 @@ test('all visible gallery sheets can be outlined and selected before the reader 
    'a click must hit an actual card, not only the center rectangle');
  assert.ok(!gallery.includes('const withinCard ='), 'old center-only hit target removed');
  assert.ok(stylesheet.includes('data-hovered-card'), 'pointer changes over any card');
+ assert.ok(stylesheet.includes('--jw-hover-art-width'), 'fallback outline fits image dimensions');
+ assert.ok(gallery.includes('image.naturalWidth * fit'), 'fallback uses the actual artwork aspect ratio');
 });
 test('every case-study close restores section two and the gallery button reads All case studies',()=>{
  assert.ok(gallery.includes('const closeCaseStudy = React.useCallback('));
