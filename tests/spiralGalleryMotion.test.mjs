@@ -9,7 +9,7 @@ import {
 
 import {
   aboutHandoffProgress, departingCardOffset, aboutHeadPose,
-  aboutHeadOpacity,
+  aboutIntroPose, aboutHeadOpacity,
 } from '../src/AboutHandoffMotion.js';
 
 import {
@@ -722,8 +722,15 @@ test('Projects → About sends the same seven papers offscreen right while the o
       const offscreen = departingCardOffset(1, rank, width, height);
       assert.equal(atRest.x, 0);
       assert.equal(atRest.opacity, 1);
-      assert.ok(offscreen.x > width * 2.75,
-        'even leftmost gallery sheet must clear RIGHT edge');
+      // Check actual viewport clearance, not an arbitrary 2.75-viewports
+      // overshoot that made the old one-second exit feel too fast.
+      const leftmostCardX = 3 * Math.min(width * .218, 290) *
+        (GALLERY_FOCAL + 3 * 155) / GALLERY_FOCAL;
+      const cardHalfWidth = (width <= 800
+        ? Math.min(width * .55, 285)
+        : Math.min(width * .26, 370)) / 2;
+      assert.ok(offscreen.x - leftmostCardX - cardHalfWidth > width / 2 + 100,
+        'even the leftmost side sheet must clear the RIGHT edge');
       assert.equal(offscreen.opacity, 0);
       const mid = departingCardOffset(.5, rank, width, height);
       assert.ok(mid.x > 0 && mid.opacity === 1,
@@ -791,4 +798,66 @@ test('original Design Is Life About uses the ONE approved GLB and scrolls throug
   assert.match(motion, /observer\.observe\(aboutNode\)/);
   assert.doesNotMatch(head, /!live \|\| !loaded \|\| !visible/,
     '3D hit test must never refer to an undeclared variable');
+});
+
+test('Section 2 → About stays fluid from gallery rest to original title reveal', () => {
+  const source = readFileSync(new URL('../src/ProjectsSequence.jsx',
+    import.meta.url), 'utf8');
+  const aboutCSS = readFileSync(new URL('../src/AboutExperience.css',
+    import.meta.url), 'utf8');
+  assert.match(source, /const intro = reduced\.matches/);
+  assert.match(source, /aboutIntroPose\(handoff, height\)/);
+  assert.match(source, /setProperty\('--jw-about-intro-opacity'/);
+  assert.match(source, /setProperty\('--jw-about-intro-lift'/);
+  assert.match(source, /animatePageTo\(docTop\(about\), 1\.65,/,
+    'the gallery-to-About journey must not whip by in one second');
+  assert.match(source, /}, 'sine\.inOut'\)/);
+  assert.match(aboutCSS, /opacity: var\(--jw-about-intro-opacity, 1\)/);
+  assert.match(aboutCSS, /transform: translate3d\(0, var\(--jw-about-intro-lift, 0px\), 0\)/);
+  assert.doesNotMatch(aboutCSS, /transition: opacity \.3s ease;/,
+    'a delayed CSS transition must not fight with scroll-derived position');
+
+  for (const [width, height] of sizes) {
+    const top = 4800;
+    const galleryHeight = Math.max(550, height);
+    const rest = galleryRestScrollY(top, height);
+    const aboutTop = top + galleryHeight;
+    const sample = delta => aboutHandoffProgress(
+      rest + delta, top, galleryHeight, height);
+    assert.equal(sample(0), 0, 'gallery remains locked until explicit exit');
+    assert.ok(sample(height * .025) > 0,
+      'the first positive exit scroll must start paper movement');
+    assert.equal(aboutHandoffProgress(aboutTop, top, galleryHeight, height), 1);
+    let lastX = 0, lastHeadY = galleryHeadPlacement(1, height).shift;
+    for (let step = 0; step <= 200; step++) {
+      const p = step / 200;
+      const scroll = rest + (aboutTop - rest) * p;
+      const actual = aboutHandoffProgress(scroll, top, galleryHeight, height);
+      assert.ok(Math.abs(actual - p) < 1e-8,
+        'native scroll and animation must share one reversible timebase');
+      const sheet = departingCardOffset(actual, 0, width, height);
+      const head = aboutHeadPose(actual,
+        galleryHeadPlacement(1, height), width, height);
+      const intro = aboutIntroPose(actual, height);
+      assert.ok(sheet.x + 1e-7 >= lastX);
+      assert.ok(head.shift + 1e-7 >= lastHeadY);
+      assert.ok(intro.opacity >= 0 && intro.opacity <= 1);
+      assert.ok(intro.lift >= 0 && intro.lift <= Math.min(80, height * .09));
+      if (p < .53) assert.equal(intro.opacity, 0,
+        'no premature text overlay while cards depart');
+      if (p > .92) assert.equal(intro.opacity, 1,
+        'About title must be fully in place at the section boundary');
+      if (p < .80) assert.equal(sheet.opacity, 1,
+        'do not fade a still-visible featured sheet');
+      lastX = sheet.x;
+      lastHeadY = head.shift;
+    }
+    const early = departingCardOffset(.02, 0, width, height);
+    assert.ok(early.x > 0, 'cards begin leaving without a dead zone');
+    assert.ok(aboutIntroPose(0, height).lift > 0);
+    assert.equal(aboutIntroPose(1, height).lift, 0);
+    assert.equal(aboutIntroPose(1, height).opacity, 1);
+    assert.deepEqual(aboutIntroPose(.68, height), aboutIntroPose(.68, height),
+      'reverse scroll must restore precisely the same intro pose');
+  }
 });
