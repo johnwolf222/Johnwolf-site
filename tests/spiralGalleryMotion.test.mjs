@@ -894,3 +894,37 @@ test('Section 2 scroll unlock never postpones itself with continued trackpad mot
   assert.equal(horizontal.exit, false,
     'horizontal card navigation must remain separate from About scroll');
 });
+
+test('Section 3 ABOUT heading precisely matches Section 2 PROJECTS purple display title', () => {
+  const about = readFileSync(new URL('../src/AboutExperience.jsx',
+    import.meta.url), 'utf8');
+  const aboutCss = readFileSync(new URL('../src/AboutExperience.css',
+    import.meta.url), 'utf8');
+  const projectsCss = readFileSync(new URL('../src/ProjectsSequence.css',
+    import.meta.url), 'utf8');
+
+  assert.match(about, /<h2 id="jw-about-heading" className="jw-about-heading">ABOUT<\/h2>/);
+  const block = (css, selector) => {
+    const i = css.indexOf(selector + ' {');
+    assert.ok(i >= 0, 'CSS selector missing: ' + selector);
+    const start = css.indexOf('{', i);
+    return css.slice(start + 1, css.indexOf('}', start));
+  };
+  const property = (style, name) => style.split('\n')
+    .map(line => line.trim()).find(line => line.startsWith(name + ':'));
+  const source = block(projectsCss, '.jw-projects-stage__information h2');
+  const restored = block(aboutCss,
+    '#root .about.jw-about-experience > .jw-about-heading');
+  for (const name of [
+    'left', 'top', 'margin', 'color', 'font-family', 'font-weight',
+    'font-size', 'letter-spacing', 'line-height',
+  ]) {
+    assert.equal(property(restored, name), property(source, name),
+      'About heading must match PROJECTS on ' + name);
+  }
+  assert.equal(property(restored, 'color'), 'color: #8750f1;');
+  assert.match(aboutCss, /font-size: clamp\(25px, 6vw, 43px\);/,
+    'About heading must also match the Projects mobile font scale');
+  assert.match(aboutCss, /top: clamp\(94px, 14vh, 127px\);/,
+    'mobile heading must align with Projects top spacing');
+});
