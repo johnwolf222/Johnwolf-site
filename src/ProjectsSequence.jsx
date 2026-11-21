@@ -656,8 +656,21 @@ export default function ProjectsSequence() {
       hoveredRef.current = index;
       if (previous >= 0) cardRefs.current[PROJECTS[previous].image - 1]
         ?.classList.remove('is-hovered');
-      if (index >= 0) cardRefs.current[PROJECTS[index].image - 1]
-        ?.classList.add('is-hovered');
+      if (index >= 0) {
+        const card = cardRefs.current[PROJECTS[index].image - 1];
+        const image = card?.querySelector('img');
+        // Match the actual fitted artwork, not the transparent letterbox in
+        // the DOM fallback's fixed-size paper container.
+        if (card && image?.naturalWidth && image?.naturalHeight) {
+          const fit = Math.min(card.clientWidth / image.naturalWidth,
+            card.clientHeight / image.naturalHeight);
+          card.style.setProperty('--jw-hover-art-width',
+            image.naturalWidth * fit + 'px');
+          card.style.setProperty('--jw-hover-art-height',
+            image.naturalHeight * fit + 'px');
+        }
+        card?.classList.add('is-hovered');
+      }
       gpuPaperRef.current?.setHovered(
         index < 0 ? -1 : PROJECTS[index].image - 1);
       if (stageRef.current) stageRef.current.dataset.hoveredCard =
