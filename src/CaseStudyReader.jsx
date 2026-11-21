@@ -86,7 +86,7 @@ function OneCycle({study,cycle}){
    <h2 className="jw-case-study-heading">{study.name}</h2>
    <p><Ink phrases={study.highlights}>{study.intro}</Ink></p>
   </div>
-  {study.cover&&!study.coverInGrid&&<figure className="jw-case-image"><img src={study.cover} alt={study.name+' original brand artwork'} loading={cycle===1?'eager':'lazy'} decoding="async"/></figure>}
+  {study.cover&&!study.coverInGrid&&!study.hideReaderCover&&<figure className="jw-case-image"><img src={study.cover} alt={study.name+' original brand artwork'} loading={cycle===1?'eager':'lazy'} decoding="async"/></figure>}
   {study.sections.map((section,i)=><StoryMedia key={i} section={section} cycle={cycle}/>)}
   {study.beats?.length>0&&<div className="jw-case-beats">{study.beats.map((text,i)=>
    <p key={i}><Ink phrases={study.highlights}>{text}</Ink></p>)}</div>}
