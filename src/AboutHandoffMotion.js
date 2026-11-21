@@ -35,13 +35,13 @@ export function departingCardOffset(progress, rank, width, height) {
   };
 }
 
-// The ONE Candidate F GLB moves from top-center of Projects down into the
-// About composition. The right column is intentionally free for it.
+// The ONE Candidate F GLB moves down into the original centered Design Is
+// Life composition. Keep the artboard centered for its 3D story text planes.
 export function aboutHeadPose(progress, galleryPose, width, height) {
   const t = ease(progress);
   const desktop = width > 800;
   return {
-    x: mix(0, desktop ? Math.min(width * .25, 410) : 0, t),
+    x: 0,
     shift: mix(galleryPose.shift, desktop ? 20 : Math.min(height * .26, 220), t),
     scale: mix(galleryPose.scale, desktop ? .92 : .90, t),
   };
