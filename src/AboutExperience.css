@@ -34,7 +34,13 @@
   display: grid;
   place-items: center;
   pointer-events: none;
-  transition: opacity .3s ease;
+  /* Native section position supplies the upward travel. These scroll-
+     derived values only add a restrained settle and delayed ink reveal;
+     no CSS transition lag after JS has already sought the correct frame. */
+  opacity: var(--jw-about-intro-opacity, 1);
+  transform: translate3d(0, var(--jw-about-intro-lift, 0px), 0);
+  transition: none;
+  will-change: opacity, transform;
 }
 .jw-about-type-stack {
   text-align: center;
