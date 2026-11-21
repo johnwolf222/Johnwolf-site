@@ -116,3 +116,22 @@
 .jw-case-tile--upcoming{cursor:default}
 .jw-case-tile--upcoming:hover{transform:none;box-shadow:none}
 .jw-case-tile--upcoming b{font-size:13px;letter-spacing:.02em;white-space:nowrap}
+
+/* Thin signature-purple hover outline on case-study artwork only.
+   An inset shadow avoids changing image dimensions or gallery layout. */
+@media (hover: hover) and (pointer: fine) {
+  .jw-case-reader .jw-case-image,
+  .jw-case-reader .jw-case-grid img,
+  .jw-case-reader .jw-case-tile,
+  .jw-case-reader .jw-case-comparison__stage,
+  .jw-case-reader .jw-case-video {
+    transition: box-shadow .18s ease;
+  }
+  .jw-case-reader .jw-case-image:hover,
+  .jw-case-reader .jw-case-grid img:hover,
+  .jw-case-reader .jw-case-tile:hover,
+  .jw-case-reader .jw-case-comparison__stage:hover,
+  .jw-case-reader .jw-case-video:hover {
+    box-shadow: 0 0 0 1.5px #8750f1;
+  }
+}
