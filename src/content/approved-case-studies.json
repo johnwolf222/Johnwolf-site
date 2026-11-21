@@ -430,10 +430,7 @@
       "eyebrow": "UX RESEARCH & PRODUCT IMPROVEMENT",
       "highlight": "#7DCC35",
       "intro": "I independently evaluated common points of friction in everyday app interactions and developed three proposed improvements. These concepts were not commissioned, implemented, or validated through production metrics. They show how I identify usability problems, reason through alternatives, and communicate practical product improvements.",
-      "beats": [
-        "Three independent proposals. Each starts with an observed interaction challenge, then illustrates a possible improvement and the intended user benefit.",
-        "These are design proposals, not shipped product features or measured outcomes."
-      ],
+      "beats": [],
       "highlights": [
         "independently evaluated",
         "proposed improvements",
@@ -441,36 +438,27 @@
       ],
       "sections": [
         {
-          "type": "text",
-          "body": "Tag Friends. Spark Conversations. Proposal 01: Make tagging friends easier to discover while composing a comment, helping people mention friends and invite them into conversations.",
-          "emphasis": [
-            "Tag Friends. Spark Conversations."
-          ]
+          "type": "image",
+          "src": "/brands/suggested-solutions/tag-friends.webp",
+          "alt": "Tag Friends. Spark Conversations. Equal-size phone comparisons, searchable friend mentions, and proposed benefits"
         },
         {
-          "type": "text",
-          "body": "Select More. Scroll Less. Proposal 02: Enable multiple photo selection with a clear counter, reducing repeated selection steps and making the chosen set easier to review.",
-          "emphasis": [
-            "Select More. Scroll Less."
-          ]
+          "type": "image",
+          "src": "/brands/suggested-solutions/select-more.webp",
+          "alt": "Select More. Scroll Less. Multi-photo selection with clear counters and proposed improvements"
         },
         {
-          "type": "text",
-          "body": "Write More. See More. Proposal 03: Allow the comment field to expand as someone types, keeping more of their message visible and easier to edit.",
-          "emphasis": [
-            "Write More. See More."
-          ]
+          "type": "image",
+          "src": "/brands/suggested-solutions/write-more.webp",
+          "alt": "Write More. See More. Expanding text field and paragraph support proposal"
         }
       ],
-      "mediaToAttach": [
-        "Approved cover: Suggested Solutions_ Case Study.png",
-        "Board 01: Firefly_gpt-image_create 971833.png",
-        "Board 02: Firefly_gpt-image_create 88382.png",
-        "Board 03: Firefly_gpt-image_create 722646.png",
-        "Identity mark: unnamed.png"
-      ],
-      "assetState": "approved imagery awaiting repository binary upload; text-only entry until assets are transferred",
-      "source": "independent UX proposals; not commissioned or implemented"
+      "mediaToAttach": [],
+      "assetState": "Installed four user-approved full-width case-study images, including cover and three UX comparison boards",
+      "source": "independent UX proposals; not commissioned or implemented",
+      "cover": "/brands/suggested-solutions/cover.webp",
+      "tileCover": "/brands/suggested-solutions/cover.webp",
+      "layoutToPreserve": "Exact user-approved designs, original aspect ratios, no crop; three proposals shown sequentially as complete images with the supplied built-in text and comparisons."
     }
   ],
   "upcoming": []
