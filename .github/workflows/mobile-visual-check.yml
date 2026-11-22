@@ -1,0 +1,42 @@
+name: Verify mobile head/card centering in Chromium
+on:
+  push:
+    branches: [feature/mobile-experience-nov22]
+    paths: [.github/workflows/mobile-visual-check.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  visual-mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install app and one disposable browser driver
+        run: |
+          npm ci
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Build source and run the complete existing tests
+        run: npm run build
+      - name: Serve exact checked out branch locally
+        run: |
+          npm run dev -- --host 127.0.0.1 > /tmp/jwv-mobile-vite.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:5173/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/jwv-mobile-vite.log
+          exit 1
+      - name: Capture actual iPhone-sized GLB and paper visuals
+        run: node .github/scripts/mobile-visual-check.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-head-ring-visuals
+          path: mobile-visual-artifacts/
+          retention-days: 2
