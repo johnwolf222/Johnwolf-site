@@ -154,12 +154,24 @@ try {
     await scrollToAndSettle(height * 4.25 * .70);
     const reverse = await scrollToAndSettle(midway);
     const returnedHome = await scrollToAndSettle(0);
+    // Safari's address bar changes the visible height mid-gesture. Recreate
+    // a smaller viewport and return to the same size at the same scroll
+    // location; the GLB must recover its exact original transform.
+    await scrollToAndSettle(midway);
+    await page.setViewportSize({ width, height: height - 90 });
+    await page.waitForTimeout(800);
+    const compactViewport = await readHeadPose();
+    await page.setViewportSize({ width, height });
+    await page.waitForTimeout(800);
+    const restoredViewport = await readHeadPose();
     const initialHomeY = initialPose.headY;
     const initialHomeX = initialPose.headX;
     const delta = (a, b) => Math.abs(a - b);
     const reverseMetrics = {
       viewport: width + 'x' + height,
       initialPose, forward, reverse, returnedHome,
+      compactViewport, restoredViewport,
+      viewportRestoreDeltaY: delta(restoredViewport.headY, forward.headY),
       sameScrollDeltaX: delta(forward.headX, reverse.headX),
       sameScrollDeltaY: delta(forward.headY, reverse.headY),
       homeReturnDeltaX: delta(returnedHome.headX, initialHomeX),
@@ -175,7 +187,8 @@ try {
     if (reverseMetrics.sameScrollDeltaX > 3 ||
         reverseMetrics.sameScrollDeltaY > 3 ||
         reverseMetrics.homeReturnDeltaX > 3 ||
-        reverseMetrics.homeReturnDeltaY > 3)
+        reverseMetrics.homeReturnDeltaY > 3 ||
+        reverseMetrics.viewportRestoreDeltaY > 3)
       throw new Error('Head does not return to its original screen position ' +
         'after reverse scrolling: ' + JSON.stringify(reverseMetrics));
     // After Home unpins, its DOM artboard scrolls away. The permanent
