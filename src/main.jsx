@@ -1,6 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import './style.css';
+import './ContactCard.css';
 import NewHomepage from './NewHomepage.jsx';
 import ProjectsSequence from './ProjectsSequence.jsx';
 import VisualContinuity from './VisualContinuity.jsx';
@@ -55,7 +56,12 @@ function Contact(){
     {contactServices.map(([label,description])=><details key={label} className="contact-explore-option"><summary>{label}<span aria-hidden="true">+</span></summary><div className="contact-explore-reveal"><p>{description}</p></div></details>)}
    </div>
   </div>
-  <form className="contact-form" onSubmit={submit} aria-busy={sending}>
+  <form className="contact-form" onSubmit={submit} aria-busy={sending} aria-labelledby="contact-form-heading">
+   <div className="contact-form__intro">
+    <div className="contact-form__eyebrow"><span className="contact-form__pulse" aria-hidden="true" /> PROJECT INQUIRY</div>
+    <h3 id="contact-form-heading">Let's make something great.</h3>
+    <p>Share a little about your idea to get the conversation started.</p>
+   </div>
    <div className="contact-field-pair">
     <label>Name<input name="name" autoComplete="name" required maxLength={120} placeholder="Your name"/></label>
     <label>Email<input name="email" type="email" autoComplete="email" required maxLength={254} placeholder="you@example.com"/></label>

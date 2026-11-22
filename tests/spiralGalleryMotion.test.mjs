@@ -1462,3 +1462,28 @@ test('five purple capability rows are reversible and move only with scroll', () 
   assert.match(css, /overflow: hidden/);
   assert.match(sequence, /capabilitiesPanel\.getBoundingClientRect\(\)\.top < height/);
 });
+
+test('Contact inquiry is a responsive purple card without changing form delivery', () => {
+  const page=readFileSync(new URL('../src/main.jsx',import.meta.url),'utf8');
+  const css=readFileSync(new URL('../src/ContactCard.css',import.meta.url),'utf8');
+  assert.match(page,/import '\.\/ContactCard\.css';/);
+  assert.match(page,/className="contact-form" onSubmit=\{submit\} aria-busy=\{sending\} aria-labelledby="contact-form-heading"/);
+  assert.match(page,/id="contact-form-heading"/);
+  assert.match(page,/className="contact-form__intro"/);
+  for(const name of ['name','email','projectType','message']){
+    assert.match(page,new RegExp('name="'+name+'"'),name+' inquiry field must remain');
+  }
+  assert.match(page,/new FormData\(form\)/);
+  assert.match(page,/fetch\(endpoint,\{method:'POST'/);
+  assert.match(page,/window\.location\.href=\x60mailto:/);
+  assert.match(page,/role="status"/);
+  assert.match(page,/required maxLength=\{6000\}/);
+  assert.match(css,/#root \.contact-form \{/);
+  assert.match(css,/border-radius: clamp\(24px, 2\.5vw, 34px\)/);
+  assert.match(css,/border: 1px solid rgba\(135, 80, 241, \.20\)/);
+  assert.match(css,/background: #8750f1;/);
+  assert.match(css,/@media \(max-width: 720px\)/);
+  assert.match(css,/prefers-reduced-motion: reduce/);
+  assert.doesNotMatch(css,/position: fixed|ScrollTrigger|pointer-events: none;\s*\}/,
+    'contact card must not trap normal form interaction or page scroll');
+});
