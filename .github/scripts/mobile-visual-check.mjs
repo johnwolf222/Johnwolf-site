@@ -67,10 +67,23 @@ try {
         x: parseFloat(h.style.getPropertyValue('--jw-visible-head-orbit-x')),
         y: parseFloat(h.style.getPropertyValue('--jw-visible-head-orbit-y')),
       };
-      return { scrollY: window.scrollY, orbit, headCanvas: {
-        x: bounds.left, y: bounds.top,
-        width: bounds.width, height: bounds.height,
-      }};
+      const title = document.querySelector('.jw-new-home__artboard');
+      const titleRect = title?.getBoundingClientRect();
+      return { scrollY: window.scrollY, orbit,
+        headScreenCenter: {
+          x: window.innerWidth / 2 + orbit.x +
+            (parseFloat(h.style.getPropertyValue('--jw-head-x')) || 0),
+          y: window.innerHeight / 2 + orbit.y +
+            (parseFloat(h.style.getPropertyValue('--jw-head-shift')) || 0),
+        },
+        artboardCenter: titleRect ? {
+          x: titleRect.left + titleRect.width / 2,
+          y: titleRect.top + titleRect.height / 2,
+        } : null,
+        headCanvas: {
+          x: bounds.left, y: bounds.top,
+          width: bounds.width, height: bounds.height,
+        }};
     });
     await page.screenshot({
       path: 'mobile-visual-artifacts/ring-' + width + 'x' + height + '.png',
@@ -82,6 +95,21 @@ try {
     if (!Number.isFinite(orbitMetrics.orbit.x) ||
         !Number.isFinite(orbitMetrics.orbit.y))
       throw new Error('No real head orbit while scrolling');
+    // The model's projected center must remain anchored to the HOME
+    // artboard, not drift when the browser scrolls or its chrome resizes.
+    // Record both positions so a failure can be diagnosed from artifacts.
+    const beforeRelativeY = height / 2 +
+      parseFloat(measurement.actualHeadOrbitY) - height / 2;
+    const afterRelativeY = orbitMetrics.headScreenCenter.y -
+      orbitMetrics.artboardCenter.y;
+    const driftY = afterRelativeY - beforeRelativeY;
+    console.log('MOBILE HEAD DRIFT:', JSON.stringify({
+      viewport: width + 'x' + height, beforeRelativeY,
+      afterRelativeY, driftY,
+    }));
+    if (Math.abs(driftY) > 3)
+      throw new Error('Mobile head moved relative to Home artboard by ' +
+        driftY.toFixed(2) + 'px during card orbit');
     await page.close();
   }
   if (errors.length) throw new Error('Browser errors: '+errors.join('\n'));
