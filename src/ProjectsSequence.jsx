@@ -4,8 +4,6 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import './ProjectsSequence.css';
 import LivePaperRenderer from './LivePaperRenderer.jsx';
-import { HEAD_SILHOUETTE_MASK } from './approvedHeadSilhouetteMask.js';
-import { silhouetteVisualCenter, headVisualOrbitOffset } from './HeadVisualAnchor.js';
 import CaseStudyReader from './CaseStudyReader.jsx';
 import { createHomePaperMotion } from './HomePaperMotion.js';
 import {
@@ -98,23 +96,6 @@ export default function ProjectsSequence() {
     const toolsPanel = aboutSection?.querySelector('#about-tools');
     const capabilitiesPanel = aboutSection?.querySelector('#about-capabilities');
     if (!home || !section || !stage || !head) return undefined;
-
-    // Decode the same approved alpha silhouette used by the paper occlusion
-    // shader. The visible beanie/face center is NOT the GLB pivot or the
-    // center of its much larger transparent canvas.
-    let visualHeadCenter = null;
-    const silhouetteImage = new Image();
-    silhouetteImage.onload = () => {
-      const sample = document.createElement('canvas');
-      sample.width = silhouetteImage.naturalWidth;
-      sample.height = silhouetteImage.naturalHeight;
-      const context = sample.getContext('2d', { willReadFrequently: true });
-      if (!context) return;
-      context.drawImage(silhouetteImage, 0, 0);
-      const pixels = context.getImageData(0, 0, sample.width, sample.height);
-      visualHeadCenter = silhouetteVisualCenter(pixels.data, sample.width, sample.height);
-    };
-    silhouetteImage.src = HEAD_SILHOUETTE_MASK;
 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     let sectionTop = 0;
@@ -211,18 +192,17 @@ export default function ProjectsSequence() {
       };
     }
 
-    // Use the visible face silhouette, not the canvas or GLB pivot.
-    // Undo the shared head's current scroll translation: the paper motion
-    // already applies the same camera descent, so it must not happen twice.
-    // The mask and the card occlusion shader use the exact same asset.
+    // This anchor is measured inside the actual GLB renderer from each
+    // visible mesh's projected 3D bounds. Do not use the artboard, canvas
+    // midpoint, or prerecorded occlusion silhouette as its position.
     function mobileHeadOrbitOffset() {
-      if (width > 700 || !visualHeadCenter) return { x: 0, y: 0 };
-      const surface = head.querySelector('.jw-new-home__head-canvas');
-      if (!surface) return { x: 0, y: 0 };
-      const shiftX = Number.parseFloat(head.style.getPropertyValue('--jw-head-x')) || 0;
-      const shiftY = Number.parseFloat(head.style.getPropertyValue('--jw-head-shift')) || 0;
-      return headVisualOrbitOffset(surface.getBoundingClientRect(),
-        visualHeadCenter, width, height, shiftX, shiftY);
+      if (width > 700) return { x: 0, y: 0 };
+      const x = Number.parseFloat(
+        head.style.getPropertyValue('--jw-visible-head-orbit-x'));
+      const y = Number.parseFloat(
+        head.style.getPropertyValue('--jw-visible-head-orbit-y'));
+      return Number.isFinite(x) && Number.isFinite(y)
+        ? { x, y } : { x: 0, y: 0 };
     }
 
     function positionCard(card, index, phase, galleryFocus, handoff, orbitOffset) {
@@ -927,8 +907,6 @@ export default function ProjectsSequence() {
 
     return () => {
       disposed = true;
-      silhouetteImage.onload = null;
-      silhouetteImage.onerror = null;
       cancelScrollTween();
       cancelTween();
       wheelGestureRef.current = initialGalleryWheelState();
