@@ -1491,3 +1491,25 @@ test('Contact inquiry is a responsive purple card without changing form delivery
   assert.doesNotMatch(css,/position:\s*fixed|ScrollTrigger/,
     'contact card must never pin or intercept normal page scrolling');
 });
+
+
+test('Contact project dropdown includes the expanded services in accessible groups', () => {
+  const source=readFileSync(new URL('../src/main.jsx',import.meta.url),'utf8');
+  assert.match(source,/const contactProjectGroups = /);
+  assert.match(source,/<select name="projectType" defaultValue="" required>/);
+  assert.match(source,/<optgroup key=\{group\} label=\{group\}>/);
+  assert.match(source,/<option value="" disabled>Select a project type<\/option>/);
+  assert.match(source,/<option value="Something else">Something else<\/option>/);
+  assert.match(source,/contactProjectGroups\.map\(/);
+  assert.match(source,/options\.map\(option => <option key=\{option\} value=\{option\}>/);
+  for (const service of [
+    'Logo design','Brand identity','Website design','Brand evaluation',
+    'UI/UX design','Product research','Packaging design','Illustration',
+    'Stationery design','Print design & prepress','Creative consulting',
+    'Content creation','AI prompt development','Digital prototyping',
+  ]) assert.ok(source.includes('"'+service+'"'), 'missing service: '+service);
+  assert.match(source,/new FormData\(form\)/,
+    'selected category must still reach the unchanged inquiry handler');
+  assert.match(source,/Project inquiry — \$\{inquiry\.projectType\}/,
+    'mailto subject must still include the selected category');
+});

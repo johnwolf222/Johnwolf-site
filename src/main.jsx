@@ -19,6 +19,57 @@ function PurpleCursor(){
  },[]);
  return null;
 }
+// Client-friendly groupings of the services already presented across About.
+// Native optgroups keep keyboard, screen-reader and phone pickers accessible.
+const contactProjectGroups = [
+ [
+  "Branding & strategy",
+  [
+   "Logo design",
+   "Brand identity",
+   "Brand strategy",
+   "Brand evaluation",
+   "Concept development",
+   "Design systems",
+   "Creative direction"
+  ]
+ ],
+ [
+  "Web & product",
+  [
+   "Website design",
+   "Website development",
+   "UI/UX design",
+   "Product design",
+   "Product research",
+   "Digital prototyping",
+   "AI prompt development"
+  ]
+ ],
+ [
+  "Visual & print",
+  [
+   "Visual design",
+   "Illustration",
+   "Packaging design",
+   "Stationery design",
+   "Print design & prepress",
+   "Typography",
+   "Marketing collateral",
+   "Art direction"
+  ]
+ ],
+ [
+  "Content & consulting",
+  [
+   "Content creation",
+   "Content guidelines",
+   "Visual storytelling",
+   "Creative consulting"
+  ]
+ ]
+];
+
 const contactServices = [
  ['Logo design', 'A distinctive mark for a new business or a brand ready for a refresh, with versions that work across print and digital.'],
  ['Brand identity', 'A visual system that brings your logo, color, typography, and imagery together, with guidelines your team can use.'],
@@ -66,7 +117,17 @@ function Contact(){
     <label>Name<input name="name" autoComplete="name" required maxLength={120} placeholder="Your name"/></label>
     <label>Email<input name="email" type="email" autoComplete="email" required maxLength={254} placeholder="you@example.com"/></label>
    </div>
-   <label>What do you have in mind?<select name="projectType" defaultValue="" required><option value="" disabled>Select a project type</option><option>Logo design</option><option>Brand identity</option><option>Website design</option><option>Something else</option></select></label>
+   <label>What do you have in mind?
+    <select name="projectType" defaultValue="" required>
+     <option value="" disabled>Select a project type</option>
+     {contactProjectGroups.map(([group, options]) =>
+      <optgroup key={group} label={group}>
+       {options.map(option => <option key={option} value={option}>{option}</option>)}
+      </optgroup>
+     )}
+     <option value="Something else">Something else</option>
+    </select>
+   </label>
    <label>Project details<textarea name="message" rows={5} required maxLength={6000} placeholder="A little about your project, goals, and timing."/></label>
    <button className="contact-submit" type="submit" disabled={sending||!canContact}>{sending?'Sending…':endpoint||!email?'Send inquiry':'Open email draft'} <span aria-hidden="true">↗</span></button>
    <p className="contact-status" role="status">{canContact?status:'Project inquiries will open once a contact address is available.'}</p>
