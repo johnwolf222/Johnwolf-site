@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { rollingGlyphs } from '../src/rollingTitleGlyphs.js';
-import { galleryHeadPlacement, galleryCameraProgress, CAMERA_DESCENT } from '../src/SpiralGalleryMotion.js';
+import { galleryHeadPlacement, galleryCameraProgress, CAMERA_DESCENT, spiralGalleryPose } from '../src/SpiralGalleryMotion.js';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 const css = read('../src/NewHomepage.css');
