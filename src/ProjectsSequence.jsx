@@ -4,6 +4,8 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import './ProjectsSequence.css';
 import LivePaperRenderer from './LivePaperRenderer.jsx';
+import { HEAD_SILHOUETTE_MASK } from './approvedHeadSilhouetteMask.js';
+import { silhouetteVisualCenter, headVisualOrbitOffset } from './HeadVisualAnchor.js';
 import CaseStudyReader from './CaseStudyReader.jsx';
 import { createHomePaperMotion } from './HomePaperMotion.js';
 import {
@@ -96,6 +98,23 @@ export default function ProjectsSequence() {
     const toolsPanel = aboutSection?.querySelector('#about-tools');
     const capabilitiesPanel = aboutSection?.querySelector('#about-capabilities');
     if (!home || !section || !stage || !head) return undefined;
+
+    // Decode the same approved alpha silhouette used by the paper occlusion
+    // shader. The visible beanie/face center is NOT the GLB pivot or the
+    // center of its much larger transparent canvas.
+    let visualHeadCenter = null;
+    const silhouetteImage = new Image();
+    silhouetteImage.onload = () => {
+      const sample = document.createElement('canvas');
+      sample.width = silhouetteImage.naturalWidth;
+      sample.height = silhouetteImage.naturalHeight;
+      const context = sample.getContext('2d', { willReadFrequently: true });
+      if (!context) return;
+      context.drawImage(silhouetteImage, 0, 0);
+      const pixels = context.getImageData(0, 0, sample.width, sample.height);
+      visualHeadCenter = silhouetteVisualCenter(pixels.data, sample.width, sample.height);
+    };
+    silhouetteImage.src = HEAD_SILHOUETTE_MASK;
 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     let sectionTop = 0;
@@ -192,25 +211,18 @@ export default function ProjectsSequence() {
       };
     }
 
-    // The same measured 3D pivot that centers the mobile headlines is the
-    // paper circle's origin. Read its projection relative to the fixed center,
-    // never the moving/pinned Home rectangle, so scroll doesn't shift origin.
+    // Use the visible face silhouette, not the canvas or GLB pivot.
+    // Undo the shared head's current scroll translation: the paper motion
+    // already applies the same camera descent, so it must not happen twice.
+    // The mask and the card occlusion shader use the exact same asset.
     function mobileHeadOrbitOffset() {
-      if (width > 700) return { x: 0, y: 0 };
-      const artboard = home.querySelector('.jw-new-home__artboard');
-      if (!artboard) return { x: 0, y: 0 };
-      const localX = Number.parseFloat(artboard.style.getPropertyValue('--jw-head-local-x'));
-      const localY = Number.parseFloat(artboard.style.getPropertyValue('--jw-head-local-y'));
-      if (!Number.isFinite(localX) || !Number.isFinite(localY)) return { x: 0, y: 0 };
-      // Convert the head pivot from artboard-local pixels to the same
-      // viewport-centered coordinate system used by the fixed paper stage.
-      const bounds = artboard.getBoundingClientRect();
-      const scaleX = bounds.width / Math.max(1, artboard.clientWidth);
-      const scaleY = bounds.height / Math.max(1, artboard.clientHeight);
-      return {
-        x: bounds.left + localX * scaleX - window.innerWidth * .5,
-        y: bounds.top + localY * scaleY - window.innerHeight * .5,
-      };
+      if (width > 700 || !visualHeadCenter) return { x: 0, y: 0 };
+      const surface = head.querySelector('.jw-new-home__head-canvas');
+      if (!surface) return { x: 0, y: 0 };
+      const shiftX = Number.parseFloat(head.style.getPropertyValue('--jw-head-x')) || 0;
+      const shiftY = Number.parseFloat(head.style.getPropertyValue('--jw-head-shift')) || 0;
+      return headVisualOrbitOffset(surface.getBoundingClientRect(),
+        visualHeadCenter, width, height, shiftX, shiftY);
     }
 
     function positionCard(card, index, phase, galleryFocus, handoff, orbitOffset) {
@@ -915,6 +927,8 @@ export default function ProjectsSequence() {
 
     return () => {
       disposed = true;
+      silhouetteImage.onload = null;
+      silhouetteImage.onerror = null;
       cancelScrollTween();
       cancelTween();
       wheelGestureRef.current = initialGalleryWheelState();
