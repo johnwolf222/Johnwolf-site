@@ -104,7 +104,11 @@ export default function ProjectsSequence() {
     let aboutBottom = Infinity;
     let toolsTop = Infinity;
     let width = window.innerWidth;
-    let height = window.innerHeight;
+    // The 100svh Home stage is stable while Safari's address bar changes
+    // window.innerHeight. Share this height with the paper renderer/GLB.
+    const stableStageHeight = () => window.innerWidth <= 700
+      ? home.offsetHeight : window.innerHeight;
+    let height = stableStageHeight();
     let homeMotion = createHomePaperMotion(width, height);
     let active = -1;
     let showing = false;
@@ -152,7 +156,7 @@ export default function ProjectsSequence() {
       aboutBottom = about ? aboutTop + about.getBoundingClientRect().height : Infinity;
       toolsTop = toolsPanel ? docTop(toolsPanel) : Infinity;
       const nextWidth = window.innerWidth;
-      const nextHeight = window.innerHeight;
+      const nextHeight = stableStageHeight();
       if (width !== nextWidth || height !== nextHeight) {
         width = nextWidth;
         height = nextHeight;
@@ -476,7 +480,7 @@ export default function ProjectsSequence() {
       id: 'jw-home-to-projects',
       trigger: home,
       start: 'top top',
-      end: () => '+=' + Math.round(window.innerHeight * 4.25),
+      end: () => '+=' + Math.round(stableStageHeight() * 4.25),
       pin: true,
       pinSpacing: true,
       anticipatePin: 1,
