@@ -48,8 +48,11 @@ export function aboutHeadPose(progress, galleryPose, width, height) {
   const desktop = width > 800;
   return {
     x: 0,
-    shift: mix(galleryPose.shift, desktop ? 20 : Math.min(height * .26, 220), t),
-    scale: mix(galleryPose.scale, desktop ? .92 : .90, t),
+    // The mobile About destination is the same screen-centered resting
+    // position as Home. The former +220px destination caused a large
+    // downward drift while leaving Projects, and a jump on reverse.
+    shift: mix(galleryPose.shift, desktop ? 20 : 0, t),
+    scale: mix(galleryPose.scale, desktop ? .92 : 1, t),
   };
 }
 
