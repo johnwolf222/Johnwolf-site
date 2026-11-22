@@ -296,6 +296,13 @@ export default function ProjectsSequence() {
           (1 - motion.settle),
         wrap: flight.wrap * (1 - smooth(phase, .012, .085)),
       });
+      // These pose values come from the exact GPU source coordinates,
+      // even when the DOM fallback is hidden. They let our browser tests
+      // verify all 21 cards retrace the same orbit on reverse scroll.
+      card.dataset.motionX = finalX.toFixed(3);
+      card.dataset.motionY = finalY.toFixed(3);
+      card.dataset.motionZ = finalZ.toFixed(3);
+      card.dataset.motionScale = finalScale.toFixed(5);
       card.dataset.depth = String(finalZ);
       card.dataset.phase = handoff > .001 && rank >= 0 ? 'depart-right' :
         phase === 0 ? 'home-current' :
