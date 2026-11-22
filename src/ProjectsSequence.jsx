@@ -166,7 +166,7 @@ export default function ProjectsSequence() {
     const canInteract = () =>
       travel.progress >= TRAIN_END - .0001 &&
       window.scrollY >= sectionTop - height * .25 &&
-      window.scrollY < sectionTop + sectionHeight - height * .70;
+      window.scrollY < sectionTop + sectionHeight - height * .18;
 
     function targetForCard(id, galleryFocus) {
       const spotlightIndex = PROJECTS.findIndex(project => project.image === id);
@@ -409,7 +409,7 @@ export default function ProjectsSequence() {
     const restingInGallery = () =>
       travel.progress >= TRAIN_END - .0001 &&
       window.scrollY >= sectionTop - height * .10 &&
-      window.scrollY < sectionTop + sectionHeight - height * .70;
+      window.scrollY < sectionTop + sectionHeight - height * .18;
 
     const restoreScrollBehavior = () => {
       if (previousScrollBehavior === null) return;
