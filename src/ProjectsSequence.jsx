@@ -346,14 +346,21 @@ export default function ProjectsSequence() {
       // into the About composition; fade only when Contact approaches.
       const headPlacement = aboutHeadPose(handoff,
         galleryHeadPlacement(p, height, width), width, height);
-      // On phones the same GLB settles in the upper-left editorial slot
-      // of Projects. This transition is scroll-seekable in both directions.
-      const mobileProjectsLanding = width <= 700
-        ? smooth(p, .89, .99) * (1 - smooth(handoff, .001, .18))
-        : 0;
-      headPlacement.x += -width * .285 * mobileProjectsLanding;
-      headPlacement.shift += -height * .125 * mobileProjectsLanding;
-      headPlacement.scale *= 1 - .23 * mobileProjectsLanding;
+      // One mobile pose curve: centered through Home, upper-left in
+      // Projects, then back to the exact same center through About.
+      // The SAME progress also releases Home's pinned-artboard correction.
+      // Do not add independent mobile position offsets to this curve.
+      const mobileHomeToProjects = width <= 700
+        ? smooth(p, .89, .99) : 0;
+      const mobileProjectsToAbout = width <= 700
+        ? smooth(handoff, .02, .72) : 0;
+      const mobileProjectsWeight =
+        mobileHomeToProjects * (1 - mobileProjectsToAbout);
+      if (width <= 700) {
+        headPlacement.x = -width * .285 * mobileProjectsWeight;
+        headPlacement.shift = -height * .125 * mobileProjectsWeight;
+        headPlacement.scale = 1 - .23 * mobileProjectsWeight;
+      }
       const headOpacity = aboutHeadOpacity(scrollY, aboutBottom, height);
       // Move the existing Candidate F head from the original About center
       // toward the reference's LEFT portrait slot as tools enter view.
@@ -428,8 +435,7 @@ export default function ProjectsSequence() {
       // the offscreen Home element and disappears during Section 2.
       // The gallery head remains at its approved mobile viewport position.
       const homeAnchorBlend = width <= 700
-        ? (1 - smooth(p, .88, .985)) *
-          (1 - smooth(handoff, .001, .12)) : 0;
+        ? 1 - mobileHomeToProjects : 0;
       head.style.setProperty('--jw-home-align-x',
         (homeAlignX * homeAnchorBlend).toFixed(2) + 'px');
       head.style.setProperty('--jw-home-align-y',
