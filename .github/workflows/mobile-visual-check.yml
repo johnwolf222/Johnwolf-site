@@ -2,7 +2,7 @@ name: Verify mobile head/card centering in Chromium
 on:
   push:
     branches: [feature/mobile-experience-nov22]
-    paths: [.github/workflows/mobile-visual-check.yml, .github/scripts/mobile-visual-check.mjs, src/LivePaperRenderer.jsx, src/SpiralGalleryMotion.js]
+    paths: [.github/workflows/mobile-visual-check.yml, .github/scripts/mobile-visual-check.mjs, src/LivePaperRenderer.jsx, src/SpiralGalleryMotion.js, src/HomepageHead.jsx, src/ProjectsSequence.jsx, src/NewHomepage.css]
   workflow_dispatch:
 permissions:
   contents: read
