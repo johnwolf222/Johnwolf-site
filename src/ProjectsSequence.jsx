@@ -332,10 +332,17 @@ export default function ProjectsSequence() {
       // opacity/settle are derived from the SAME motion clock, no separate
       // CSS animation or layout reflow.
       if (aboutSection) {
-        // The vertical sticky ABOUT heading must NOT overlap Section 2.
-        // Reveal only after the final Projects pixel scrolls past the top.
-        aboutSection.style.setProperty('--jw-about-heading-opacity',
-          aboutHeadingReveal(scrollY, aboutTop, height).toFixed(4));
+        // A STRICT paint gate: do not show the vertical sticky ABOUT label
+        // until the actual About section is WELL past the viewport top AND
+        // Projects has fully cleared. This avoids premature overlap even
+        // while the two sections are pinning, snapping or reverse-scrolling.
+        const headingClearance = Math.min(height * .12, 96);
+        const passedProjects = scrollY >= sectionTop + sectionHeight &&
+          !isShown && aboutHeadingReveal(scrollY, aboutTop, height) >= 1;
+        const actualAboutPastHeader =
+          aboutSection.getBoundingClientRect().top <= -headingClearance;
+        aboutSection.dataset.headingVisible =
+          passedProjects && actualAboutPastHeader ? 'true' : 'false';
         aboutSection.style.setProperty('--jw-about-intro-opacity',
           intro.opacity.toFixed(4));
         aboutSection.style.setProperty('--jw-about-intro-lift',
@@ -892,7 +899,7 @@ export default function ProjectsSequence() {
       }
       home.style.removeProperty('--jw-home-blow');
       if (aboutSection) {
-        aboutSection.style.removeProperty('--jw-about-heading-opacity');
+        delete aboutSection.dataset.headingVisible;
         aboutSection.style.removeProperty('--jw-about-intro-opacity');
         aboutSection.style.removeProperty('--jw-about-intro-lift');
       }
