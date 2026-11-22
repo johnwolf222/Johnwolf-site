@@ -88,3 +88,14 @@ export function aboutToolsHeadOffset(progress, viewportWidth) {
   const t = clamp(progress);
   return t === 0 ? 0 : -viewportWidth * slide * t;
 }
+
+/**
+ * The sticky ABOUT label belongs to Section 3 only. Because it has a higher
+ * z-index than Projects, entering the viewport used to make it appear across
+ * the LAST portion of Section 2. Do not reveal until About reaches the top.
+ * This is seekable, including when scrolling back toward Projects.
+ */
+export function aboutHeadingReveal(scrollY, aboutTop, viewportHeight) {
+  if (!Number.isFinite(aboutTop)) return 0;
+  return ease((scrollY - aboutTop) / Math.max(1, viewportHeight * .09));
+}
