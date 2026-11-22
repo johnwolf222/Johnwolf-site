@@ -10,7 +10,7 @@ import {
 
 import {
   aboutHandoffProgress, departingCardOffset, aboutHeadPose,
-  aboutIntroPose, aboutHeadOpacity,
+  aboutIntroPose, aboutHeadOpacity, aboutHeadingReveal,
   aboutToolsHeadBlend, aboutToolsHeadOffset,
 } from '../src/AboutHandoffMotion.js';
 
@@ -980,8 +980,8 @@ test('the exact nine-reference tool row lives at the END of About with responsiv
   assert.match(css, /scale\(1\.38\)/);
   assert.match(css, /overflow-x: auto/);
   assert.match(css, /#8750f1/);
-  assert.match(aboutCss, /min-height: 740svh/);
-  assert.match(aboutCss, /min-height: 785svh/);
+  assert.match(aboutCss, /min-height: 615svh/);
+  assert.match(aboutCss, /min-height: 700svh/);
   assert.match(story, /about\.style\.minHeight=\(toolsStart\+100\)/);
   assert.match(sequence, /aboutToolsHeadBlend\(scrollY, toolsTop, height\)/);
   assert.match(sequence, /aboutToolsHeadOffset\(toolsBlend, width\)/);
@@ -1057,7 +1057,8 @@ test('3D cursor tracking follows the projected head center with precise larger m
   head.movePointer(1,-1);
   let moved;
   for(let n=0;n<8;n++)moved=head.update(.05);
-  assert.ok(SETTINGS.follow >= 11);
+  assert.ok(SETTINGS.follow >= 8.5 && SETTINGS.follow <= 10.5,
+    'follow should feel looser while remaining responsive');
   assert.ok(moved.yaw > .60, 'head follows mouse much farther right than before');
   assert.ok(moved.pitch > .53, 'head looks substantially farther downward');
   assert.ok(moved.horizontal > .09, 'head has subtle physical sideways tracking');
@@ -1094,4 +1095,72 @@ test('short Projects exit still rests with responsive card controls before About
     if(height>=722)assert.ok(exitDistance <= (oldLength-rest)*.79,
       'exit is substantially shorter on desktop and large phones');
   }
+});
+
+test('vertical ABOUT heading cannot appear until every pixel of Section 2 has passed', () => {
+  const sequence = readFileSync(new URL('../src/ProjectsSequence.jsx',
+    import.meta.url), 'utf8');
+  const style = readFileSync(new URL('../src/AboutExperience.css',
+    import.meta.url), 'utf8');
+  assert.match(sequence, /aboutTop = about \? docTop\(about\) : Infinity;/);
+  assert.match(sequence, /aboutHeadingReveal\(scrollY, aboutTop, height\)/);
+  assert.match(sequence, /setProperty\('--jw-about-heading-opacity'/);
+  assert.match(sequence, /removeProperty\('--jw-about-heading-opacity'\)/);
+  assert.match(style, /opacity: var\(--jw-about-heading-opacity, 0\);/,
+    'CSS starts the sticky label fully hidden to prevent first-paint flashes');
+  assert.match(style, /position: sticky;/);
+  assert.match(style, /writing-mode: vertical-rl;/);
+  assert.equal(aboutHeadingReveal(0, Infinity, 844), 0);
+
+  for(const height of [560,722,844,1080]){
+    const aboutTop=5000;
+    for(const offset of [-3000,-height,-1,0]){
+      assert.equal(aboutHeadingReveal(aboutTop+offset,aboutTop,height),0,
+        'heading appeared while Projects was still onscreen');
+    }
+    assert.ok(aboutHeadingReveal(aboutTop+height*.045,aboutTop,height) > 0);
+    assert.equal(aboutHeadingReveal(aboutTop+height*.10,aboutTop,height),1);
+    assert.equal(aboutHeadingReveal(aboutTop-height*.01,aboutTop,height),0,
+      'reverse scrolling must hide the heading again at the Projects boundary');
+  }
+});
+
+test('About story ends near the tool viewport instead of leaving multi-screen blank space', () => {
+  const css = readFileSync(new URL('../src/AboutExperience.css',import.meta.url), 'utf8');
+  const story = readFileSync(new URL('../src/about/floating-story.js',import.meta.url), 'utf8');
+  const tools = readFileSync(new URL('../src/ChoiceOfTools.css',import.meta.url), 'utf8');
+  assert.match(css, /min-height: 615svh;/);
+  assert.match(css, /min-height: 700svh;/);
+  assert.doesNotMatch(css, /min-height: (740|785)svh;/,
+    'remove previous overlong vertical runway');
+  assert.match(story, /const fallbackEnd=fourth/);
+  assert.match(story, /const chapterEnd=Math\.ceil\(\(nextTop\+vh\*\.15\)/);
+  assert.match(story, /const toolsStart=Math\.max\(vw<=800\?600:515,chapterEnd,fallbackEndVh\)/);
+  assert.match(story, /about\.style\.minHeight=\(toolsStart\+100\)\+'svh'/);
+  assert.match(tools, /bottom: 0;/);
+  assert.match(tools, /height: 100svh;/);
+  assert.ok(740-615>=100, 'remove at least a viewport of desktop blank travel');
+  assert.ok(785-700>=80, 'remove most of a viewport of mobile blank travel');
+  assert.match(story, /fallbackEndVh/,
+    '3D layout must respect the visible DOM chapter on fallback devices');
+});
+
+test('looser cursor-follow adds a little organic roll without losing accurate gaze', () => {
+  const controller = new HeadController(()=>.5);
+  controller.movePointer(.8,-.7);
+  let output;
+  for(let i=0;i<10;i++) output=controller.update(.05);
+  assert.ok(output.yaw>.45 && output.pitch>.35,
+    'do not weaken large cursor movement');
+  assert.ok(output.roll<-.01 && output.roll>-.08,
+    'subtle roll follows the gaze without dramatic leaning');
+  assert.ok(SETTINGS.follow>8 && SETTINGS.follow<11,
+    'soften previous overly stiff follow rate');
+  assert.ok(SETTINGS.translateFollow<9.5);
+  controller.movePointer(-.8,.7);
+  for(let i=0;i<15;i++)output=controller.update(.05);
+  assert.ok(output.yaw<-.45 && output.pitch<-.35,
+    'opposite direction should remain responsive and reversible');
+  assert.ok(output.roll>0 && output.roll<.08,
+    'secondary roll should return smoothly to the opposite side');
 });
