@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {wordRangesForLine, hoveredWordAtUV} from './word-hover.js';
 
 // Canvas-texture line planes and screen-space ellipse displacement.
 // The method follows the inspected reference About-page architecture.
@@ -17,6 +18,15 @@ export function installFloatingStory(scene,camera,stage,about){
  let lastWidth=0,lastHeight=0,needsLayout=true;
  let enabled=true;
  let impactAt=-100,impactX=0,impactY=0;
+ const pointer={x:NaN,y:NaN};
+ const onPointerMove=event=>{
+  if(event.pointerType==='touch')return;
+  pointer.x=event.clientX;pointer.y=event.clientY;
+ };
+ const clearPointer=()=>{pointer.x=NaN;pointer.y=NaN};
+ window.addEventListener('pointermove',onPointerMove,{passive:true});
+ window.addEventListener('blur',clearPointer);
+ document.addEventListener('pointerleave',clearPointer);
  const resize=()=>{needsLayout=true};
  window.addEventListener('resize',resize,{passive:true});
  document.fonts?.ready.then(resize);
@@ -27,6 +37,8 @@ export function installFloatingStory(scene,camera,stage,about){
   measure.font='400 '+fontPx+'px '+fontFamily;
   const inkWidth=Math.max(1,measure.measureText(text).width);
   const pad=14,boxWidth=Math.ceil(inkWidth+pad*2),boxHeight=Math.ceil(fontPx*1.65);
+  const words=wordRangesForLine(text,
+   value=>measure.measureText(value).width,pad,boxWidth);
   const image=document.createElement('canvas');
   image.width=Math.ceil(boxWidth*pxRatio);
   image.height=Math.ceil(boxHeight*pxRatio);
@@ -51,7 +63,8 @@ export function installFloatingStory(scene,camera,stage,about){
   const wave={
    age:{value:-1},strength:{value:0},amplitude:{value:0},
    origin:{value:new THREE.Vector2(.5,.5)},
-   pixelSize:{value:new THREE.Vector2(boxWidth,boxHeight)}
+   pixelSize:{value:new THREE.Vector2(boxWidth,boxHeight)},
+   hoverRange:{value:new THREE.Vector2(-2,-2)},hoverStrength:{value:0}
   };
   material.onBeforeCompile=shader=>{
    shader.uniforms.uWaveAge=wave.age;
@@ -59,6 +72,8 @@ export function installFloatingStory(scene,camera,stage,about){
    shader.uniforms.uWaveAmplitude=wave.amplitude;
    shader.uniforms.uWaveOrigin=wave.origin;
    shader.uniforms.uWavePixelSize=wave.pixelSize;
+   shader.uniforms.uHoverRange=wave.hoverRange;
+   shader.uniforms.uHoverStrength=wave.hoverStrength;
    shader.vertexShader=shader.vertexShader.replace('#include <common>',
     '#include <common>\nvarying vec2 vTextWaveUv;');
    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',
@@ -70,7 +85,9 @@ export function installFloatingStory(scene,camera,stage,about){
     uniform float uWaveStrength;
     uniform float uWaveAmplitude;
     uniform vec2 uWaveOrigin;
-    uniform vec2 uWavePixelSize;`);
+    uniform vec2 uWavePixelSize;
+    uniform vec2 uHoverRange;
+    uniform float uHoverStrength;`);
    shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',
     `#ifdef USE_MAP
       // Distance is measured in pixels so waves remain circular on narrow text lines.
@@ -85,11 +102,19 @@ export function installFloatingStory(scene,camera,stage,about){
       float displacement=uWaveStrength*uWaveAmplitude*envelope*oscillation;
       vec2 warpedUv=vMapUv+(radial+tangent*0.23)*(displacement/max(uWavePixelSize,vec2(1.0)));
       vec4 distortedInk=texture2D(map,clamp(warpedUv,vec2(0.0),vec2(1.0)));
-      // Preserve ink color; the ripple itself is external to the text.
-      diffuseColor*=distortedInk;
+      // An individual lilac marker sits BEHIND its hovered word,
+      // while keeping the original black ink and 3D depth/occlusion.
+      float hitX=smoothstep(uHoverRange.x-0.004,uHoverRange.x+0.004,vTextWaveUv.x)
+       *(1.0-smoothstep(uHoverRange.y-0.004,uHoverRange.y+0.004,vTextWaveUv.x));
+      float hitY=smoothstep(0.17,0.27,vTextWaveUv.y)
+       *(1.0-smoothstep(0.73,0.83,vTextWaveUv.y));
+      float lilac=hitX*hitY*uHoverStrength;
+      vec3 tinted=mix(vec3(0.77,0.58,0.96),distortedInk.rgb,distortedInk.a);
+      diffuseColor.rgb=mix(distortedInk.rgb,tinted,lilac);
+      diffuseColor.a*=max(distortedInk.a,lilac*0.58);
     #endif`);
   };
-  material.customProgramCacheKey=()=> 'story-displacement-external-wave-v4';
+  material.customProgramCacheKey=()=> 'story-displacement-per-word-lilac-v5';
   const geometry=new THREE.PlaneGeometry(boxWidth*worldPerPixel,boxHeight*worldPerPixel,28,4);
   const mesh=new THREE.Mesh(geometry,material);
   mesh.renderOrder=-2;
@@ -97,7 +122,8 @@ export function installFloatingStory(scene,camera,stage,about){
   root.add(mesh);
   textureAssets.push({mesh,texture,material,geometry});
   mesh.userData.inkWave=wave;
-  return {mesh,width:boxWidth*worldPerPixel,pad:pad*worldPerPixel};
+  return {mesh,width:boxWidth*worldPerPixel,height:boxHeight*worldPerPixel,
+   pad:pad*worldPerPixel,words};
  }
  function breakLines(text,fontPx,maxWidth){
   const ctx=document.createElement('canvas').getContext('2d');
@@ -156,7 +182,8 @@ export function installFloatingStory(scene,camera,stage,about){
     const defaultEdge=(left?-(mobile?.12:.16):(mobile?.12:.16));
     const inkWidth=asset.width-2*asset.pad;
     asset.mesh.userData.storyLine={
-     left,defaultEdge,worldWidth:asset.width,inkWidth,pad:asset.pad,
+     left,defaultEdge,worldWidth:asset.width,worldHeight:asset.height,
+     inkWidth,pad:asset.pad,hoverWords:asset.words,
      screenY:nextTop+offset,screenFont:fontPx
     };
     asset.mesh.position.x=left?-asset.width/2:asset.width/2;
