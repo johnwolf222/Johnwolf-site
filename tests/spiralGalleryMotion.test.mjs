@@ -1547,7 +1547,7 @@ test('three-file project picker caps selection and preserves removal/reselection
 test('Contact file picker remains honest for mailto and posts multipart with endpoint', () => {
  const page=readFileSync(new URL('../src/main.jsx',import.meta.url),'utf8');
  const style=readFileSync(new URL('../src/ContactCard.css',import.meta.url),'utf8');
- assert.match(page,/type="file" multiple/);
+ assert.match(page,/type="file" multiple tabIndex=\{-1\}/);
  assert.match(page,/mergeProjectFiles\(projectFiles,incoming\)/);
  assert.match(page,/event\.dataTransfer\.files/);
  assert.match(page,/filePickerRef\.current\?\.click\(\)/);
@@ -1561,6 +1561,10 @@ test('Contact file picker remains honest for mailto and posts multipart with end
  assert.match(page,/const headers=hasAttachments\?\{Accept:'application\/json'\}/);
  assert.match(page,/form\.reset\(\);setProjectFiles\(\[\]\);/);
  assert.match(style,/\.contact-files__dropzone/);
+ assert.match(style,/#root \.contact-form \.contact-files__input \{/,
+   'hidden input must override general form input styling');
+ assert.match(style,/pointer-events: none;/,
+   'visually hidden picker must not intercept clicks on the real Browse button');
  assert.match(style,/\.contact-files__selected/);
  assert.match(style,/\.contact-files__help--error/);
  assert.match(style,/@media \(max-width: 720px\)/);
