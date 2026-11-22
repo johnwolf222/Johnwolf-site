@@ -121,6 +121,7 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
     let geometry = null;
     let scale = 1;
     let headHalfHeight = 0.49;
+    let visualAnchorFrames = 0;
     // The outline uses an approved, pre-rendered alpha silhouette embedded
     // with the title on first paint. Never recapture/replace CSS mask URLs here:
     // that GPU readback and image decode caused visible blinking.
@@ -133,7 +134,7 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
       camera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
       opticalRipple?.resize();
-      if (loaded) publishHeadAnchor();
+      if (loaded) { publishHeadAnchor(); publishVisibleHeadOrbit(); }
     };
     const onPointerMove = event => {
       if (!live || !loaded || event.pointerType === 'touch') return;
@@ -175,6 +176,48 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
         x: rect.left + (position.x * 0.5 + 0.5) * rect.width,
         y: rect.top + (0.5 - position.y * 0.5) * rect.height,
       };
+    };
+    // Anchor the MOBILE paper circle to the rendered GLB geometry itself.
+    // The earlier anchor was a static mask and did not track the real head.
+    // Project each visible mesh's eight local bounding-box corners through
+    // the actual head camera: no GPU readback, guesswork or canvas midpoint.
+    const publishVisibleHeadOrbit = () => {
+      if (!geometry || window.innerWidth > 700) return;
+      const layer = host.closest('.jw-continuous-head');
+      if (!layer) return;
+      geometry.updateWorldMatrix(true, true);
+      camera.updateMatrixWorld();
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      const corner = new THREE.Vector3();
+      geometry.traverse(node => {
+        if (!node.isMesh || !node.visible || !node.geometry) return;
+        if (!node.geometry.boundingBox) node.geometry.computeBoundingBox();
+        const box = node.geometry.boundingBox;
+        if (!box || box.isEmpty()) return;
+        for (const x of [box.min.x, box.max.x]) {
+          for (const y of [box.min.y, box.max.y]) {
+            for (const z of [box.min.z, box.max.z]) {
+              corner.set(x, y, z).applyMatrix4(node.matrixWorld).project(camera);
+              minX = Math.min(minX, corner.x);
+              maxX = Math.max(maxX, corner.x);
+              minY = Math.min(minY, corner.y);
+              maxY = Math.max(maxY, corner.y);
+            }
+          }
+        }
+      });
+      if (![minX, maxX, minY, maxY].every(Number.isFinite)) return;
+      const rect = surface.getBoundingClientRect();
+      const cx = rect.left + rect.width * (.5 + (minX + maxX) * .25);
+      const cy = rect.top + rect.height * (.5 - (minY + maxY) * .25);
+      const shiftX = Number.parseFloat(layer.style.getPropertyValue('--jw-head-x')) || 0;
+      const shiftY = Number.parseFloat(layer.style.getPropertyValue('--jw-head-shift')) || 0;
+      // Store the unshifted home-space anchor. Scroll-driven head movement
+      // is already included in the existing paper paths; don't double-count.
+      layer.style.setProperty('--jw-visible-head-orbit-x',
+        (cx - window.innerWidth * .5 - shiftX).toFixed(3) + 'px');
+      layer.style.setProperty('--jw-visible-head-orbit-y',
+        (cy - window.innerHeight * .5 - shiftY).toFixed(3) + 'px');
     };
     // The typography uses the *projected model center and top*, not the
     // 16:9 artboard midpoint. Publish only on load and resize: following every
@@ -274,6 +317,12 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
       } else {
         renderer.render(scene, camera);
       }
+      // Measure again once the first animation frame has applied its
+      // real -0.115 head Y translation, not just the load-time GLB pose.
+      if (visualAnchorFrames < 2) {
+        publishVisibleHeadOrbit();
+        visualAnchorFrames++;
+      }
       frameId = requestAnimationFrame(animate);
     };
     const start = () => {
@@ -345,6 +394,7 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
       floatingStory?.prepare();
       loaded = true;
       publishHeadAnchor();
+      publishVisibleHeadOrbit();
       setReady(true);
       start();
     }).catch(error => {
