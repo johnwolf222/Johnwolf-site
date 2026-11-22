@@ -48,15 +48,18 @@ export default function NewHomepage() {
       x: Math.round(point.x - rect.left),
       y: Math.round(point.y - rect.top),
       top: Math.round(point.topY - rect.top),
+      bottom: Math.round(point.bottomY - rect.top),
     };
     setHeadAnchor(previous => previous &&
-      previous.x === next.x && previous.y === next.y && previous.top === next.top
+      previous.x === next.x && previous.y === next.y &&
+      previous.top === next.top && previous.bottom === next.bottom
       ? previous : next);
   };
   const mobileHeadAnchorStyle = headAnchor ? {
     '--jw-head-local-x': `${headAnchor.x}px`,
     '--jw-head-local-y': `${headAnchor.y}px`,
     '--jw-head-local-top': `${headAnchor.top}px`,
+    '--jw-head-local-bottom': `${headAnchor.bottom}px`,
   } : undefined;
   const [index, setIndex] = useState(0);
   const [manual, setManual] = useState(false);
