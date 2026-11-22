@@ -119,6 +119,10 @@ test('mobile paper orbit is circular and desktop retains the approved ellipse', 
   assert.match(sequence, /--jw-head-local-y/);
   assert.match(sequence, /orbitOffset\.x \* orbitBlend \* depthCorrection/);
   assert.match(sequence, /orbitOffset\.y \* orbitBlend \* depthCorrection/);
+  // Regression: visible Home papers must be aligned from the first frame,
+  // rather than drifting into head alignment only after scrolling starts.
+  assert.match(sequence, /const orbitBlend = width <= 700\s*\? 1 - smooth\(phase, \.82, \.89\)/);
+  assert.doesNotMatch(sequence, /smooth\(phase, \.04, \.272\) \* \(1 - smooth\(phase, \.82, \.89\)\)/);
 });
 
 test('before all sheets exit, featured and nonfeatured share the SAME track', () => {
