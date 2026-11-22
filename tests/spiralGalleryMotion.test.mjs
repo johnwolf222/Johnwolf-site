@@ -908,7 +908,7 @@ test('ABOUT header uses the approved purple type but stays vertically sticky to 
     import.meta.url), 'utf8');
   const projectsCss = readFileSync(new URL('../src/ProjectsSequence.css',
     import.meta.url), 'utf8');
-  assert.match(about, /<h2 id="jw-about-heading" className="jw-about-heading">ABOUT<\/h2>/);
+  assert.match(about, /<h2 id="jw-about-heading" className="jw-about-heading"><WordHighlight>ABOUT<\/WordHighlight><\/h2>/);
   const source = projectsCss.match(/\.jw-projects-stage__information h2\s*\{([^}]*)\}/)?.[1];
   const restored = aboutCss.match(
     /#root \.about\.jw-about-experience > \.jw-about-heading\s*\{([^}]*)\}/)?.[1];
@@ -951,7 +951,7 @@ test('3D drive is completely absent from both About pages and no unused renderer
     'standalone Three.js drive implementation must be deleted, not merely hidden');
   assert.equal((live.match(/<article[^>]*data-story="/g) || []).length, 4,
     'four About chapters must remain');
-  assert.match(live, /jw-about-heading">ABOUT<\/h2>/,
+  assert.match(live, /jw-about-heading"><WordHighlight>ABOUT<\/WordHighlight><\/h2>/,
     'approved purple ABOUT heading must remain');
   assert.match(live, /I was fortunate enough to start early/,
     'second chapter must remain coherent without a model');
