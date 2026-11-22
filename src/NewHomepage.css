@@ -206,14 +206,14 @@
     width: min(calc(100vw - 36px), calc(100svh * 16 / 9));
   }
   /* On phones both the animated purple glyphs and their portaled white
-     outline share the projected model center. At .82x the longest title
+     outline share the projected model center. At .90x the longest title
      retains side margins, without changing the approved per-letter timeline. */
   .jw-new-home__rolling-title .jw-roll-scene,
   .jw-title-head-ink .jw-roll-scene {
     transform-origin: 0 0;
     transform:
       translate(var(--jw-head-local-x, 50%), var(--jw-head-local-y, 50%))
-      scale(.82)
+      scale(.90)
       translate(calc(0% - var(--jw-title-center, 50%)), -50%);
   }
   /* One original dot+subtitle SVG. Its measured ink midpoint follows the
@@ -232,8 +232,13 @@
   .jw-new-home__bottom-bar {font-size:10px;flex-wrap:nowrap;}
   .jw-new-home__counter {max-width:calc(50% - 55px);font-size:9px;}
   .jw-new-home__scroll {display:none}
-  .jw-new-home__indicators {top:75%;gap:8px}
-  .jw-new-home__indicator {width:10px}
+  /* Dot controls follow the actual rendered lower edge of the model,
+     instead of sitting underneath the chin inside the short 16:9 artboard. */
+  .jw-new-home__indicators {
+    top: calc(var(--jw-head-local-bottom, 100%) + clamp(18px, 4vw, 28px));
+    gap: 8px;
+  }
+  .jw-new-home__indicator {width:12px}
   .jw-floating-work__intro {top:clamp(40px,8vh,68px);left:6%;right:6%;margin:0 auto}
   .jw-floating-work__intro h2 {font-size:clamp(34px,9vw,48px)}
   .jw-floating-work__intro p {font-size:12px;line-height:1.35}
