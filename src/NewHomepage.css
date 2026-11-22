@@ -198,7 +198,12 @@
 .jw-floating-work__art {position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.72;pointer-events:none}
 @media (max-width: 700px) {
   #root .jw-new-home {min-height: 520px;}
-  #root .jw-new-home__artboard {width: min(150vw, calc(100svh * 16 / 9));}
+  /* Keep every title and its animated subtitle inside the mobile viewport.
+     Only the typography artboard shrinks: paper cards and the continuous
+     3D head retain their approved positioning and motion. */
+  #root .jw-new-home__artboard {
+    width: min(calc(100vw - 24px), calc(100svh * 16 / 9));
+  }
   .jw-new-home__bottom-bar {font-size:10px;flex-wrap:nowrap;}
   .jw-new-home__counter {max-width:calc(50% - 55px);font-size:9px;}
   .jw-new-home__scroll {display:none}
