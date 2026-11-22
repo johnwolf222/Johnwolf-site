@@ -218,7 +218,7 @@ try {
       path: 'mobile-visual-artifacts/orbit-forward-' + width + '.png',
       animations: 'disabled',
     });
-    await orbitAt(.76);
+    const orbitLateHome = await orbitAt(.83);
     const orbitReverse = await orbitAt(.53);
     await page.screenshot({
       path: 'mobile-visual-artifacts/orbit-reverse-' + width + '.png',
@@ -233,6 +233,15 @@ try {
       width, orbitHeadError, largestCardDelta: Math.max(...orbitErrors),
       orbitErrors, forwardHead: orbitForward.head, reverseHead: orbitReverse.head,
     }));
+    // Never begin relocating the head while Home's 21 cards are still
+    // circulating; the move starts only in the Projects handoff.
+    if (Math.abs(orbitForward.head[0] - width / 2) > 2 ||
+        Math.abs(orbitForward.head[1] - height / 2) > 2 ||
+        Math.abs(orbitLateHome.head[0] - width / 2) > 2 ||
+        Math.abs(orbitLateHome.head[1] - height / 2) > 2)
+      throw new Error('Head left center during the Home orbit: ' +
+        JSON.stringify({orbitForward: orbitForward.head,
+          orbitLateHome: orbitLateHome.head}));
     if (orbitForward.cards.length !== 21 ||
         orbitReverse.cards.length !== 21 ||
         !orbitErrors.every(Number.isFinite) ||
