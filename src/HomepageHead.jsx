@@ -212,12 +212,14 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
       const cy = rect.top + rect.height * (.5 - (minY + maxY) * .25);
       const shiftX = Number.parseFloat(layer.style.getPropertyValue('--jw-head-x')) || 0;
       const shiftY = Number.parseFloat(layer.style.getPropertyValue('--jw-head-shift')) || 0;
+      const alignX = Number.parseFloat(layer.style.getPropertyValue('--jw-home-align-x')) || 0;
+      const alignY = Number.parseFloat(layer.style.getPropertyValue('--jw-home-align-y')) || 0;
       // Store the unshifted home-space anchor. Scroll-driven head movement
       // is already included in the existing paper paths; don't double-count.
       layer.style.setProperty('--jw-visible-head-orbit-x',
-        (cx - window.innerWidth * .5 - shiftX).toFixed(3) + 'px');
+        (cx - window.innerWidth * .5 - shiftX - alignX).toFixed(3) + 'px');
       layer.style.setProperty('--jw-visible-head-orbit-y',
-        (cy - window.innerHeight * .5 - shiftY).toFixed(3) + 'px');
+        (cy - window.innerHeight * .5 - shiftY - alignY).toFixed(3) + 'px');
     };
     // The typography uses the *projected model center and top*, not the
     // 16:9 artboard midpoint. Publish only on load and resize: following every
