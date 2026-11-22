@@ -574,6 +574,11 @@ export default function ProjectsSequence() {
       if (y === lastNativePosition && pinned.start === lastPinStart &&
         pinned.end === lastPinEnd) return;
       const previous = lastNativePosition;
+      // Keep the actual pinned Home DOM in the same scroll state as the
+      // 3D paper/head poses. Mobile Safari may deliver a scroll jump before
+      // GSAP's deferred global update, leaving the Home section translated
+      // by the entire pin distance while window.scrollY is already zero.
+      pinned.update();
       lastNativePosition = y;
       lastPinStart = pinned.start;
       lastPinEnd = pinned.end;
@@ -620,7 +625,6 @@ export default function ProjectsSequence() {
       syncFrame = requestAnimationFrame(frameSync);
     };
     const onScroll = () => {
-      pinned.update();
       syncFromScroll();
     };
     const onResize = () => {
