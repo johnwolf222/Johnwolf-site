@@ -1,12 +1,24 @@
 /** Original motion controller, isolated from Three.js for deterministic tests. */
-export const SETTINGS={yawMax:.59,pitchMax:.62,follow:6.2,floatAmplitude:.025,floatSpeed:1.5,boredAfter:30,hitCooldown:1.35,impact:.36,returnEnd:.96,shakeStart:1.04,recover:1.54,blinkDuration:.16,blinkMin:3,blinkJitter:2};
+export const SETTINGS={yawMax:.73,pitchMax:.70,follow:12.5,translateFollow:10.5,
+ floatAmplitude:.025,floatSpeed:1.5,boredAfter:30,hitCooldown:1.35,impact:.36,
+ returnEnd:.96,shakeStart:1.04,recover:1.54,blinkDuration:.16,blinkMin:3,blinkJitter:2};
 export const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export const damp=(a,b,k,dt)=>a+(b-a)*(1-Math.exp(-k*dt));
 const smooth=x=>{x=clamp(x,0,1);return x*x*(3-2*x)};
+// Normalize against the actual *onscreen head center*, which may move from
+// top-center in Projects to left-center in the About tools viewport.
+// Mapping relative to the browser's middle caused both lagging and asymmetry.
+export function pointerRelativeToHead(clientX,clientY,centerX,centerY,viewportWidth,viewportHeight){
+ const radiusX=Math.max(165,viewportWidth*.48);
+ const radiusY=Math.max(145,viewportHeight*.45);
+ return {x:clamp((clientX-centerX)/radiusX,-1,1),
+  y:clamp((centerY-clientY)/radiusY,-1,1)};
+}
 export class HeadController{
  constructor(random=Math.random){
   this.random=random;this.time=0;this.lastActivity=0;this.pointer={x:0,y:0};
-  this.yaw=0;this.pitch=0;this.roll=0;this.blinkAt=SETTINGS.blinkMin+SETTINGS.blinkJitter*random();
+  this.yaw=0;this.pitch=0;this.roll=0;this.trackX=0;this.trackY=0;
+   this.blinkAt=SETTINGS.blinkMin+SETTINGS.blinkJitter*random();
   this.blinkStart=-10;this.hitStart=-100;this.hitCount=0;this.sign=1;this.hitSide=0;
  }
  movePointer(x,y){this.pointer.x=clamp(x,-1,1);this.pointer.y=clamp(y,-1,1);this.interact()}
@@ -48,12 +60,14 @@ export class HeadController{
    }
   }
   const tracking=state==='tracking';
-  this.yaw=damp(this.yaw,tracking?this.pointer.x*s.yawMax*.72:0,s.follow,dt);
-  this.pitch=damp(this.pitch,tracking?-this.pointer.y*s.pitchMax*.57:0,s.follow,dt);
+  this.yaw=damp(this.yaw,tracking?this.pointer.x*s.yawMax*.96:0,s.follow,dt);
+  this.pitch=damp(this.pitch,tracking?-this.pointer.y*s.pitchMax*.92:0,s.follow,dt);
+  this.trackX=damp(this.trackX,tracking?this.pointer.x*.11:0,s.translateFollow,dt);
+  this.trackY=damp(this.trackY,tracking?this.pointer.y*.085:0,s.translateFollow,dt);
   this.roll=damp(this.roll,bored?-.09:0,3.4,dt);
   return {state,bored,contact:sinceHit>=s.impact&&sinceHit<s.returnEnd,blink:clamp(blink,0,1),lean,scale:1-lean*.085,
-   vertical:Math.sin(this.time*s.floatSpeed)*s.floatAmplitude*(bored?.25:1)-lean*.055,
-   horizontal:lean*(-this.sign)*.055,
+   vertical:this.trackY+Math.sin(this.time*s.floatSpeed)*s.floatAmplitude*(bored?.25:1)-lean*.055,
+   horizontal:this.trackX+lean*(-this.sign)*.055,
    yaw:this.yaw+lean*this.sign*.16+impact*.022+shake*.075,
    pitch:this.pitch-lean*.31+shake*.018,
    roll:this.roll-lean*this.sign*.085+impact*.012+shake*.045,
