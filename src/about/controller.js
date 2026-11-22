@@ -61,9 +61,16 @@ export class HeadController{
   }
   const tracking=state==='tracking';
   this.yaw=damp(this.yaw,tracking?this.pointer.x*s.yawMax*.96:0,s.follow,dt);
-  this.pitch=damp(this.pitch,tracking?-this.pointer.y*s.pitchMax*.92:0,s.follow,dt);
+  // Downward gaze was over-rotating and physically lowering the head too
+  // far. Soften only the negative-pointer-Y side. Looking up, following
+  // sideways, blinking, and click recoil retain their approved ranges.
+  const downward=this.pointer.y<0;
+  const pitchTarget=tracking?-this.pointer.y*s.pitchMax*.92*
+   (downward?.82:1):0;
+  this.pitch=damp(this.pitch,pitchTarget,s.follow,dt);
   this.trackX=damp(this.trackX,tracking?this.pointer.x*.105:0,s.translateFollow,dt);
-  this.trackY=damp(this.trackY,tracking?this.pointer.y*.10:0,s.translateFollow,dt);
+  const verticalTarget=tracking?this.pointer.y*(downward?.075:.10):0;
+  this.trackY=damp(this.trackY,verticalTarget,s.translateFollow,dt);
   // A gentle secondary head tilt keeps the gaze from feeling rigidly
   // attached to the pointer; the main yaw and pitch remain accurate.
   const easyRoll=bored?-.09:(-this.pointer.x*.032+
