@@ -1147,6 +1147,16 @@ test('About story ends near the tool viewport instead of leaving multi-screen bl
   assert.match(story, /about\.style\.minHeight=\(toolsStart\+100\)\+'svh'/);
   assert.match(story, /prepare\(\)\{layout\(\);root\.visible=false\}/,
     'layout must be prepared before reaching About, not during scroll');
+  assert.match(story, /about\.dataset\.storyHeightSource='three';/,
+    '3D layout must own the height only while its version is active');
+  const fallback = readFileSync(new URL('../src/AboutExperience.jsx',import.meta.url),'utf8');
+  assert.match(fallback, /const lastChapter = section\.querySelector\('\[data-story="4"\]'\)/);
+  assert.match(fallback, /const lastLine = lastChapter\.getBoundingClientRect\(\)\.bottom - top/);
+  assert.match(fallback, /section\.style\.minHeight =/);
+  assert.match(fallback, /Math\.ceil\(lastLine \+ breathing \+ panelHeight\) \+ 'px'/);
+  assert.match(fallback, /section\.dataset\.storyHeightSource === 'three'/,
+    'fallback must not fight the prepared 3D layout');
+  assert.match(fallback, /chapterObserver\.disconnect\(\)/);
   const head = readFileSync(new URL('../src/HomepageHead.jsx',import.meta.url),'utf8');
   assert.match(head, /floatingStory\?\.prepare\(\)/);
   assert.match(tools, /bottom: 0;/);
