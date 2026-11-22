@@ -424,7 +424,9 @@ test('original homepage 3D head stays mounted and renders through section two', 
     'keep the approved static head until the actual GLB is drawn');
   assert.match(sequence, /head\.style\.opacity = String\(headOpacity\)/);
   assert.match(sequence, /head\.style\.visibility = headOpacity < \.005/);
-  assert.match(sequence, /galleryHeadPlacement\(p, height\)/);
+  assert.match(sequence, /galleryHeadPlacement\(p, height, width\)/);
+  // Width-scoped mobile correction must not modify the approved desktop curve.
+  assert.deepEqual(galleryHeadPlacement(.78, 844), galleryHeadPlacement(.78, 844, 1280));
   assert.match(css, /\.jw-continuous-head\s*\{\s*position: fixed;/);
   assert.match(css, /\.jw-continuous-head__artboard\s*\{[\s\S]*?left: 50%;/);
   for (const height of [722, 844, 1080]) {
