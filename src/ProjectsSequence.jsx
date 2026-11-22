@@ -202,9 +202,14 @@ export default function ProjectsSequence() {
       const localX = Number.parseFloat(artboard.style.getPropertyValue('--jw-head-local-x'));
       const localY = Number.parseFloat(artboard.style.getPropertyValue('--jw-head-local-y'));
       if (!Number.isFinite(localX) || !Number.isFinite(localY)) return { x: 0, y: 0 };
+      // Convert the head pivot from artboard-local pixels to the same
+      // viewport-centered coordinate system used by the fixed paper stage.
+      const bounds = artboard.getBoundingClientRect();
+      const scaleX = bounds.width / Math.max(1, artboard.clientWidth);
+      const scaleY = bounds.height / Math.max(1, artboard.clientHeight);
       return {
-        x: localX - artboard.clientWidth * .5,
-        y: localY - artboard.clientHeight * .5,
+        x: bounds.left + localX * scaleX - window.innerWidth * .5,
+        y: bounds.top + localY * scaleY - window.innerHeight * .5,
       };
     }
 
