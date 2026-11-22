@@ -97,3 +97,16 @@ test('all seven original scenes and their paper/head animation systems remain in
   assert.match(homepage, /jw-continuous-head/);
   assert.match(homepage, /Shared cards render once outside Home and Work/);
 });
+
+test('homepage replaces arrow buttons with an accessible animated swipe-up cue', () => {
+  assert.doesNotMatch(homepage, /jw-new-home__buttons|Previous discipline|Next discipline/);
+  assert.doesNotMatch(css, /jw-new-home__buttons/);
+  assert.match(homepage, /className="jw-new-home__swipe-cue" href="#work"/);
+  assert.match(homepage, /aria-label="Swipe up or tap to explore selected work"/);
+  assert.match(css, /\.jw-new-home__swipe-cue \{[\s\S]*?left: 50%;[\s\S]*?bottom: 0;/);
+  assert.match(css, /@keyframes jw-swipe-cue-rise/);
+  assert.match(css, /\.jw-new-home__swipe-cue-chevrons::before/);
+  assert.match(css, /animation: none;/);
+  assert.match(homepage, /onPointerUp=\{pointerEnd\}/);
+  assert.match(homepage, /requestAdvance\(i, 'direct'\)/);
+});

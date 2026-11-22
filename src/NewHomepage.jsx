@@ -183,10 +183,10 @@ export default function NewHomepage() {
       </div>
       <div className="jw-new-home__bottom-bar">
         <span className="jw-new-home__counter" aria-live="polite">{scene.label}</span>
-        <div className="jw-new-home__buttons">
-          <button type="button" onClick={() => requestAdvance(-1)} aria-label="Previous discipline"><span className="jw-impact-arrow" aria-hidden="true">←</span></button>
-          <button type="button" onClick={() => requestAdvance(1)} aria-label="Next discipline"><span className="jw-impact-arrow" aria-hidden="true">→</span></button>
-        </div>
+        <a className="jw-new-home__swipe-cue" href="#work" aria-label="Swipe up or tap to explore selected work">
+          <span className="jw-new-home__swipe-cue-label">Swipe up</span>
+          <span className="jw-new-home__swipe-cue-chevrons" aria-hidden="true" />
+        </a>
         <a className="jw-new-home__scroll" href="#work">Explore work ↓</a>
       </div>
       <h1 className="jw-new-home__sr-only">John Wolf — {scene.label}</h1>
