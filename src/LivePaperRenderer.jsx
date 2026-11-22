@@ -447,10 +447,15 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
     let paperWidth = 270;
     function resize() {
       if (disposed) return;
-      width = Math.max(1, window.innerWidth);
-      height = Math.max(1, width <= 700
+      const nextWidth = Math.max(1, window.innerWidth);
+      const nextHeight = Math.max(1, nextWidth <= 700
         ? document.querySelector('#home')?.offsetHeight || window.innerHeight
         : window.innerHeight);
+      // Avoid reallocating the GPU canvas when only the iOS browser
+      // toolbar changes; the small-viewport Home stage is still the same.
+      if (nextWidth === width && nextHeight === height) return;
+      width = nextWidth;
+      height = nextHeight;
       // The original head uses its own canvas; cap the independent paper
       // raster at native pixel density to avoid doubling GPU fill pressure.
       dpr = Math.min(window.devicePixelRatio || 1, 1);
