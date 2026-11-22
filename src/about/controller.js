@@ -63,7 +63,7 @@ export class HeadController{
   this.yaw=damp(this.yaw,tracking?this.pointer.x*s.yawMax*.96:0,s.follow,dt);
   this.pitch=damp(this.pitch,tracking?-this.pointer.y*s.pitchMax*.92:0,s.follow,dt);
   this.trackX=damp(this.trackX,tracking?this.pointer.x*.11:0,s.translateFollow,dt);
-  this.trackY=damp(this.trackY,tracking?this.pointer.y*.085:0,s.translateFollow,dt);
+  this.trackY=damp(this.trackY,tracking?this.pointer.y*.11:0,s.translateFollow,dt);
   this.roll=damp(this.roll,bored?-.09:0,3.4,dt);
   return {state,bored,contact:sinceHit>=s.impact&&sinceHit<s.returnEnd,blink:clamp(blink,0,1),lean,scale:1-lean*.085,
    vertical:this.trackY+Math.sin(this.time*s.floatSpeed)*s.floatAmplitude*(bored?.25:1)-lean*.055,
