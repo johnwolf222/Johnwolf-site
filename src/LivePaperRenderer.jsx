@@ -417,6 +417,32 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
     const loader = new THREE.TextureLoader();
     const textures = [];
     let maskTexture;
+    // Center the actual alpha silhouette, not its transparent image rectangle.
+    // Image-space Y is top-down; the paper shader samples bottom-up.
+    let maskAlphaCenter = { x: .5, y: .5 };
+    function measureMaskAlphaCenter(image) {
+      const sample = document.createElement('canvas');
+      sample.width = Math.min(256, image.naturalWidth || image.width || 256);
+      sample.height = Math.min(256, image.naturalHeight || image.height || 256);
+      const context = sample.getContext('2d', { willReadFrequently: true });
+      if (!context) return;
+      context.drawImage(image, 0, 0, sample.width, sample.height);
+      const pixels = context.getImageData(0, 0, sample.width, sample.height).data;
+      let minX = sample.width, maxX = -1, minY = sample.height, maxY = -1;
+      for (let y = 0; y < sample.height; y++) {
+        for (let x = 0; x < sample.width; x++) {
+          if (pixels[(y * sample.width + x) * 4 + 3] < 16) continue;
+          minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+        }
+      }
+      if (maxX >= minX && maxY >= minY) {
+        maskAlphaCenter = {
+          x: (minX + maxX + 1) / (2 * sample.width),
+          y: 1 - (minY + maxY + 1) / (2 * sample.height),
+        };
+      }
+    }
     let width = 1, height = 1, dpr = 1;
     let paperWidth = 270;
     function resize() {
@@ -463,8 +489,26 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
       const surface = document.querySelector('.jw-new-home__head-canvas');
       if (surface) {
         const rect = surface.getBoundingClientRect();
+        const orbitX = Number.parseFloat(
+          head?.style.getPropertyValue('--jw-visible-head-orbit-x'));
+        const orbitY = Number.parseFloat(
+          head?.style.getPropertyValue('--jw-visible-head-orbit-y'));
+        const shiftX = Number.parseFloat(
+          head?.style.getPropertyValue('--jw-head-x')) || 0;
+        const shiftY = Number.parseFloat(
+          head?.style.getPropertyValue('--jw-head-shift')) || 0;
+        // Anchor the opaque mask region behind the visible GLB silhouette.
+        // The transparent padding of the stored mask must not be mistaken
+        // for its optical center. On desktop preserve approved behavior.
+        const targetX = width <= 700 && Number.isFinite(orbitX)
+          ? width * .5 + orbitX + shiftX
+          : rect.left + rect.width * maskAlphaCenter.x;
+        const targetY = width <= 700 && Number.isFinite(orbitY)
+          ? height * .5 + orbitY + shiftY
+          : rect.bottom - rect.height * maskAlphaCenter.y;
         sharedUniforms.uHeadBounds.value.set(
-          rect.left / width, (height - rect.bottom) / height,
+          (targetX - rect.width * maskAlphaCenter.x) / width,
+          (height - targetY - rect.height * maskAlphaCenter.y) / height,
           rect.width / width, rect.height / height,
         );
       }
@@ -621,6 +665,9 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
       loader.load(HEAD_SILHOUETTE_MASK, texture => {
         if (disposed) { texture.dispose(); resolve(false); return; }
         maskTexture = texture;
+        try { measureMaskAlphaCenter(texture.image); } catch (error) {
+          console.warn('Mask alpha measurement unavailable', error);
+        }
         sharedUniforms.uHead.value = texture;
         resolve(true);
       }, undefined, () => resolve(false));
