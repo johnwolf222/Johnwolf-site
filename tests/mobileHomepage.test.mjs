@@ -65,14 +65,14 @@ test('phone-only indicators follow the rendered bottom edge of the 3D head', () 
   assert.match(css, /\.jw-new-home__indicators \{\s*top: calc\(var\(--jw-head-local-bottom/);
 });
 
-test('phone head follows orbit center longer; desktop timing remains approved', () => {
+test('mobile head remains at its original height during the outward paper orbit', () => {
   const height = 844;
   const phase = .78;
   const ringShift = -height * CAMERA_DESCENT * galleryCameraProgress(phase);
   const mobile = galleryHeadPlacement(phase, height, 390);
   const desktop = galleryHeadPlacement(phase, height, 1280);
-  assert.ok(Math.abs(mobile.shift - ringShift) < 1e-8,
-    'mobile head must remain centered on the moving paper ring');
+  assert.equal(mobile.shift, 0,
+    'mobile head must not descend to the misplaced paper mask');
   assert.ok(Math.abs(desktop.shift - ringShift) > 1,
     'desktop should retain its earlier approved settle');
   assert.deepEqual(galleryHeadPlacement(0, height, 390),
