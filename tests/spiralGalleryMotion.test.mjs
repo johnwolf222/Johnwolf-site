@@ -561,8 +561,10 @@ test('Section 2 waits after auto-landing and the next scroll enters About', () =
   assert.match(source, /const onVerticalWheel = event =>/);
   assert.match(source, /galleryVerticalExitGesture\(/,
     'About must require an intentional downward gesture, not tiny Y noise');
-  assert.match(source, /dy <= 0 \|\| dy <= Math\.abs\(dx\) \* 1\.25/,
+  assert.match(source, /Math\.abs\(dy\) <= Math\.abs\(dx\) \* 1\.25/,
     'horizontal gestures must not be classified as vertical navigation');
+  assert.match(source, /if \(dy < 0\)/,
+    'an intentional reverse vertical gesture returns to Home');
   assert.match(source, /event\.shiftKey && Math\.abs\(event\.deltaX\) < \.2/,
     'shift-wheel should stay in the horizontal gallery');
   assert.match(source, /const onTouchMove = event =>/);
