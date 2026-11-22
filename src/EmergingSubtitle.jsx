@@ -9,6 +9,9 @@ import { gsap } from 'gsap';
  */
 const TITLE_INK_LEFT = [107, 137, 180, 158, 86, 163, 216];
 const DOT_LEFT = 111.351562;
+// Midpoints of the original purple dot plus subtitle ink, measured in the
+// seven 1440px SVGs (not the center of the full transparent SVG canvas).
+const SUBTITLE_INK_MIDPOINT = [224.731, 191.595, 169.578, 298.861, 223.926, 181.557, 230.577];
 const ARTBOARD_WIDTH = 1440;
 const SUBMERGED_Y_PERCENT = 12;
 
@@ -64,7 +67,10 @@ const EmergingSubtitle = forwardRef(function EmergingSubtitle(
         ref={imageRef}
         className="jw-new-home__layer jw-new-home__subtitle"
         src={`/new-homepage/subtitle-${slug}.svg`}
-        style={{ left: `${((TITLE_INK_LEFT[index] - DOT_LEFT) / ARTBOARD_WIDTH) * 100}%` }}
+        style={{
+          '--jw-subtitle-desktop-left': `${((TITLE_INK_LEFT[index] - DOT_LEFT) / ARTBOARD_WIDTH) * 100}%`,
+          '--jw-subtitle-mobile-center': `${(SUBTITLE_INK_MIDPOINT[index] / ARTBOARD_WIDTH) * 280}vw`,
+        }}
         alt=""
         draggable="false"
       />
