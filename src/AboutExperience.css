@@ -14,27 +14,35 @@
   scroll-margin-top: 0;
 }
 .jw-about-experience * { box-sizing: border-box; }
-/* Match the large PROJECTS title in Section 2; do not alter the gallery. */
+/* The approved purple ABOUT heading is now vertical and STICKY throughout
+   Section 3. It stays in document flow so the About section itself bounds
+   its travel; it never follows into Contact or creates another scroll pin. */
 #root .about.jw-about-experience > .jw-about-heading {
-  position: absolute;
-  z-index: 10;
-  left: 5.5%;
-  top: clamp(108px, 15.5vh, 170px);
-  margin: 0;
+  position: sticky;
+  top: clamp(84px, 12svh, 132px);
+  z-index: 35;
+  display: block;
+  width: max-content;
+  height: max-content;
+  margin: 0 0 0 clamp(12px, 2.6vw, 44px);
+  padding: 0;
   color: #8750f1;
   font-family: 'DM Sans', Arial, sans-serif;
   font-weight: 700;
-  font-size: clamp(42px, 5.5vw, 90px);
-  letter-spacing: -.055em;
+  font-size: clamp(28px, 3.8vw, 58px);
+  letter-spacing: .015em;
   line-height: 1;
   text-transform: uppercase;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
   pointer-events: none;
 }
 @media (max-width: 800px) {
   #root .about.jw-about-experience > .jw-about-heading {
-    top: clamp(94px, 14vh, 127px);
-    left: 4.4%;
-    font-size: clamp(25px, 6vw, 43px);
+    top: clamp(78px, 11svh, 108px);
+    margin-left: 10px;
+    font-size: clamp(21px, 5vw, 31px);
+    letter-spacing: 0;
   }
 }
 .jw-about-signature {
