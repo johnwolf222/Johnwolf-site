@@ -191,6 +191,39 @@ try {
         reverseMetrics.viewportRestoreDeltaY > 3)
       throw new Error('Head does not return to its original screen position ' +
         'after reverse scrolling: ' + JSON.stringify(reverseMetrics));
+    // Check the actual transformed head's destination and return curve.
+    // At Home it stays centered; at Projects it occupies the upper-left
+    // editorial slot; in About it returns to the exact Home center.
+    const homeCenterPose = await scrollToAndSettle(0);
+    const projectsLandingY = await page.evaluate(() => {
+      const section = document.querySelector('.jw-projects-journey');
+      return window.scrollY + section.getBoundingClientRect().top;
+    });
+    const projectsLandingPose = await scrollToAndSettle(projectsLandingY + height * .10);
+    const aboutEntryY = await page.evaluate(() => {
+      const about = document.querySelector('#about');
+      return window.scrollY + about.getBoundingClientRect().top;
+    });
+    const aboutCenterPose = await scrollToAndSettle(aboutEntryY);
+    const backToProjectsPose = await scrollToAndSettle(projectsLandingY + height * .10);
+    const backToHomePose = await scrollToAndSettle(0);
+    const posePath = {
+      homeCenterPose, projectsLandingPose, aboutCenterPose,
+      backToProjectsPose, backToHomePose,
+    };
+    console.log('MOBILE HEAD POSE PATH:', JSON.stringify(posePath));
+    await fs.writeFile('mobile-visual-artifacts/head-pose-path-' + width + '.json',
+      JSON.stringify(posePath, null, 2));
+    if (Math.abs(projectsLandingPose.headX - homeCenterPose.headX) < width * .12 ||
+        projectsLandingPose.headY >= homeCenterPose.headY - height * .055 ||
+        Math.abs(aboutCenterPose.headX - homeCenterPose.headX) > 4 ||
+        Math.abs(aboutCenterPose.headY - homeCenterPose.headY) > 4 ||
+        Math.abs(backToProjectsPose.headX - projectsLandingPose.headX) > 4 ||
+        Math.abs(backToProjectsPose.headY - projectsLandingPose.headY) > 4 ||
+        Math.abs(backToHomePose.headX - homeCenterPose.headX) > 4 ||
+        Math.abs(backToHomePose.headY - homeCenterPose.headY) > 4)
+      throw new Error('Mobile center–Projects–center pose path is unstable: ' +
+        JSON.stringify(posePath));
     // After Home unpins, its DOM artboard scrolls away. The permanent
     // GLB must NOT follow that element offscreen during Section 2.
     const projectsY = await page.evaluate(() => {
