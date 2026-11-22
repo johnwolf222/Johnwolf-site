@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { HeadController, SETTINGS, pointerRelativeToHead } from '../src/about/controller.js';
+import {wordRangesForLine, hoveredWordAtUV} from '../src/about/word-hover.js';
 import {
   spiralGalleryPose, clockwiseTrack, galleryCameraProgress, galleryHeadPlacement,
   galleryRowOffset, CAMERA_DESCENT, UNWIND_START, OFFSCREEN_START,
@@ -1183,4 +1184,74 @@ test('looser cursor-follow adds a little organic roll without losing accurate ga
     'opposite direction should remain responsive and reversible');
   assert.ok(output.roll>0 && output.roll<.08,
     'secondary roll should return smoothly to the opposite side');
+});
+
+test('Section 3 Vision Lab label is removed completely while approved About remains', () => {
+  const about = readFileSync(new URL('../src/AboutExperience.jsx',import.meta.url),'utf8');
+  const css = readFileSync(new URL('../src/AboutExperience.css',import.meta.url),'utf8');
+  const tools = readFileSync(new URL('../src/ChoiceOfTools.jsx',import.meta.url),'utf8');
+  assert.doesNotMatch(about, /VISION LAB|jw-about-signature/i);
+  assert.doesNotMatch(css, /jw-about-signature/i);
+  assert.match(about, /<h2 id="jw-about-heading"/);
+  assert.match(about, /<ChoiceOfTools\/>/);
+  assert.equal((about.match(/<article[^>]*data-story="/g)||[]).length,4);
+  assert.match(tools, /CHOICE OF TOOLS/);
+});
+
+test('About highlights each DOM word independently without changing original copy', () => {
+  const words = readFileSync(new URL('../src/WordHighlight.jsx',import.meta.url),'utf8');
+  const css = readFileSync(new URL('../src/WordHighlight.css',import.meta.url),'utf8');
+  const about = readFileSync(new URL('../src/AboutExperience.jsx',import.meta.url),'utf8');
+  const tools = readFileSync(new URL('../src/ChoiceOfTools.jsx',import.meta.url),'utf8');
+  assert.match(words, /split\(\/\(\\s\+\)\/u\)/,
+    'split into word-sized tokens while preserving whitespace');
+  assert.match(words, /className="jw-hover-word"/);
+  assert.match(css, /\.jw-hover-word:hover/);
+  assert.match(css, /rgba\(173, 108, 245, \.29\)/,
+    'individual word should have a light purple, not solid purple, highlight');
+  assert.match(css, /pointer-events: auto/);
+  assert.match(about, /<WordHighlight>Now I can’t speak for<\/WordHighlight>/);
+  assert.match(about, /<WordHighlight>Design is life!<\/WordHighlight>/);
+  assert.match(about, /<em><WordHighlight>“art is subjective\.”<\/WordHighlight><\/em>/);
+  assert.match(about, /<WordHighlight>Photoshop, Illustrator, Procreate/);
+  assert.match(tools, /<WordHighlight>Choose a tool<\/WordHighlight>/);
+  assert.match(tools, /<WordHighlight>\{activeTool\.name\}<\/WordHighlight>/);
+  assert.match(tools, /<WordHighlight>\{activeTool\.detail\}<\/WordHighlight>/);
+});
+
+test('3D About story highlights only the exact word under the cursor', () => {
+  const line = 'Purple words, one at a time!';
+  const measure = str => str.length * 10;
+  const ranges = wordRangesForLine(line, measure, 14, 320);
+  assert.deepEqual(ranges.map(x=>x.word),
+    ['Purple','words,','one','at','a','time!']);
+  for(const range of ranges){
+    const u=(range.u0+range.u1)*.5;
+    const hit=hoveredWordAtUV(ranges,u,.5);
+    assert.equal(hit?.word,range.word,'only hovered word highlighted');
+  }
+  assert.equal(hoveredWordAtUV(ranges,0,.5),null,
+    'no color in transparent texture padding');
+  assert.equal(hoveredWordAtUV(ranges,.5,.05),null,
+    'vertical space above text does not react');
+  assert.equal(hoveredWordAtUV(ranges,.5,.92),null,
+    'vertical space below text does not react');
+  assert.equal(hoveredWordAtUV(ranges,NaN,.5),null);
+  assert.deepEqual(wordRangesForLine('',measure,14,70),[]);
+
+  const source=readFileSync(new URL('../src/about/floating-story.js',import.meta.url),'utf8');
+  assert.match(source, /wordRangesForLine\(text,/);
+  assert.match(source, /hoveredWordAtUV\(data\.hoverWords,/);
+  assert.match(source, /mesh\.position\.x=data\.baseX/,
+    'hover hitbox follows exact animated word position');
+  assert.match(source, /hoverRange:\{value:new THREE\.Vector2\(-2,-2\)\}/);
+  assert.match(source, /hoverStrength:\{value:0\}/);
+  assert.match(source, /uHoverRange/);
+  assert.match(source, /uHoverStrength/);
+  assert.match(source, /diffuseColor\.a\*=max\(distortedInk\.a,lilac\*0\.58\)/,
+    'lilac background preserves dark word ink and its transparency');
+  assert.match(source, /shader\.fragmentShader/);
+  assert.match(source, /window\.removeEventListener\('pointermove',onPointerMove\)/,
+    'clean up pointer listener to avoid accumulated handlers');
+  assert.match(source, /story-displacement-per-word-lilac-v5/);
 });
