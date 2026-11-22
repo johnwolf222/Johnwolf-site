@@ -1061,7 +1061,7 @@ test('3D cursor tracking follows the projected head center with precise larger m
   assert.ok(SETTINGS.follow >= 7 && SETTINGS.follow <= 8.5,
     'head follows naturally without rigidly snapping to gaze');
   assert.ok(moved.yaw > .60, 'head follows mouse much farther right than before');
-  assert.ok(moved.pitch > .42 && moved.pitch < .51,
+  assert.ok(moved.pitch > .40 && moved.pitch < .46,
     'head looks down noticeably less without freezing gaze');
   assert.ok(moved.horizontal > .09, 'head has subtle physical sideways tracking');
   assert.ok(moved.vertical < -.035 && moved.vertical > -.075,
@@ -1173,7 +1173,7 @@ test('looser cursor-follow adds a little organic roll without losing accurate ga
   controller.movePointer(.8,-.7);
   let output;
   for(let i=0;i<10;i++) output=controller.update(.05);
-  assert.ok(output.yaw>.45 && output.pitch>.30 && output.pitch<.38,
+  assert.ok(output.yaw>.45 && output.pitch>.22 && output.pitch<.28,
     'preserve sideways and upward tracking but soften downward pitch');
   assert.ok(output.roll<-.01 && output.roll>-.08,
     'subtle roll follows the gaze without dramatic leaning');
@@ -1291,11 +1291,11 @@ test('head has asymmetric downward limits without weakening its upward gaze', ()
   const down=settle(.8,-1);
   const up=settle(.8,1);
   const left=settle(-1,0),right=settle(1,0);
-  assert.ok(down.pitch>.45 && down.pitch<.52,
+  assert.ok(down.pitch>.43 && down.pitch<.47,
     'downward limit is less extreme than before');
   assert.ok(up.pitch<-.57,
     'upward range must remain the same');
-  assert.ok(Math.abs(down.pitch)<Math.abs(up.pitch)*.86,
+  assert.ok(Math.abs(down.pitch)<Math.abs(up.pitch)*.77,
     'downward rotation reduction is targeted, not a global sensitivity loss');
   assert.ok(down.vertical>-.085,
     'head must not translate too far down while following cursor');
@@ -1303,4 +1303,28 @@ test('head has asymmetric downward limits without weakening its upward gaze', ()
     'existing upward translation is preserved');
   assert.ok(right.yaw>.59 && left.yaw<-.59,
     'left and right tracking must remain intact');
+});
+
+test('downward gaze trims additional pitch without changing side or upward target', () => {
+  const controller = readFileSync(new URL('../src/about/controller.js', import.meta.url), 'utf8');
+  assert.match(controller, /\(downward\?\.74:1\)/,
+    'downward pitch strength must be 0.74, not prior 0.82');
+  assert.match(controller, /\(downward\?\.075:\.10\)/,
+    'physical vertical translation remains at the already approved amount');
+  const settle = (x,y) => {
+    const head = new HeadController(() => .5);
+    head.movePointer(x,y);
+    let p;
+    for(let i=0;i<40;i++)p=head.update(.05);
+    return p;
+  };
+  const down=settle(0,-1), up=settle(0,1), right=settle(1,0);
+  assert.ok(down.pitch > .43 && down.pitch < .47,
+    'head can look down but stays below the former angle');
+  assert.ok(up.pitch < -.59,
+    'the upward range is unchanged');
+  assert.ok(right.yaw > .59,
+    'horizontal movement stays at the approved sensitivity');
+  assert.ok(down.vertical > -.085,
+    'the current vertical offset remains modest');
 });
