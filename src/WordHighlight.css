@@ -1,0 +1,23 @@
+/* Scoped lilac text emphasis; each token responds separately.
+   Background and outline don't change line breaks or font size. */
+#root .about.jw-about-experience .jw-hover-word {
+  display: inline;
+  border-radius: .15em;
+  padding: 0;
+  margin: 0;
+  background-color: transparent;
+  box-shadow: 0 0 0 0 transparent;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  pointer-events: auto;
+  transition: background-color .15s ease, box-shadow .15s ease;
+}
+#root .about.jw-about-experience .jw-hover-word:hover {
+  background-color: rgba(173, 108, 245, .29);
+  box-shadow: 0 0 0 2px rgba(173, 108, 245, .18);
+}
+@media (prefers-reduced-motion: reduce) {
+  #root .about.jw-about-experience .jw-hover-word {
+    transition: none;
+  }
+}
