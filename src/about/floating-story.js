@@ -181,6 +181,7 @@ export function installFloatingStory(scene,camera,stage,about){
    Math.max(last,chapter.top+chapter.height),0);
   const storyEnd=Math.max(textEnd,domEnd);
   const toolsStart=Math.ceil((storyEnd+Math.min(vh*.15,110))/vh*100);
+  about.dataset.storyHeightSource='three';
   about.style.minHeight=(toolsStart+100)+'svh';
  }
  function update(dt,modelBounds){
@@ -250,6 +251,7 @@ export function installFloatingStory(scene,camera,stage,about){
   prepare(){layout();root.visible=false},
   setVisible(visible){root.visible=Boolean(visible)},
   update,dispose(){
+  delete about.dataset.storyHeightSource;
   window.removeEventListener('resize',resize);
   clear();scene.remove(root);
  }};
