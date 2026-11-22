@@ -102,7 +102,9 @@ test('mobile paper orbit is circular and desktop retains the approved ellipse', 
     assert.ok(radii.x <= width * .4 + 1e-9);
     for (const slot of [0, 5, 10, 15, 20]) {
       const p = clockwiseTrack(.40, slot, width, height);
-      assert.ok(Math.abs(Math.hypot(p.x, p.y) - radii.x) < .05,
+      const t = (.40 - .285) / .145;
+      const growth = t * t * t * (t * (t * 6 - 15) + 10);
+      assert.ok(Math.abs(Math.hypot(p.x, p.y) - radii.x * growth) < .05,
         'every visible card must follow one centered circle');
     }
   }
