@@ -411,8 +411,14 @@ export default function ProjectsSequence() {
       }
       const homeAlignX = boardRect ? boardOffsetX - (homeBaselineX ?? 0) : 0;
       const homeAlignY = boardRect ? boardOffsetY - (homeBaselineY ?? 0) : 0;
+      // The Home artboard stops being a valid screen-space anchor when
+      // ScrollTrigger releases its pin at the Projects handoff. Fade out
+      // its correction BEFORE that point; otherwise the fixed GLB follows
+      // the offscreen Home element and disappears during Section 2.
+      // The gallery head remains at its approved mobile viewport position.
       const homeAnchorBlend = width <= 700
-        ? 1 - smooth(handoff, .001, .12) : 0;
+        ? (1 - smooth(p, .88, .985)) *
+          (1 - smooth(handoff, .001, .12)) : 0;
       head.style.setProperty('--jw-home-align-x',
         (homeAlignX * homeAnchorBlend).toFixed(2) + 'px');
       head.style.setProperty('--jw-home-align-y',
