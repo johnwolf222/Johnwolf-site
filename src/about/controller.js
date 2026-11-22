@@ -1,5 +1,5 @@
 /** Original motion controller, isolated from Three.js for deterministic tests. */
-export const SETTINGS={yawMax:.73,pitchMax:.70,follow:12.5,translateFollow:10.5,
+export const SETTINGS={yawMax:.73,pitchMax:.70,follow:9.6,translateFollow:8.4,
  floatAmplitude:.025,floatSpeed:1.5,boredAfter:30,hitCooldown:1.35,impact:.36,
  returnEnd:.96,shakeStart:1.04,recover:1.54,blinkDuration:.16,blinkMin:3,blinkJitter:2};
 export const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -64,7 +64,10 @@ export class HeadController{
   this.pitch=damp(this.pitch,tracking?-this.pointer.y*s.pitchMax*.92:0,s.follow,dt);
   this.trackX=damp(this.trackX,tracking?this.pointer.x*.11:0,s.translateFollow,dt);
   this.trackY=damp(this.trackY,tracking?this.pointer.y*.11:0,s.translateFollow,dt);
-  this.roll=damp(this.roll,bored?-.09:0,3.4,dt);
+  // A gentle secondary head tilt keeps the gaze from feeling rigidly
+  // attached to the pointer; the main yaw and pitch remain accurate.
+  const easyRoll=bored?-.09:(-this.pointer.x*.042+this.pointer.y*.015);
+  this.roll=damp(this.roll,easyRoll,5.2,dt);
   return {state,bored,contact:sinceHit>=s.impact&&sinceHit<s.returnEnd,blink:clamp(blink,0,1),lean,scale:1-lean*.085,
    vertical:this.trackY+Math.sin(this.time*s.floatSpeed)*s.floatAmplitude*(bored?.25:1)-lean*.055,
    horizontal:this.trackX+lean*(-this.sign)*.055,
