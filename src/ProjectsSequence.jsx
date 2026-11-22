@@ -201,8 +201,13 @@ export default function ProjectsSequence() {
         head.style.getPropertyValue('--jw-visible-head-orbit-x'));
       const y = Number.parseFloat(
         head.style.getPropertyValue('--jw-visible-head-orbit-y'));
+      const alignX = Number.parseFloat(
+        head.style.getPropertyValue('--jw-home-align-x')) || 0;
+      const alignY = Number.parseFloat(
+        head.style.getPropertyValue('--jw-home-align-y')) || 0;
       return Number.isFinite(x) && Number.isFinite(y)
-        ? { x, y } : { x: 0, y: 0 };
+        ? { x: x + alignX, y: y + alignY }
+        : { x: alignX, y: alignY };
     }
 
     function positionCard(card, index, phase, galleryFocus, handoff, orbitOffset) {
@@ -383,6 +388,22 @@ export default function ProjectsSequence() {
       }
       head.style.opacity = String(headOpacity);
       head.style.visibility = headOpacity < .005 ? 'hidden' : 'visible';
+      // The Home artboard, not Safari's changing fixed viewport, owns
+      // the head's mobile position. A pinned Home may be transformed by
+      // ScrollTrigger; measure its actual screen-space center every frame.
+      const homeBoard = home.querySelector('.jw-new-home__artboard');
+      const boardRect = width <= 700 && homeBoard
+        ? homeBoard.getBoundingClientRect() : null;
+      const homeAlignX = boardRect
+        ? boardRect.left + boardRect.width * .5 - width * .5 : 0;
+      const homeAlignY = boardRect
+        ? boardRect.top + boardRect.height * .5 - height * .5 : 0;
+      const homeAnchorBlend = width <= 700
+        ? 1 - smooth(handoff, .001, .12) : 0;
+      head.style.setProperty('--jw-home-align-x',
+        (homeAlignX * homeAnchorBlend).toFixed(2) + 'px');
+      head.style.setProperty('--jw-home-align-y',
+        (homeAlignY * homeAnchorBlend).toFixed(2) + 'px');
       head.style.setProperty('--jw-head-x',
         (headPlacement.x + toolHeadX).toFixed(2) + 'px');
       head.style.setProperty('--jw-head-shift',
