@@ -497,14 +497,18 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
           head?.style.getPropertyValue('--jw-head-x')) || 0;
         const shiftY = Number.parseFloat(
           head?.style.getPropertyValue('--jw-head-shift')) || 0;
+        const alignX = Number.parseFloat(
+          head?.style.getPropertyValue('--jw-home-align-x')) || 0;
+        const alignY = Number.parseFloat(
+          head?.style.getPropertyValue('--jw-home-align-y')) || 0;
         // Anchor the opaque mask region behind the visible GLB silhouette.
         // The transparent padding of the stored mask must not be mistaken
         // for its optical center. On desktop preserve approved behavior.
         const targetX = width <= 700 && Number.isFinite(orbitX)
-          ? width * .5 + orbitX + shiftX
+          ? width * .5 + orbitX + shiftX + alignX
           : rect.left + rect.width * maskAlphaCenter.x;
         const targetY = width <= 700 && Number.isFinite(orbitY)
-          ? height * .5 + orbitY + shiftY
+          ? height * .5 + orbitY + shiftY + alignY
           : rect.bottom - rect.height * maskAlphaCenter.y;
         sharedUniforms.uHeadBounds.value.set(
           (targetX - rect.width * maskAlphaCenter.x) / width,
