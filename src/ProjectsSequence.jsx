@@ -192,7 +192,23 @@ export default function ProjectsSequence() {
       };
     }
 
-    function positionCard(card, index, phase, galleryFocus, handoff) {
+    // The same measured 3D pivot that centers the mobile headlines is the
+    // paper circle's origin. Read its projection relative to the fixed center,
+    // never the moving/pinned Home rectangle, so scroll doesn't shift origin.
+    function mobileHeadOrbitOffset() {
+      if (width > 700) return { x: 0, y: 0 };
+      const artboard = home.querySelector('.jw-new-home__artboard');
+      if (!artboard) return { x: 0, y: 0 };
+      const localX = Number.parseFloat(artboard.style.getPropertyValue('--jw-head-local-x'));
+      const localY = Number.parseFloat(artboard.style.getPropertyValue('--jw-head-local-y'));
+      if (!Number.isFinite(localX) || !Number.isFinite(localY)) return { x: 0, y: 0 };
+      return {
+        x: localX - artboard.clientWidth * .5,
+        y: localY - artboard.clientHeight * .5,
+      };
+    }
+
+    function positionCard(card, index, phase, galleryFocus, handoff, orbitOffset) {
       const id = index + 1;
       const target = targetForCard(id, galleryFocus);
       const spotlight = PROJECTS.findIndex(project => project.image === id);
@@ -212,9 +228,19 @@ export default function ProjectsSequence() {
       // The existing seven gallery sheets travel RIGHT together during
       // Projects → About; the remaining Home papers stay offscreen left.
       const depart = departingCardOffset(handoff, rank, width, height);
-      const finalX = (started ? motion.x : flight.x) + depart.x;
-      const finalY = (started ? motion.y : flight.y) + depart.y;
       const finalZ = started ? motion.z : flight.z;
+      // On mobile, let the cards converge on the actual projected face rather
+      // than viewport (0,0). Fade the shared translation in during rewind and
+      // release it only after all papers have left the visible orbit. Scale for
+      // camera depth so every sheet keeps the SAME on-screen point of origin.
+      const orbitBlend = width <= 700
+        ? smooth(phase, .04, .272) * (1 - smooth(phase, .82, .89))
+        : 0;
+      const depthCorrection = (GALLERY_FOCAL - finalZ) / GALLERY_FOCAL;
+      const finalX = (started ? motion.x : flight.x) + depart.x +
+        orbitOffset.x * orbitBlend * depthCorrection;
+      const finalY = (started ? motion.y : flight.y) + depart.y +
+        orbitOffset.y * orbitBlend * depthCorrection;
       const finalScale = started ? motion.scale : flight.scale;
       const rotX = started ? motion.rx : flight.rx;
       const rotY = (started ? motion.ry : flight.ry) + depart.ry;
@@ -374,9 +400,10 @@ export default function ProjectsSequence() {
       if (copy) copy.style.opacity = String(smooth(p, .922, .992) *
         (1 - smooth(handoff, .02, .38)));
 
+      const orbitOffset = mobileHeadOrbitOffset();
       for (let i = 0; i < CARD_COUNT; i++) {
         if (cardRefs.current[i]) {
-          positionCard(cardRefs.current[i], i, p, galleryFocus, handoff);
+          positionCard(cardRefs.current[i], i, p, galleryFocus, handoff, orbitOffset);
         }
       }
       gpuPaperRef.current?.draw(p);
