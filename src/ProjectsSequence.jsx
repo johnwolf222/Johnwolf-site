@@ -186,7 +186,7 @@ export default function ProjectsSequence() {
       const distance = wrappedGalleryDistance(spotlightIndex, galleryFocus);
       const d = Math.abs(distance);
       const z = -d * 155;
-      const projectedX = distance * Math.min(width * .218, 290);
+      const projectedX = distance * (width <= 700 ? Math.min(width * .46, 205) : Math.min(width * .218, 290));
       return {
         x: projectedX * (GALLERY_FOCAL - z) / GALLERY_FOCAL,
         // Mobile reference: gallery lives below the head/details area,
@@ -858,7 +858,7 @@ export default function ProjectsSequence() {
       },
       drag(deltaX) {
         if (!loopDragging) return;
-        const spacing = Math.min(width * .218, 290);
+        const spacing = (width <= 700 ? Math.min(width * .46, 205) : Math.min(width * .218, 290));
         // Drag follows the finger, but never previews more than one card.
         const preview = clamp(deltaX, -spacing * .9, spacing * .9);
         loopFocus = dragGalleryFocus(dragOrigin, preview, spacing);
