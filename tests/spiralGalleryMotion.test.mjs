@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { HeadController, SETTINGS, pointerRelativeToHead } from '../src/about/controller.js';
 import {wordRangesForLine, hoveredWordAtUV} from '../src/about/word-hover.js';
+import {toolSnapDelta, rearmToolSnap} from '../src/about/tools-soft-snap.js';
 import {
   spiralGalleryPose, clockwiseTrack, galleryCameraProgress, galleryHeadPlacement,
   galleryRowOffset, CAMERA_DESCENT, UNWIND_START, OFFSCREEN_START,
@@ -1146,7 +1147,8 @@ test('About story ends near the tool viewport instead of leaving multi-screen bl
   assert.match(story, /const domEnd=articles\.reduce/);
   assert.match(story, /const textEnd=positions\.reduce/);
   assert.match(story, /const storyEnd=Math\.max\(textEnd,domEnd\)/);
-  assert.match(story, /const toolsStart=Math\.ceil\(\(storyEnd\+Math\.min\(vh\*\.15,110\)\)/);
+  assert.match(story, /const breathing=Math\.max\(24,Math\.min\(30,vh\*\.048\)\)/);
+  assert.match(story, /const toolsStart=Math\.ceil\(\(storyEnd\+breathing\)/);
   assert.match(story, /about\.style\.minHeight=\(toolsStart\+100\)\+'svh'/);
   assert.match(story, /prepare\(\)\{layout\(\);root\.visible=false\}/,
     'layout must be prepared before reaching About, not during scroll');
@@ -1327,4 +1329,73 @@ test('downward gaze trims additional pitch without changing side or upward targe
     'horizontal movement stays at the approved sensitivity');
   assert.ok(down.vertical > -.085,
     'the current vertical offset remains modest');
+});
+
+test('About footer, 3D story and fallback all use the same compact gap before tools', () => {
+  const css = readFileSync(new URL('../src/AboutExperience.css',import.meta.url),'utf8');
+  const about = readFileSync(new URL('../src/AboutExperience.jsx',import.meta.url),'utf8');
+  const story = readFileSync(new URL('../src/about/floating-story.js',import.meta.url),'utf8');
+  assert.match(about, /Math\.max\(24, Math\.min\(30, window\.innerHeight \* \.048\)\)/);
+  assert.match(story, /Math\.max\(24,Math\.min\(30,vh\*\.048\)\)/);
+  assert.doesNotMatch(story, /Math\.min\(vh\*\.15,110\)/,
+    'the old 110px white tail must be gone');
+  assert.doesNotMatch(about, /Math\.min\(100, window\.innerHeight \* \.12\)/,
+    'the old 100px mobile/DOM white tail must be gone');
+  assert.match(css, /bottom: calc\(100svh \+ 7px\);/);
+  assert.match(css, /padding: 0 24px;/);
+  for(const height of [480,722,844,1080]){
+    const gap=Math.max(24,Math.min(30,height*.048));
+    assert.ok(gap>=24&&gap<=30,
+      'story/footer must have only a small bounded separation');
+  }
+  assert.equal((about.match(/<article[^>]*data-story="/g)||[]).length,4);
+  assert.match(about, /<ChoiceOfTools\/>/);
+});
+
+test('tools settle only near full-frame alignment and can scroll out normally', () => {
+  for(const height of [520,722,844,1080]){
+    const close=height*.22;
+    assert.equal(toolSnapDelta(close,height),close,
+      'approach from story aligns the tool panel to top after scrolling rests');
+    assert.equal(toolSnapDelta(-height*.08,height),-height*.08,
+      'reverse scrolling from Contact can align the same tools panel');
+    assert.equal(toolSnapDelta(height*.55,height),null,
+      'do not jump from far away while reading the final story chapter');
+    assert.equal(toolSnapDelta(-height*.35,height),null,
+      'do not pull users back after they choose to continue to Contact');
+    assert.equal(toolSnapDelta(height*.10,height,true),null,
+      'one completed settle must not trap the next gesture');
+    assert.equal(toolSnapDelta(4,height),null,
+      'no unnecessary tween once the viewport is already aligned');
+    assert.equal(rearmToolSnap(height*.75,height),true);
+    assert.equal(rearmToolSnap(-height*.60,height),true);
+    assert.equal(rearmToolSnap(0,height),false,
+      'approaching/visiting tools does not automatically re-arm the snap');
+  }
+  assert.equal(toolSnapDelta(Infinity,800),null);
+  assert.equal(toolSnapDelta(120,0),null);
+});
+
+test('tools soft-snap never intercepts scrolling, cancels immediately and cleans up', () => {
+  const source=readFileSync(new URL('../src/about/tools-soft-snap.js',import.meta.url),'utf8');
+  const about=readFileSync(new URL('../src/AboutExperience.jsx',import.meta.url),'utf8');
+  const tools=readFileSync(new URL('../src/ChoiceOfTools.css',import.meta.url),'utf8');
+  assert.match(about, /installToolsSoftSnap\(section, toolsPanel\)/);
+  assert.match(about, /disposeToolsSnap\(\)/);
+  assert.match(source, /window\.addEventListener\('wheel', userInput, \{ passive: true, capture: true \}\)/);
+  assert.match(source, /window\.addEventListener\('touchstart', onTouchStart, \{ passive: true \}\)/);
+  assert.match(source, /window\.addEventListener\('pointerdown', userInput, \{ passive: true \}\)/);
+  assert.match(source, /window\.addEventListener\('keydown', onKey\)/);
+  assert.match(source, /cancelAnimationFrame\(frame\)/);
+  assert.match(source, /doc\.style\.scrollBehavior = priorScrollBehavior/);
+  assert.match(source, /if \(disposed \|\| frame \|\| touching \|\| reduced\.matches \|\| consumed\) return/);
+  assert.match(source, /consumed = true/);
+  assert.match(source, /window\.removeEventListener\('scroll', onScroll\)/);
+  assert.doesNotMatch(source, /preventDefault\s*\(/,
+    'wheel, touch, and keyboard must always retain native scroll');
+  assert.doesNotMatch(source, /ScrollTrigger|pin\s*:/,
+    'the tools panel is never pinned or locked to a mandatory gesture');
+  assert.match(tools, /height: 100svh;/);
+  assert.doesNotMatch(tools, /position: (fixed|sticky);/,
+    'tools can scroll past into Contact normally');
 });
