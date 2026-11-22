@@ -70,3 +70,20 @@ export function aboutHeadOpacity(scrollY, aboutBottom, viewportHeight) {
   const end = aboutBottom - viewportHeight * .08;
   return 1 - ease((scrollY - start) / Math.max(1, end - start));
 }
+
+/**
+ * The existing fixed GLB glides LEFT while the final About tool viewport
+ * enters the screen. Scroll reversal seeks the exact same head position;
+ * no second head/portrait/canvas is created.
+ */
+export function aboutToolsHeadBlend(scrollY, toolsTop, viewportHeight) {
+  if (!Number.isFinite(toolsTop)) return 0;
+  const start = toolsTop - viewportHeight * .86;
+  const end = toolsTop - viewportHeight * .06;
+  return ease((scrollY - start) / Math.max(1, end - start));
+}
+
+export function aboutToolsHeadOffset(progress, viewportWidth) {
+  const slide = viewportWidth <= 600 ? .27 : .31;
+  return -viewportWidth * slide * clamp(progress);
+}
