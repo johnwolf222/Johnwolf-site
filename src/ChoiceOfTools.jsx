@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import './ChoiceOfTools.css';
-import WordHighlight from './WordHighlight.jsx';
 
 // Reference artwork order is preserved. Existing PNG/WebP artwork is reused;
 // Claude and JavaScript marks are local SVGs, never remote image requests.
@@ -43,20 +42,20 @@ export default function ChoiceOfTools() {
       aria-labelledby="jw-about-tools-heading" data-active-tool={selectedId ?? 'none'}>
       <div className="jw-about-tools__glow" aria-hidden="true" />
       <h3 id="jw-about-tools-heading" className="jw-about-tools__heading">
-        <span><WordHighlight>MY </WordHighlight></span><span><WordHighlight>CHOICE OF TOOLS</WordHighlight></span>
+        <span>MY </span><span>CHOICE OF TOOLS</span>
       </h3>
       <div className={'jw-about-tools__detail' +
         (activeTool ? ' jw-about-tools__detail--active' : '')}
         role="status" aria-live="polite" aria-atomic="true">
         {activeTool ? (
           <>
-            <h4 key={activeTool.id} className="jw-about-tools__name"><WordHighlight>{activeTool.name}</WordHighlight></h4>
+            <h4 key={activeTool.id} className="jw-about-tools__name">{activeTool.name}</h4>
             <p key={activeTool.id + '-detail'} className="jw-about-tools__description">
-              <WordHighlight>{activeTool.detail}</WordHighlight>
+              {activeTool.detail}
             </p>
           </>
         ) : (
-          <p className="jw-about-tools__prompt"><WordHighlight>Choose a tool</WordHighlight></p>
+          <p className="jw-about-tools__prompt">Choose a tool</p>
         )}
       </div>
       <div className="jw-about-tools__row"
