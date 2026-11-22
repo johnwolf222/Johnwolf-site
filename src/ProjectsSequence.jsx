@@ -459,9 +459,9 @@ export default function ProjectsSequence() {
     // A paused GSAP tween could retain its previous rendered value when
     // jumping across the pin boundary on reverse, leaving the GLB and
     // orbit cards in different phases.
-    const seekTravel = y => {
-      travel.progress = clamp((y - pinned.start) /
-        Math.max(pinned.end - pinned.start, 1));
+    const seekTravel = (y, trigger) => {
+      travel.progress = clamp((y - trigger.start) /
+        Math.max(trigger.end - trigger.start, 1));
       render();
     };
     const pinned = ScrollTrigger.create({
@@ -474,11 +474,11 @@ export default function ProjectsSequence() {
       anticipatePin: 1,
       invalidateOnRefresh: true,
       onUpdate: self => {
-        seekTravel(window.scrollY);
+        seekTravel(window.scrollY, self);
       },
       onRefresh: self => {
         measure();
-        seekTravel(window.scrollY);
+        seekTravel(window.scrollY, self);
       },
     });
 
