@@ -448,7 +448,9 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
     function resize() {
       if (disposed) return;
       width = Math.max(1, window.innerWidth);
-      height = Math.max(1, window.innerHeight);
+      height = Math.max(1, width <= 700
+        ? document.querySelector('#home')?.offsetHeight || window.innerHeight
+        : window.innerHeight);
       // The original head uses its own canvas; cap the independent paper
       // raster at native pixel density to avoid doubling GPU fill pressure.
       dpr = Math.min(window.devicePixelRatio || 1, 1);
