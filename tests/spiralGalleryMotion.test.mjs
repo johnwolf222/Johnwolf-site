@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
+import { silhouetteVisualCenter, headVisualOrbitOffset } from '../src/HeadVisualAnchor.js';
 import {MAX_PROJECT_FILES,mergeProjectFiles,formatProjectFileSize} from '../src/contact-file-utils.js';
 import { HeadController, SETTINGS, pointerRelativeToHead } from '../src/about/controller.js';
 import {wordRangesForLine, hoveredWordAtUV} from '../src/about/word-hover.js';
@@ -115,14 +116,37 @@ test('mobile paper orbit is circular and desktop retains the approved ellipse', 
   }
   const sequence = readFileSync(new URL('../src/ProjectsSequence.jsx', import.meta.url), 'utf8');
   assert.match(sequence, /function mobileHeadOrbitOffset\(\)/);
-  assert.match(sequence, /--jw-head-local-x/);
-  assert.match(sequence, /--jw-head-local-y/);
+  assert.match(sequence, /HEAD_SILHOUETTE_MASK/);
+  assert.match(sequence, /silhouetteVisualCenter/);
+  assert.match(sequence, /headVisualOrbitOffset/);
+  assert.doesNotMatch(sequence, /artboard\.style\.getPropertyValue\('--jw-head-local-y'\)/);
   assert.match(sequence, /orbitOffset\.x \* orbitBlend \* depthCorrection/);
   assert.match(sequence, /orbitOffset\.y \* orbitBlend \* depthCorrection/);
   // Regression: visible Home papers must be aligned from the first frame,
   // rather than drifting into head alignment only after scrolling starts.
   assert.match(sequence, /const orbitBlend = width <= 700\s*\? 1 - smooth\(phase, \.82, \.89\)/);
   assert.doesNotMatch(sequence, /smooth\(phase, \.04, \.272\) \* \(1 - smooth\(phase, \.82, \.89\)\)/);
+});
+
+test('mobile orbit uses VISIBLE head bounds rather than artboard or GLB pivot', () => {
+  const pixels = new Uint8ClampedArray(10 * 10 * 4);
+  for (let y = 1; y <= 5; y++) {
+    for (let x = 3; x <= 7; x++) {
+      pixels[(y * 10 + x) * 4 + 3] = 255;
+    }
+  }
+  const center = silhouetteVisualCenter(pixels, 10, 10);
+  assert.deepEqual(center, { x: .55, y: .35 });
+  const off = headVisualOrbitOffset({
+    left: 20, top: 30, width: 300, height: 200,
+  }, center, 400, 600, 4, -75);
+  assert.ok(Math.abs(off.x - (-19)) < 1e-8);
+  assert.ok(Math.abs(off.y - (-125)) < 1e-8);
+  // Shifting the whole GLB on scroll must not move the ring twice.
+  const shifted = headVisualOrbitOffset({
+    left: 20, top: -45, width: 300, height: 200,
+  }, center, 400, 600, 4, -150);
+  assert.deepEqual(shifted, off);
 });
 
 test('before all sheets exit, featured and nonfeatured share the SAME track', () => {
