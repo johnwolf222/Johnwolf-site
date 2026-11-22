@@ -3,6 +3,7 @@ import './AboutExperience.css';
 import ChoiceOfTools from './ChoiceOfTools.jsx';
 import WordHighlight from './WordHighlight.jsx';
 import './WordHighlight.css';
+import {installToolsSoftSnap} from './about/tools-soft-snap.js';
 
 // The words and four chapters are preserved from the original Design Is Life
 // about.html. The same Candidate F GLB continues from Home and Projects;
@@ -38,7 +39,7 @@ export default function AboutExperience() {
       const lastLine = lastChapter.getBoundingClientRect().bottom - top;
       const panelHeight = toolsPanel?.getBoundingClientRect().height ||
         window.innerHeight;
-      const breathing = Math.min(100, window.innerHeight * .12);
+      const breathing = Math.max(24, Math.min(30, window.innerHeight * .048));
       section.style.minHeight =
         Math.ceil(lastLine + breathing + panelHeight) + 'px';
     };
@@ -49,6 +50,9 @@ export default function AboutExperience() {
     document.fonts?.ready.then(() => {
       if (section.isConnected) fitFallbackStory();
     });
+    // Softly settle the final tools viewport on scroll rest. Never pin it:
+    // a new swipe/wheel/key immediately cancels, and Contact scrolls normally.
+    const disposeToolsSnap = installToolsSoftSnap(section, toolsPanel);
     const impact = event => {
       if (!section.getBoundingClientRect().height) return;
       section.classList.remove('jw-about-impact');
@@ -68,6 +72,7 @@ export default function AboutExperience() {
     return () => {
       visibility.disconnect();
       chapterObserver.disconnect();
+      disposeToolsSnap();
       window.removeEventListener('resize', fitFallbackStory);
       section.removeEventListener('animationend', clearImpact);
       window.removeEventListener('jw-about-impact', impact);
