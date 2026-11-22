@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
+import { HeadController, SETTINGS, pointerRelativeToHead } from '../src/about/controller.js';
 import {
   spiralGalleryPose, clockwiseTrack, galleryCameraProgress, galleryHeadPlacement,
   galleryRowOffset, CAMERA_DESCENT, UNWIND_START, OFFSCREEN_START,
@@ -472,6 +473,8 @@ test('Section 2 waits after auto-landing and the next scroll enters About', () =
   const main = readFileSync(new URL('../src/main.jsx',
     import.meta.url), 'utf8');
   assert.match(css, /height: 100svh;/);
+  assert.match(css, /height: 72svh;/,
+    'only Projects exit runway shortens; gallery stage remains full screen');
   assert.doesNotMatch(css, /740svh|3500px/,
     'gallery must no longer require seven viewports of scrolling');
   assert.match(source, /shouldAutoLand\(exact, previous, y, snapState,/);
@@ -897,38 +900,34 @@ test('Section 2 scroll unlock never postpones itself with continued trackpad mot
     'horizontal card navigation must remain separate from About scroll');
 });
 
-test('Section 3 ABOUT heading precisely matches Section 2 PROJECTS purple display title', () => {
+test('ABOUT header uses the approved purple type but stays vertically sticky to Section 3', () => {
   const about = readFileSync(new URL('../src/AboutExperience.jsx',
     import.meta.url), 'utf8');
   const aboutCss = readFileSync(new URL('../src/AboutExperience.css',
     import.meta.url), 'utf8');
   const projectsCss = readFileSync(new URL('../src/ProjectsSequence.css',
     import.meta.url), 'utf8');
-
   assert.match(about, /<h2 id="jw-about-heading" className="jw-about-heading">ABOUT<\/h2>/);
-  const block = (css, selector) => {
-    const i = css.indexOf(selector + ' {');
-    assert.ok(i >= 0, 'CSS selector missing: ' + selector);
-    const start = css.indexOf('{', i);
-    return css.slice(start + 1, css.indexOf('}', start));
-  };
-  const property = (style, name) => style.split('\n')
-    .map(line => line.trim()).find(line => line.startsWith(name + ':'));
-  const source = block(projectsCss, '.jw-projects-stage__information h2');
-  const restored = block(aboutCss,
-    '#root .about.jw-about-experience > .jw-about-heading');
-  for (const name of [
-    'left', 'top', 'margin', 'color', 'font-family', 'font-weight',
-    'font-size', 'letter-spacing', 'line-height',
-  ]) {
-    assert.equal(property(restored, name), property(source, name),
-      'About heading must match PROJECTS on ' + name);
+  const source = projectsCss.match(/\.jw-projects-stage__information h2\s*\{([^}]*)\}/)?.[1];
+  const restored = aboutCss.match(
+    /#root \.about\.jw-about-experience > \.jw-about-heading\s*\{([^}]*)\}/)?.[1];
+  assert.ok(source && restored, 'both approved headings must have scoped CSS');
+  for(const rule of ['color: #8750f1;', "font-family: 'DM Sans', Arial, sans-serif;",
+      'font-weight: 700;']) {
+    assert.ok(source.includes(rule) && restored.includes(rule),
+      'preserve approved title treatment: '+rule);
   }
-  assert.equal(property(restored, 'color'), 'color: #8750f1;');
-  assert.match(aboutCss, /font-size: clamp\(25px, 6vw, 43px\);/,
-    'About heading must also match the Projects mobile font scale');
-  assert.match(aboutCss, /top: clamp\(94px, 14vh, 127px\);/,
-    'mobile heading must align with Projects top spacing');
+  assert.match(restored, /position: sticky;/);
+  assert.doesNotMatch(restored, /position: (absolute|fixed);/);
+  assert.match(restored, /writing-mode: vertical-rl;/);
+  assert.match(restored, /text-orientation: upright;/);
+  assert.match(restored, /top: clamp\(84px, 12svh, 132px\);/);
+  assert.match(aboutCss, /top: clamp\(78px, 11svh, 108px\);/,
+    'sticky position must remain inside the viewport on mobile');
+  assert.match(aboutCss, /overflow: visible;/,
+    'sticky must not be clipped by its About parent');
+  assert.match(aboutCss, /height: max-content;/,
+    'sticky element remains a bounded in-flow child of About');
 });
 
 test('3D drive is completely absent from both About pages and no unused renderer remains', () => {
@@ -1034,4 +1033,65 @@ test('the single approved GLB moves left into tool preview and reverse-seeks ide
     }
   }
   assert.equal(aboutToolsHeadBlend(0, Infinity, 700), 0);
+});
+
+test('3D cursor tracking follows the projected head center with precise larger motion', () => {
+  const renderer = readFileSync(new URL('../src/HomepageHead.jsx', import.meta.url), 'utf8');
+  assert.match(renderer, /const center = headScreenCenter\(\);/);
+  assert.match(renderer, /pointerRelativeToHead\(/);
+  assert.doesNotMatch(renderer, /event\.clientX \/ window\.innerWidth \* 2 - 1/,
+    'old viewport-centered cursor mapping is too imprecise for translated head');
+
+  const neutral = pointerRelativeToHead(240, 300, 240, 300, 1200, 800);
+  assert.deepEqual(neutral, {x:0,y:0});
+  const rightDown = pointerRelativeToHead(800, 600, 240, 300, 1200, 800);
+  assert.ok(rightDown.x > .95 && rightDown.y < -.8);
+  const leftUp = pointerRelativeToHead(0, 0, 240, 300, 1200, 800);
+  assert.ok(leftUp.x < 0 && leftUp.y > .8);
+  assert.deepEqual(pointerRelativeToHead(50000,-50000,240,300,1200,800),
+    {x:1,y:1}, 'extreme cursor positions remain clamped');
+  assert.deepEqual(pointerRelativeToHead(500,300,500,300,1200,800),
+    {x:0,y:0}, 'when head moves left or right, neutral gaze moves with it');
+
+  const head = new HeadController(() => .5);
+  head.movePointer(1,-1);
+  let moved;
+  for(let n=0;n<8;n++)moved=head.update(.05);
+  assert.ok(SETTINGS.follow >= 11);
+  assert.ok(moved.yaw > .60, 'head follows mouse much farther right than before');
+  assert.ok(moved.pitch > .53, 'head looks substantially farther downward');
+  assert.ok(moved.horizontal > .09, 'head has subtle physical sideways tracking');
+  assert.ok(moved.vertical < -.07, 'head follows the pointer downward as well');
+  head.movePointer(-1,1);
+  for(let n=0;n<12;n++)moved=head.update(.05);
+  assert.ok(moved.yaw < -.55 && moved.pitch < -.48,
+    'reversing the pointer reverses head look direction quickly');
+});
+
+test('short Projects exit still rests with responsive card controls before About', () => {
+  const css = readFileSync(new URL('../src/ProjectsSequence.css', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../src/ProjectsSequence.jsx', import.meta.url), 'utf8');
+  assert.match(css, /#root \.jw-projects-journey\s*\{[\s\S]*?height: 72svh;[\s\S]*?min-height: 520px;/);
+  assert.match(css, /#root \.jw-projects-stage\s*\{[\s\S]*?height: 100svh;/,
+    'full-screen gallery canvas must not be resized or made unclickable');
+  const anchors=(source.match(/window\.scrollY < sectionTop \+ sectionHeight - height \* \.18;/g)||[]).length;
+  assert.equal(anchors,2,
+    'gallery controls and settled-state detection must share the new threshold');
+  assert.match(source, /exitReadyAt = performance\.now\(\) \+ 220;/,
+    'fix for repeatedly extended scroll lock must stay preserved');
+  for(const height of [480,620,722,844,1080]){
+    const newLength=Math.max(height*.72,520);
+    const oldLength=Math.max(height,550);
+    assert.ok(newLength <= oldLength,
+      'document must never grow to reach Section 3');
+    const rest=height*.1;
+    const interactiveLimit=newLength-height*.18;
+    assert.ok(rest < interactiveLimit,
+      'approved gallery cards stay interactive at their resting location');
+    const exitDistance=newLength-rest;
+    assert.ok(exitDistance>height*.3,
+      'enough travel remains for the seven sheets to clear right');
+    if(height>=722)assert.ok(exitDistance <= (oldLength-rest)*.79,
+      'exit is substantially shorter on desktop and large phones');
+  }
 });
