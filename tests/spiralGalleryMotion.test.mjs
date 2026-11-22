@@ -973,7 +973,9 @@ test('the exact nine-reference tool row lives at the END of About with responsiv
   assert.ok(about.indexOf('<ChoiceOfTools/>') > about.indexOf('data-story="4"'),
     'tool chooser must follow all four original About chapters');
   assert.match(css, /height: 100svh/);
-  assert.match(css, /radial-gradient/);
+  assert.match(aboutCss, /background-image:/);
+  assert.match(aboutCss, /background-attachment: fixed, fixed;/);
+  assert.match(css, /\.jw-about-tools__glow \{/);
   assert.match(tools, /CHOICE OF TOOLS/);
   assert.match(tools, /MY /);
   assert.match(tools, /Choose a tool/);
@@ -984,9 +986,9 @@ test('the exact nine-reference tool row lives at the END of About with responsiv
   assert.match(css, /scale\(1\.38\)/);
   assert.match(css, /overflow-x: auto/);
   assert.match(css, /#8750f1/);
-  assert.match(aboutCss, /min-height: 545svh/);
-  assert.match(aboutCss, /min-height: 650svh/);
-  assert.match(story, /about\.style\.minHeight=\(toolsStart\+200\)/);
+  assert.match(aboutCss, /min-height: 100svh/);
+  assert.doesNotMatch(aboutCss, /min-height: (545|650)svh/);
+  assert.match(story, /about\.style\.minHeight=Math\.ceil\(storyEnd\+breathing\+capabilityHeight\+toolsHeight\)\+'px'/);
   assert.match(sequence, /aboutToolsHeadBlend\(scrollY, toolsTop, height\)/);
   assert.match(sequence, /aboutToolsHeadOffset\(toolsBlend, width\)/);
   assert.doesNotMatch(tools, /HomepageHead|head-interactive\.glb|<canvas|<iframe/,
@@ -1140,18 +1142,19 @@ test('About story ends near the tool viewport instead of leaving multi-screen bl
   const css = readFileSync(new URL('../src/AboutExperience.css',import.meta.url), 'utf8');
   const story = readFileSync(new URL('../src/about/floating-story.js',import.meta.url), 'utf8');
   const tools = readFileSync(new URL('../src/ChoiceOfTools.css',import.meta.url), 'utf8');
-  assert.match(css, /min-height: 545svh;/);
-  assert.match(css, /min-height: 650svh;/);
-  assert.doesNotMatch(css, /min-height: (740|785|700|615)svh;/,
-    'remove previous arbitrary overlong fallback floors');
+  assert.match(css, /min-height: 100svh;/);
+  assert.doesNotMatch(css, /min-height: (545|650|740|785|700|615)svh;/,
+    'remove hard-coded story floors; actual chapter and panels control height');
   assert.match(story, /article\.style\.top=\(nextTop\/vh\*100\)/,
     '3D and DOM chapters must share the same scroll positions');
   assert.match(story, /const domEnd=articles\.reduce/);
   assert.match(story, /const textEnd=positions\.reduce/);
   assert.match(story, /const storyEnd=Math\.max\(textEnd,domEnd\)/);
   assert.match(story, /const breathing=Math\.max\(24,Math\.min\(30,vh\*\.048\)\)/);
-  assert.match(story, /const toolsStart=Math\.ceil\(\(storyEnd\+breathing\)/);
-  assert.match(story, /about\.style\.minHeight=\(toolsStart\+200\)\+'svh'/);
+  assert.match(story, /const capabilityHeight=capabilitiesPanel\?\.getBoundingClientRect\(\)\.height \|\| vh/);
+  assert.match(story, /const toolsHeight=toolsPanel\?\.getBoundingClientRect\(\)\.height \|\| vh/);
+  assert.match(story, /about\.style\.minHeight=Math\.ceil\(storyEnd\+breathing\+capabilityHeight\+toolsHeight\)\+'px'/);
+  assert.doesNotMatch(story, /toolsStart\+200/, 'old rounded viewport floor must not return');
   assert.match(story, /prepare\(\)\{layout\(\);root\.visible=false\}/,
     'layout must be prepared before reaching About, not during scroll');
   assert.match(story, /about\.dataset\.storyHeightSource='three';/,
@@ -1168,8 +1171,16 @@ test('About story ends near the tool viewport instead of leaving multi-screen bl
   assert.match(head, /floatingStory\?\.prepare\(\)/);
   assert.match(tools, /bottom: 0;/);
   assert.match(tools, /height: 100svh;/);
-  assert.ok(740-545>=150, 'desktop fallback must remove substantial blank travel');
-  assert.ok(785-650>=100, 'mobile fallback must remove substantial blank travel');
+  for (const viewport of [480, 722, 844, 1080]) {
+    const lastLine = viewport * 3.4;
+    const capHeight = viewport;
+    const toolHeight = Math.max(viewport, viewport <= 600 ? 510 : 440);
+    const breathing = Math.max(24, Math.min(30, viewport * .048));
+    const total = Math.ceil(lastLine + breathing + capHeight + toolHeight);
+    assert.ok(total >= lastLine + capHeight + toolHeight + breathing);
+    assert.ok(total < lastLine + capHeight + toolHeight + 32,
+      'no surplus blank viewport after the story');
+  }
 });
 
 test('looser cursor-follow adds a little organic roll without losing accurate gaze', () => {
@@ -1437,7 +1448,16 @@ test('five purple capability rows are reversible and move only with scroll', () 
   assert.doesNotMatch(component, /setInterval|setTimeout|gsap\.to|preventDefault/);
   assert.match(css, /grid-template-rows: repeat\(5, minmax\(0, 1fr\)\)/);
   assert.match(css, /bottom: max\(100svh, 440px\)/);
-  assert.match(css, /background: #fff/);
+  assert.match(css, /background: transparent/);
+  assert.doesNotMatch(css, /radial-gradient/,
+    'capability rows must not paint their own separate glow');
+  const aboutCss = readFileSync(new URL('../src/AboutExperience.css', import.meta.url), 'utf8');
+  const toolCss = readFileSync(new URL('../src/ChoiceOfTools.css', import.meta.url), 'utf8');
+  assert.match(aboutCss, /background-color: #fff/);
+  assert.match(aboutCss, /background-image:/);
+  assert.match(aboutCss, /background-attachment: fixed, fixed;/);
+  assert.match(toolCss, /background: transparent/);
+  assert.match(toolCss, /\.jw-about-tools__glow \{[\s\S]*?display: none;/);
   assert.match(css, /color: #8750f1/);
   assert.match(css, /overflow: hidden/);
   assert.match(sequence, /capabilitiesPanel\.getBoundingClientRect\(\)\.top < height/);

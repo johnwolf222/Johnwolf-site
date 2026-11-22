@@ -210,9 +210,14 @@ export function installFloatingStory(scene,camera,stage,about){
   // A compact 24–30px buffer is enough for the retained signature footer.
   // The prior 110px gap left an unnecessary blank scroll tail.
   const breathing=Math.max(24,Math.min(30,vh*.048));
-  const toolsStart=Math.ceil((storyEnd+breathing)/vh*100);
+  // Use the actual two panel heights, including the Tools mobile minimum.
+  // The sections remain full-size; only the empty story tail is removed.
+  const capabilitiesPanel=about.querySelector('#about-capabilities');
+  const toolsPanel=about.querySelector('#about-tools');
+  const capabilityHeight=capabilitiesPanel?.getBoundingClientRect().height || vh;
+  const toolsHeight=toolsPanel?.getBoundingClientRect().height || vh;
   about.dataset.storyHeightSource='three';
-  about.style.minHeight=(toolsStart+200)+'svh';
+  about.style.minHeight=Math.ceil(storyEnd+breathing+capabilityHeight+toolsHeight)+'px';
  }
  function update(dt,modelBounds){
   layout();

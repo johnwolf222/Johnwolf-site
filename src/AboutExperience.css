@@ -4,7 +4,7 @@
   position: relative;
   display: block;
   isolation: isolate;
-  min-height: 545svh;
+  min-height: 100svh;
   width: 100%;
   padding: 0;
   margin: 0;
@@ -216,7 +216,7 @@
   34% { filter: drop-shadow(7px 0 0 rgba(135,80,241,.3)); transform: translate(-4px,2px); }
 }
 @media (max-width: 800px) {
-  #root .about.jw-about-experience { min-height: 650svh; padding: 0; }
+  #root .about.jw-about-experience { min-height: 100svh; padding: 0; }
   .jw-about-type-stack { padding: 0 15px; transform: translateY(-7svh); }
   .jw-about-experience .jw-about-line { font-size: clamp(30px, 6.8vw, 52px); line-height: 1.39; }
   .jw-about-experience .jw-about-line:nth-child(2) { font-size: clamp(29px, 6.4vw, 50px); }
