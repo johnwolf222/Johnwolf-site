@@ -18,3 +18,12 @@
 body.jw-live-paper-ready .jw-projects-stage__card {
   opacity: 0 !important;
 }
+
+/* iOS Safari's toolbar expansion changes 100vh/window.innerHeight while
+   Home remains 100svh. Give the paper render target the same physical
+   stage as the permanent GLB, so its orbit/mask cannot slip on scroll. */
+@media (max-width: 700px) {
+  .jw-live-paper-canvas {
+    height: max(100svh, 520px);
+  }
+}
