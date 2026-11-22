@@ -4,7 +4,7 @@
   position: relative;
   display: block;
   isolation: isolate;
-  min-height: 740svh;
+  min-height: 615svh;
   width: 100%;
   padding: 0;
   margin: 0;
@@ -35,6 +35,10 @@
   text-transform: uppercase;
   writing-mode: vertical-rl;
   text-orientation: upright;
+  /* The heading starts hidden: Section 2 scroll completion controls reveal.
+     Sticky still belongs to About, never the fixed Projects stage. */
+  opacity: var(--jw-about-heading-opacity, 0);
+  transition: none;
   pointer-events: none;
 }
 @media (max-width: 800px) {
@@ -201,7 +205,7 @@
   34% { filter: drop-shadow(7px 0 0 rgba(135,80,241,.3)); transform: translate(-4px,2px); }
 }
 @media (max-width: 800px) {
-  #root .about.jw-about-experience { min-height: 785svh; padding: 0; }
+  #root .about.jw-about-experience { min-height: 700svh; padding: 0; }
   .jw-about-signature { top: 17px; left: 20px; font-size: 9px; }
   .jw-about-type-stack { padding: 0 15px; transform: translateY(-7svh); }
   .jw-about-experience .jw-about-line { font-size: clamp(30px, 6.8vw, 52px); line-height: 1.39; }
