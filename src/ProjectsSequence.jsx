@@ -633,6 +633,11 @@ export default function ProjectsSequence() {
       syncFromScroll();
     };
     const onResize = () => {
+      // Safari emits resize when browser chrome hides, even when the
+      // Home-sized mobile stage has NOT changed. Refreshing ScrollTrigger
+      // on that event can recalculate pin positions and cancel the gallery
+      // landing mid-flight. Real rotation/width changes still refresh.
+      if (window.innerWidth === width && stableStageHeight() === height) return;
       const wasLanding = snapState === 'landing';
       const wasLeaving = snapState === 'leaving';
       cancelScrollTween();
