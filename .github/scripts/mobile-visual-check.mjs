@@ -248,6 +248,67 @@ try {
         orbitHeadError > 2 || Math.max(...orbitErrors) > .15)
       throw new Error('Cards are not exactly retracing their Home orbit ' +
         'on reverse scroll: ' + JSON.stringify({orbitHeadError, orbitErrors}));
+    // Reproduce iOS Safari's expanding browser chrome: the viewport
+    // gains 90px while Home's small viewport stays the original height.
+    // Chromium normally changes svh on resize, so freeze the CSS svh
+    // stage explicitly to test the DIFFERENCE that Safari introduces.
+    const stableStageRead = () => page.evaluate(() => {
+      const head = document.querySelector('.jw-continuous-head');
+      const surface = head.querySelector('.jw-new-home__head-canvas');
+      const paper = document.querySelector('.jw-live-paper-canvas');
+      const home = document.querySelector('.jw-new-home__artboard');
+      const rect = surface.getBoundingClientRect();
+      const p = paper.getBoundingClientRect();
+      const h = home.getBoundingClientRect();
+      const scale = parseFloat(head.style.getPropertyValue('--jw-head-scale')) || 1;
+      const offX = parseFloat(head.style.getPropertyValue('--jw-visible-head-orbit-x')) || 0;
+      const offY = parseFloat(head.style.getPropertyValue('--jw-visible-head-orbit-y')) || 0;
+      return {
+        faceX: rect.left + rect.width / 2 + offX * scale,
+        faceY: rect.top + rect.height / 2 + offY * scale,
+        stageX: p.left + p.width / 2,
+        stageY: p.top + p.height / 2,
+        homeY: h.top + h.height / 2,
+        canvasHeight: p.height,
+        windowHeight: window.innerHeight,
+        modelCanvasY: rect.top + rect.height / 2,
+        screenWidth: window.innerWidth,
+        headScale: scale,
+      };
+    });
+    await scrollToAndSettle(0);
+    const stableBefore = await stableStageRead();
+    const frozenStageCSS = await page.addStyleTag({
+      content: '#root .jw-new-home {height:' + height +
+        'px !important;min-height:' + height + 'px !important}' +
+        '.jw-continuous-head__artboard {top:' + height / 2 +
+        'px !important}' +
+        '.jw-live-paper-canvas {height:' + height + 'px !important}' +
+        '.jw-projects-stage__card {top:' + height / 2 + 'px !important}',
+    });
+    await page.setViewportSize({width,height:height + 90});
+    await page.waitForTimeout(800);
+    const stableAfter = await stableStageRead();
+    const mobileToolbarDelta = {
+      width, stableBefore, stableAfter,
+      faceY: Math.abs(stableBefore.faceY - stableAfter.faceY),
+      canvasY: Math.abs(stableBefore.modelCanvasY - stableAfter.modelCanvasY),
+      paperY: Math.abs(stableBefore.stageY - stableAfter.stageY),
+      homeY: Math.abs(stableBefore.homeY - stableAfter.homeY),
+    };
+    console.log('MOBILE TOOLBAR STABILITY:', JSON.stringify(mobileToolbarDelta));
+    await fs.writeFile('mobile-visual-artifacts/toolbar-' + width + '.json',
+      JSON.stringify(mobileToolbarDelta, null, 2));
+    if (mobileToolbarDelta.faceY > 3 ||
+        mobileToolbarDelta.canvasY > 3 ||
+        mobileToolbarDelta.paperY > 3 ||
+        mobileToolbarDelta.homeY > 3 ||
+        Math.abs(stableAfter.windowHeight - stableBefore.windowHeight - 90) > 2)
+      throw new Error('Head or mask stage moved when Safari toolbar changed: ' +
+        JSON.stringify(mobileToolbarDelta));
+    await frozenStageCSS.evaluate(node => node.remove());
+    await page.setViewportSize({width,height});
+    await page.waitForTimeout(600);
     // Check the actual transformed head's destination and return curve.
     // At Home it stays centered; at Projects it occupies the upper-left
     // editorial slot; in About it returns to the exact Home center.
