@@ -1061,9 +1061,11 @@ test('3D cursor tracking follows the projected head center with precise larger m
   assert.ok(SETTINGS.follow >= 7 && SETTINGS.follow <= 8.5,
     'head follows naturally without rigidly snapping to gaze');
   assert.ok(moved.yaw > .60, 'head follows mouse much farther right than before');
-  assert.ok(moved.pitch > .53, 'head looks substantially farther downward');
+  assert.ok(moved.pitch > .42 && moved.pitch < .51,
+    'head looks down noticeably less without freezing gaze');
   assert.ok(moved.horizontal > .09, 'head has subtle physical sideways tracking');
-  assert.ok(moved.vertical < -.07, 'head follows the pointer downward as well');
+  assert.ok(moved.vertical < -.035 && moved.vertical > -.075,
+    'downward physical motion remains subtle without dipping too low');
   head.movePointer(-1,1);
   for(let n=0;n<12;n++)moved=head.update(.05);
   assert.ok(moved.yaw < -.55 && moved.pitch < -.48,
@@ -1171,8 +1173,8 @@ test('looser cursor-follow adds a little organic roll without losing accurate ga
   controller.movePointer(.8,-.7);
   let output;
   for(let i=0;i<10;i++) output=controller.update(.05);
-  assert.ok(output.yaw>.45 && output.pitch>.35,
-    'do not weaken large cursor movement');
+  assert.ok(output.yaw>.45 && output.pitch>.30 && output.pitch<.38,
+    'preserve sideways and upward tracking but soften downward pitch');
   assert.ok(output.roll<-.01 && output.roll>-.08,
     'subtle roll follows the gaze without dramatic leaning');
   assert.ok(SETTINGS.follow>7 && SETTINGS.follow<9.5,
@@ -1254,4 +1256,51 @@ test('3D About story highlights only the exact word under the cursor', () => {
   assert.match(source, /window\.removeEventListener\('pointermove',onPointerMove\)/,
     'clean up pointer listener to avoid accumulated handlers');
   assert.match(source, /story-displacement-per-word-lilac-v5/);
+});
+
+test('vertical ABOUT heading disappears as soon as the tools viewport enters', () => {
+  const sequence = readFileSync(new URL('../src/ProjectsSequence.jsx',
+    import.meta.url), 'utf8');
+  const style = readFileSync(new URL('../src/AboutExperience.css',
+    import.meta.url), 'utf8');
+  assert.match(sequence, /const toolsEnteredViewport = Boolean\(toolsPanel &&/);
+  assert.match(sequence, /toolsPanel\.getBoundingClientRect\(\)\.top < height\)/);
+  assert.match(sequence, /passedProjects && actualAboutPastHeader && !toolsEnteredViewport/,
+    'the story label must be gated by the live tools viewport');
+  assert.match(style, /data-heading-visible="true"/);
+  const inactive = style.match(
+    /#root \.about\.jw-about-experience > \.jw-about-heading\s*\{([^}]*)\}/)?.[1];
+  assert.ok(inactive, 'sticky ABOUT heading rule must exist');
+  assert.match(inactive, /visibility: hidden;/);
+  assert.match(inactive, /transition: none;/,
+    'hide immediately when tools enters, never linger for 250ms');
+  assert.doesNotMatch(inactive, /visibility 0s linear \.25s/,
+    'delayed visibility kept ABOUT visible over tool row');
+  assert.match(style, /position: sticky;/,
+    'keep title sticky through the story until tools');
+});
+
+test('head has asymmetric downward limits without weakening its upward gaze', () => {
+  const settle = (x, y) => {
+    const head = new HeadController(() => .5);
+    head.movePointer(x,y);
+    let pose;
+    for(let i=0;i<40;i++)pose=head.update(.05);
+    return pose;
+  };
+  const down=settle(.8,-1);
+  const up=settle(.8,1);
+  const left=settle(-1,0),right=settle(1,0);
+  assert.ok(down.pitch>.45 && down.pitch<.52,
+    'downward limit is less extreme than before');
+  assert.ok(up.pitch<-.57,
+    'upward range must remain the same');
+  assert.ok(Math.abs(down.pitch)<Math.abs(up.pitch)*.86,
+    'downward rotation reduction is targeted, not a global sensitivity loss');
+  assert.ok(down.vertical>-.085,
+    'head must not translate too far down while following cursor');
+  assert.ok(up.vertical>.08,
+    'existing upward translation is preserved');
+  assert.ok(right.yaw>.59 && left.yaw<-.59,
+    'left and right tracking must remain intact');
 });
