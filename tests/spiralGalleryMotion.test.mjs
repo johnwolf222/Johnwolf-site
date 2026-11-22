@@ -948,7 +948,7 @@ test('3D drive is completely absent from both About pages and no unused renderer
   }
   assert.equal(existsSync(new URL('../src/about/floppy.js', import.meta.url)), false,
     'standalone Three.js drive implementation must be deleted, not merely hidden');
-  assert.equal((live.match(/<article\\b[^>]*\\bdata-story="/g) || []).length, 4,
+  assert.equal((live.match(/<article[^>]*data-story="/g) || []).length, 4,
     'four About chapters must remain');
   assert.match(live, /jw-about-heading">ABOUT<\/h2>/,
     'approved purple ABOUT heading must remain');
