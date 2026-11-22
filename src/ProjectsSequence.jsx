@@ -455,10 +455,15 @@ export default function ProjectsSequence() {
     // The timeline remains paused; ScrollTrigger pins Home and directly
     // seeks that ONE choreography from the native scroll position. This
     // avoids asynchronous scrub tweens and missed reverse/anchor positions.
-    const timeline = gsap.timeline({ paused: true, defaults: { ease: 'none' } });
-    timeline.to(travel, {
-      progress: 1, duration: 1, ease: 'none', onUpdate: render,
-    }, 0);
+    // The scroll position itself is the only choreography clock.
+    // A paused GSAP tween could retain its previous rendered value when
+    // jumping across the pin boundary on reverse, leaving the GLB and
+    // orbit cards in different phases.
+    const seekTravel = y => {
+      travel.progress = clamp((y - pinned.start) /
+        Math.max(pinned.end - pinned.start, 1));
+      render();
+    };
     const pinned = ScrollTrigger.create({
       id: 'jw-home-to-projects',
       trigger: home,
@@ -469,14 +474,11 @@ export default function ProjectsSequence() {
       anticipatePin: 1,
       invalidateOnRefresh: true,
       onUpdate: self => {
-        timeline.progress(clamp((window.scrollY - self.start) /
-          Math.max(self.end - self.start, 1)));
+        seekTravel(window.scrollY);
       },
       onRefresh: self => {
         measure();
-        timeline.progress(clamp((window.scrollY - self.start) /
-          Math.max(self.end - self.start, 1)));
-        render();
+        seekTravel(window.scrollY);
       },
     });
 
@@ -570,7 +572,7 @@ export default function ProjectsSequence() {
       lastPinEnd = pinned.end;
       const exact = clamp((y - pinned.start) /
         Math.max(pinned.end - pinned.start, 1));
-      timeline.progress(exact);
+      travel.progress = exact;
       render();
       // A fast wheel gesture can skip the narrow train phase entirely.
       // Land whenever forward scrolling has reached the gallery approach,
@@ -959,7 +961,6 @@ export default function ProjectsSequence() {
       document.removeEventListener('click', navigatePastGallery);
       reduced.removeEventListener?.('change', onReduced);
       pinned.kill();
-      timeline.kill();
       for (const el of [title, ink, subtitle, indicators, bottom]) {
         if (el) el.style.opacity = '';
       }
