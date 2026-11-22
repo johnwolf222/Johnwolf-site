@@ -980,8 +980,8 @@ test('the exact nine-reference tool row lives at the END of About with responsiv
   assert.match(css, /scale\(1\.38\)/);
   assert.match(css, /overflow-x: auto/);
   assert.match(css, /#8750f1/);
-  assert.match(aboutCss, /min-height: 615svh/);
-  assert.match(aboutCss, /min-height: 700svh/);
+  assert.match(aboutCss, /min-height: 545svh/);
+  assert.match(aboutCss, /min-height: 650svh/);
   assert.match(story, /about\.style\.minHeight=\(toolsStart\+100\)/);
   assert.match(sequence, /aboutToolsHeadBlend\(scrollY, toolsTop, height\)/);
   assert.match(sequence, /aboutToolsHeadOffset\(toolsBlend, width\)/);
@@ -1057,8 +1057,8 @@ test('3D cursor tracking follows the projected head center with precise larger m
   head.movePointer(1,-1);
   let moved;
   for(let n=0;n<8;n++)moved=head.update(.05);
-  assert.ok(SETTINGS.follow >= 8.5 && SETTINGS.follow <= 10.5,
-    'follow should feel looser while remaining responsive');
+  assert.ok(SETTINGS.follow >= 7 && SETTINGS.follow <= 8.5,
+    'head follows naturally without rigidly snapping to gaze');
   assert.ok(moved.yaw > .60, 'head follows mouse much farther right than before');
   assert.ok(moved.pitch > .53, 'head looks substantially farther downward');
   assert.ok(moved.horizontal > .09, 'head has subtle physical sideways tracking');
@@ -1104,10 +1104,15 @@ test('vertical ABOUT heading cannot appear until every pixel of Section 2 has pa
     import.meta.url), 'utf8');
   assert.match(sequence, /aboutTop = about \? docTop\(about\) : Infinity;/);
   assert.match(sequence, /aboutHeadingReveal\(scrollY, aboutTop, height\)/);
-  assert.match(sequence, /setProperty\('--jw-about-heading-opacity'/);
-  assert.match(sequence, /removeProperty\('--jw-about-heading-opacity'\)/);
-  assert.match(style, /opacity: var\(--jw-about-heading-opacity, 0\);/,
-    'CSS starts the sticky label fully hidden to prevent first-paint flashes');
+  assert.match(sequence, /dataset\.headingVisible =/);
+  assert.match(sequence, /getBoundingClientRect\(\)\.top <= -headingClearance/);
+  assert.match(sequence, /scrollY >= sectionTop \+ sectionHeight/);
+  assert.match(sequence, /!isShown/);
+  assert.match(sequence, /delete aboutSection\.dataset\.headingVisible;/);
+  assert.match(style, /visibility: hidden;/,
+    'hide the heading at the paint layer, not just fade it with scroll');
+  assert.match(style, /data-heading-visible="true"/);
+  assert.match(style, /visibility: visible;/);
   assert.match(style, /position: sticky;/);
   assert.match(style, /writing-mode: vertical-rl;/);
   assert.equal(aboutHeadingReveal(0, Infinity, 844), 0);
@@ -1129,20 +1134,25 @@ test('About story ends near the tool viewport instead of leaving multi-screen bl
   const css = readFileSync(new URL('../src/AboutExperience.css',import.meta.url), 'utf8');
   const story = readFileSync(new URL('../src/about/floating-story.js',import.meta.url), 'utf8');
   const tools = readFileSync(new URL('../src/ChoiceOfTools.css',import.meta.url), 'utf8');
-  assert.match(css, /min-height: 615svh;/);
-  assert.match(css, /min-height: 700svh;/);
-  assert.doesNotMatch(css, /min-height: (740|785)svh;/,
-    'remove previous overlong vertical runway');
-  assert.match(story, /const fallbackEnd=fourth/);
-  assert.match(story, /const chapterEnd=Math\.ceil\(\(nextTop\+vh\*\.15\)/);
-  assert.match(story, /const toolsStart=Math\.max\(vw<=800\?600:515,chapterEnd,fallbackEndVh\)/);
+  assert.match(css, /min-height: 545svh;/);
+  assert.match(css, /min-height: 650svh;/);
+  assert.doesNotMatch(css, /min-height: (740|785|700|615)svh;/,
+    'remove previous arbitrary overlong fallback floors');
+  assert.match(story, /article\.style\.top=\(nextTop\/vh\*100\)/,
+    '3D and DOM chapters must share the same scroll positions');
+  assert.match(story, /const domEnd=articles\.reduce/);
+  assert.match(story, /const textEnd=positions\.reduce/);
+  assert.match(story, /const storyEnd=Math\.max\(textEnd,domEnd\)/);
+  assert.match(story, /const toolsStart=Math\.ceil\(\(storyEnd\+Math\.min\(vh\*\.15,110\)\)/);
   assert.match(story, /about\.style\.minHeight=\(toolsStart\+100\)\+'svh'/);
+  assert.match(story, /prepare\(\)\{layout\(\);root\.visible=false\}/,
+    'layout must be prepared before reaching About, not during scroll');
+  const head = readFileSync(new URL('../src/HomepageHead.jsx',import.meta.url),'utf8');
+  assert.match(head, /floatingStory\?\.prepare\(\)/);
   assert.match(tools, /bottom: 0;/);
   assert.match(tools, /height: 100svh;/);
-  assert.ok(740-615>=100, 'remove at least a viewport of desktop blank travel');
-  assert.ok(785-700>=80, 'remove most of a viewport of mobile blank travel');
-  assert.match(story, /fallbackEndVh/,
-    '3D layout must respect the visible DOM chapter on fallback devices');
+  assert.ok(740-545>=150, 'desktop fallback must remove substantial blank travel');
+  assert.ok(785-650>=100, 'mobile fallback must remove substantial blank travel');
 });
 
 test('looser cursor-follow adds a little organic roll without losing accurate gaze', () => {
@@ -1154,7 +1164,7 @@ test('looser cursor-follow adds a little organic roll without losing accurate ga
     'do not weaken large cursor movement');
   assert.ok(output.roll<-.01 && output.roll>-.08,
     'subtle roll follows the gaze without dramatic leaning');
-  assert.ok(SETTINGS.follow>8 && SETTINGS.follow<11,
+  assert.ok(SETTINGS.follow>7 && SETTINGS.follow<9.5,
     'soften previous overly stiff follow rate');
   assert.ok(SETTINGS.translateFollow<9.5);
   controller.movePointer(-.8,.7);
