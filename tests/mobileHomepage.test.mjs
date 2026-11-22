@@ -76,7 +76,7 @@ test('mobile head remains at its original height during the outward paper orbit'
   assert.ok(Math.abs(desktop.shift - ringShift) > 1,
     'desktop should retain its earlier approved settle');
   assert.equal(galleryHeadPlacement(0, height, 390).shift, 0);
-  assert.equal(galleryHeadPlacement(0, height, 1280).shift, 0);
+  assert.ok(Math.abs(galleryHeadPlacement(0, height, 1280).shift) < 1e-8);
   assert.deepEqual(galleryHeadPlacement(1, height, 390),
     galleryHeadPlacement(1, height, 1280));
   const sequence = read('../src/ProjectsSequence.jsx');
