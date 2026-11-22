@@ -68,7 +68,12 @@ export default function ChoiceOfTools() {
             aria-pressed={tool.id === selectedId}
             onPointerEnter={event => onEnter(event, tool.id)}
             onPointerLeave={event => onLeave(event, tool.id)}
-            onFocus={() => setHovered(tool.id)}
+            onFocus={event => {
+              // Safari focuses tapped buttons. Only keyboard focus should
+              // preview a tool; touch taps must be able to toggle it off.
+              if (event.currentTarget.matches(':focus-visible'))
+                setHovered(tool.id);
+            }}
             onBlur={() => setHovered(null)}
             onClick={() => setPicked(previous => previous === tool.id ? null : tool.id)}>
             <img className="jw-about-tools__logo" src={tool.src} alt=""

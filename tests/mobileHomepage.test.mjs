@@ -140,3 +140,29 @@ test('a first mobile swipe starts the complete 21-card transition, reverse is pr
   assert.match(seq, /animatePageTo\(pinned\.start, 1\.28,/);
   assert.match(seq, /pinSpacing: true/);
 });
+
+test('mobile About chapters use content-driven flow rather than fixed viewport positions', () => {
+  const css = read('../src/AboutExperience.css');
+  const about = read('../src/AboutExperience.jsx');
+  const head = read('../src/HomepageHead.jsx');
+  const mobile = css.split('@media (max-width: 800px) {').at(-1);
+  assert.match(mobile, /\.jw-about-story-messages \{[\s\S]*?position: relative;/);
+  assert.match(mobile, /display: flex;\s*flex-direction: column;/);
+  assert.match(mobile, /gap: clamp\(60px, 10svh, 100px\)/);
+  assert.match(mobile, /\.jw-about-message\[data-story\] \{ top: auto !important; \}/);
+  assert.doesNotMatch(mobile, /\.jw-about-message\[data-story="[1-4]"\] \{ top:/);
+  assert.match(about, /lastChapter\.getBoundingClientRect\(\)\.bottom - top/);
+  assert.match(about, /section\.style\.minHeight =/);
+  assert.equal((about.match(/<article[^>]*data-story="/g) || []).length, 4);
+  // The mobile layout does not instantiate a second portrait/3D story.
+  assert.match(head, /window\.innerWidth > 800[\s\S]*?installFloatingStory/);
+  assert.doesNotMatch(about, /<HomepageHead|head-interactive\.glb/);
+});
+
+test('mobile tool selection can toggle off after touch focus without losing keyboard preview', () => {
+  const source = read('../src/ChoiceOfTools.jsx');
+  assert.match(source, /onClick=\{\(\) => setPicked\(previous => previous === tool\.id \? null : tool\.id\)\}/);
+  assert.match(source, /event\.currentTarget\.matches\(':focus-visible'\)/);
+  assert.match(source, /setHovered\(tool\.id\)/);
+  assert.match(source, /onPointerEnter=\{event => onEnter\(event, tool\.id\)\}/);
+});
