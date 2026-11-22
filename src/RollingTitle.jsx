@@ -25,7 +25,7 @@ const glyphPosition = glyph => ({
  * silhouette bundled into the first paint. No URL swapping or image loading
  * can interrupt the glyphs. Its position follows the SAME head canvas.
  */
-export default function RollingTitle({ index, direction = 1, reducedMotion = false, onRollComplete }) {
+export default function RollingTitle({ index, direction = 1, reducedMotion = false, onRollComplete, anchorStyle }) {
   const scenes = useRef([]);
   const outlineScenes = useRef([]);
   const titleRoot = useRef(null);
@@ -232,7 +232,7 @@ export default function RollingTitle({ index, direction = 1, reducedMotion = fal
             maskRepeat: 'no-repeat',
             WebkitMaskRepeat: 'no-repeat',
           }}>
-          <div ref={outlineRoot} className="jw-title-head-ink__artboard">
+          <div ref={outlineRoot} className="jw-title-head-ink__artboard" style={anchorStyle}>
             {renderScenes(true)}
           </div>
         </div>, document.body)}
