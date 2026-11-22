@@ -95,7 +95,7 @@ export default function AboutExperience() {
       className="about jw-about-experience"
       aria-label="About John Wolf — Design Is Life"
     >
-      <h2 id="jw-about-heading" className="jw-about-heading"><WordHighlight>ABOUT</WordHighlight></h2>
+      <h2 id="jw-about-heading" className="jw-about-heading">ABOUT</h2>
       <div className="jw-about-statement" aria-label="Design is life">
         <div className="jw-about-type-stack">
           <p className="jw-about-line"><WordHighlight>Now I can’t speak for</WordHighlight></p>
