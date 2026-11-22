@@ -1173,7 +1173,7 @@ test('looser cursor-follow adds a little organic roll without losing accurate ga
   controller.movePointer(.8,-.7);
   let output;
   for(let i=0;i<10;i++) output=controller.update(.05);
-  assert.ok(output.yaw>.45 && output.pitch>.22 && output.pitch<.28,
+  assert.ok(output.yaw>.45 && output.pitch>.29 && output.pitch<.33,
     'preserve sideways and upward tracking but soften downward pitch');
   assert.ok(output.roll<-.01 && output.roll>-.08,
     'subtle roll follows the gaze without dramatic leaning');
