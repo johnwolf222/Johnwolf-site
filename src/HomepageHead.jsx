@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { HeadController } from './about/controller.js';
+import { HeadController, pointerRelativeToHead } from './about/controller.js';
 import { installSurfaceRipple } from './about/ripple.js';
 import { installFloatingStory } from './about/floating-story.js';
 import { installOpticalRipple } from './about/optical-ripple.js';
@@ -133,10 +133,15 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
     };
     const onPointerMove = event => {
       if (!live || !loaded || event.pointerType === 'touch') return;
-      controller.movePointer(
-        THREE.MathUtils.clamp(event.clientX / window.innerWidth * 2 - 1, -1, 1),
-        THREE.MathUtils.clamp(1 - event.clientY / window.innerHeight * 2, -1, 1),
+      // This ONE head moves across Home, the gallery, About, and Tools.
+      // Calibrate against its actual projected face center, not the screen
+      // midpoint: a static viewport map cannot follow a translated head.
+      const center = headScreenCenter();
+      const target = pointerRelativeToHead(
+        event.clientX, event.clientY, center.x, center.y,
+        window.innerWidth, window.innerHeight,
       );
+      controller.movePointer(target.x, target.y);
     };
     const onBlur = () => controller.movePointer(0, 0);
     const getContact = event => {
