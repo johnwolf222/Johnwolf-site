@@ -300,6 +300,8 @@ body:not(.jw-live-paper-ready)
   .jw-projects-stage__card {
     width: min(55vw, 285px);
     height: min(43vh, 390px);
+    /* Keep the DOM fallback on the SAME svh-origin as the GPU sheets. */
+    top: max(50svh, 260px);
   }
 }
 
