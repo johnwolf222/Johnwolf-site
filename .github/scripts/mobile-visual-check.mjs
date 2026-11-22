@@ -50,6 +50,38 @@ try {
     if (!measurement.modelReady) throw new Error('3D GLB was not rendered');
     if (!Number.isFinite(parseFloat(measurement.actualHeadOrbitY)))
       throw new Error('Real head anchor is unavailable');
+    // Evaluate the fully formed circular card orbit, not only the initial
+    // Home flying-paper scene. Keep actual scroll position deterministic.
+    const pinEnd = await page.evaluate(() => {
+      const pinned = window.ScrollTrigger?.getById?.('jw-home-to-projects');
+      return pinned?.end ?? window.innerHeight * 4.25;
+    });
+    await page.evaluate(y => window.scrollTo({ top: y, behavior: 'instant' }),
+      height * 4.25 * .40);
+    await page.waitForTimeout(1600);
+    const orbitMetrics = await page.evaluate(() => {
+      const h = document.querySelector('.jw-continuous-head');
+      const canvas = h.querySelector('.jw-new-home__head-canvas');
+      const bounds = canvas.getBoundingClientRect();
+      const orbit = {
+        x: parseFloat(h.style.getPropertyValue('--jw-visible-head-orbit-x')),
+        y: parseFloat(h.style.getPropertyValue('--jw-visible-head-orbit-y')),
+      };
+      return { scrollY: window.scrollY, orbit, headCanvas: {
+        x: bounds.left, y: bounds.top,
+        width: bounds.width, height: bounds.height,
+      }};
+    });
+    await page.screenshot({
+      path: 'mobile-visual-artifacts/ring-' + width + 'x' + height + '.png',
+      animations: 'disabled',
+    });
+    await fs.writeFile('mobile-visual-artifacts/orbit-' + width + '.json',
+      JSON.stringify(orbitMetrics, null, 2));
+    console.log('MOBILE RING:', JSON.stringify(orbitMetrics));
+    if (!Number.isFinite(orbitMetrics.orbit.x) ||
+        !Number.isFinite(orbitMetrics.orbit.y))
+      throw new Error('No real head orbit while scrolling');
     await page.close();
   }
   if (errors.length) throw new Error('Browser errors: '+errors.join('\n'));
