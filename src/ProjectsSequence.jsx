@@ -234,12 +234,12 @@ export default function ProjectsSequence() {
       // Projects → About; the remaining Home papers stay offscreen left.
       const depart = departingCardOffset(handoff, rank, width, height);
       const finalZ = started ? motion.z : flight.z;
-      // On mobile, let the cards converge on the actual projected face rather
-      // than viewport (0,0). Fade the shared translation in during rewind and
-      // release it only after all papers have left the visible orbit. Scale for
-      // camera depth so every sheet keeps the SAME on-screen point of origin.
+      // The homepage ring must already be centered on the projected head
+      // BEFORE scrolling begins (phase 0). Keep that same origin through the
+      // rewind and orbit; release it only once the sheets exit offscreen.
+      // Depth correction keeps every sheet aligned to one screen-space pivot.
       const orbitBlend = width <= 700
-        ? smooth(phase, .04, .272) * (1 - smooth(phase, .82, .89))
+        ? 1 - smooth(phase, .82, .89)
         : 0;
       const depthCorrection = (GALLERY_FOCAL - finalZ) / GALLERY_FOCAL;
       const finalX = (started ? motion.x : flight.x) + depart.x +
