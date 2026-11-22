@@ -183,13 +183,13 @@
 }
 .jw-about-footer {
   position: absolute;
-  /* Keep the original signature visible just above the final tool panel. */
-  bottom: calc(100svh + 18px);
+  /* Fit the approved signature into the compact final story gap. */
+  bottom: calc(100svh + 7px);
   left: 0;
   right: 0;
-  padding: 45px 24px 24px;
+  padding: 0 24px;
   text-align: center;
-  font: 700 11px/1.5 Inter, Arial, sans-serif;
+  font: 700 10px/1.25 Inter, Arial, sans-serif;
   letter-spacing: .16em;
   color: #888;
 }
