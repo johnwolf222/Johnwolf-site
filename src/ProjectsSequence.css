@@ -1,10 +1,10 @@
-/* Projects is ONE viewport after the scroll-pinned Home choreography.
-   Once the seven sheets land, the gallery rests until the next deliberate
-   downward scroll goes to About. No seven-card vertical scroll marathon. */
+/* Keep the Projects ARTBOARD at full viewport, but reduce only the
+   document-height EXIT runway between the gallery's .10vh rest and About.
+   The independent next wheel/swipe still unlocks the same card gallery. */
 #root .jw-projects-journey {
   position: relative;
-  height: 100svh;
-  min-height: 550px;
+  height: 72svh;
+  min-height: 520px;
   background: transparent;
   scroll-margin-top: 0;
 }
