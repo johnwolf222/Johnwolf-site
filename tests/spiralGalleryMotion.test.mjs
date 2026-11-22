@@ -1218,9 +1218,14 @@ test('About highlights each DOM word independently without changing original cop
   assert.match(about, /<WordHighlight>Design is life!<\/WordHighlight>/);
   assert.match(about, /<em><WordHighlight>“art is subjective\.”<\/WordHighlight><\/em>/);
   assert.match(about, /<WordHighlight>Photoshop, Illustrator, Procreate/);
-  assert.match(tools, /<WordHighlight>Choose a tool<\/WordHighlight>/);
-  assert.match(tools, /<WordHighlight>\{activeTool\.name\}<\/WordHighlight>/);
-  assert.match(tools, /<WordHighlight>\{activeTool\.detail\}<\/WordHighlight>/);
+  assert.match(about, /<h2 id="jw-about-heading" className="jw-about-heading">ABOUT<\/h2>/,
+    'vertical ABOUT must remain plain text without hover highlights');
+  assert.doesNotMatch(tools, /WordHighlight|jw-hover-word/,
+    'tools headings, prompts, names and descriptions do not highlight');
+  assert.match(tools, /<span>MY <\/span><span>CHOICE OF TOOLS<\/span>/);
+  assert.match(tools, /\{activeTool\.name\}/);
+  assert.match(tools, /\{activeTool\.detail\}/);
+  assert.match(tools, /Choose a tool/);
 });
 
 test('3D About story highlights only the exact word under the cursor', () => {
