@@ -15,7 +15,7 @@ import { spiralGalleryPose, galleryHeadPlacement, galleryRowOffset, GALLERY_FOCA
 import {
   wrapGalleryFocus, wrappedGalleryDistance, nearestGalleryIndex,
   stepGalleryFocus, dragGalleryFocus, gallerySeamOpacity,
-  galleryRestScrollY, shouldAutoLand,
+  galleryRestScrollY, shouldAutoLand, mayAutoLandFromHome,
   initialGalleryWheelState, galleryWheelGesture,
   initialGalleryVerticalState, galleryVerticalExitGesture,
   gallerySnapDuration, gallerySwipeDirection,
@@ -609,18 +609,16 @@ export default function ProjectsSequence() {
         Math.max(pinned.end - pinned.start, 1));
       travel.progress = exact;
       render();
-      // A fast wheel gesture can skip the narrow train phase entirely.
-      // Land whenever forward scrolling has reached the gallery approach,
-      // even if the pinned transition completed between scroll events.
-      const approachingGallery = (
+      // A quick mobile landing may begin inside Home's pinned scroll.
+      // After passing the gallery it must NEVER rearm on the way to About.
+      const fromHome = mayAutoLandFromHome(
+        previous, y, pinned.end, aboutTop, height);
+      const approachingGallery = fromHome && (
         shouldAutoLand(exact, previous, y, snapState,
           width <= 700 ? .018 : TRAIN_START, 1.001) ||
-        // Initial scroll/refresh can enter the gallery approach before
-        // lastNativePosition has been initialized.
         (snapState === 'idle' && !Number.isFinite(previous) &&
           exact >= (width <= 700 ? .018 : TRAIN_START))
-      ) && (!Number.isFinite(previous) || previous < aboutTop) &&
-        y < aboutTop + height * .50;
+      );
       if (approachingGallery) {
         startLanding();
       } else if (snapState === 'idle' && restingInGallery()) {

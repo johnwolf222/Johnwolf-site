@@ -114,7 +114,10 @@ test('homepage replaces arrow buttons with an accessible animated swipe-up cue',
 
 test('new boundaries settle About, capabilities and Contact only near their entrance', () => {
   assert.equal(sectionBoundaryDelta(200, 800), 200);
-  assert.equal(sectionBoundaryDelta(-200, 800), -200);
+  assert.equal(sectionBoundaryDelta(-200, 800, false, -1), -200);
+  assert.equal(sectionBoundaryDelta(-200, 800, false, 1), null);
+  assert.equal(sectionBoundaryDelta(-200, 800), null);
+  assert.equal(sectionBoundaryDelta(200, 800, false, -1), null);
   assert.equal(sectionBoundaryDelta(0, 800), null);
   assert.equal(sectionBoundaryDelta(700, 800), null);
   assert.equal(sectionBoundaryDelta(-500, 800), null);
@@ -129,6 +132,9 @@ test('new boundaries settle About, capabilities and Contact only near their entr
   assert.doesNotMatch(source, /ScrollTrigger|preventDefault|pin:/);
   assert.match(source, /window\.addEventListener\('touchstart', onTouchStart, \{ passive: true \}\)/);
   assert.match(source, /window\.removeEventListener\('touchend', onTouchEnd\)/);
+  assert.match(source, /scrollDirection = Math\.sign\(y - lastScrollY\)/);
+  assert.match(source, /scrollDirection\),/);
+  assert.match(source, /top < 0 && direction >= 0/);
 });
 test('a first mobile swipe starts the complete 21-card transition, reverse is preserved', () => {
   const seq = read('../src/ProjectsSequence.jsx');

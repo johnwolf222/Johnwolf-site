@@ -3,10 +3,14 @@
  * Contact. Never intercept native gestures or pin a reading viewport.
  * The Home/Projects transition and Tools panel retain their own controllers.
  */
-export function sectionBoundaryDelta(top, viewportHeight, consumed = false) {
+export function sectionBoundaryDelta(top, viewportHeight, consumed = false,
+  direction = 0) {
   if (consumed || !Number.isFinite(top) ||
       !Number.isFinite(viewportHeight) || viewportHeight <= 0)
     return null;
+  // Snap only in the actual scroll direction, never backwards over About.
+  if ((top > 0 && direction < 0) ||
+      (top < 0 && direction >= 0)) return null;
   const ahead = Math.min(viewportHeight * .49, 440);
   const behind = Math.min(viewportHeight * .42, 380);
   if (top > ahead || top < -behind || Math.abs(top) < 7) return null;
@@ -27,6 +31,7 @@ export function installSectionBoundarySnap() {
   const consumed = new Set();
   let touching = false, timer = 0, frame = 0, lastInput = 0;
   let previousBehavior = null, disposed = false;
+  let lastScrollY = window.scrollY, scrollDirection = 0;
   function restoreBehavior() {
     if (previousBehavior === null) return;
     root.style.scrollBehavior = previousBehavior;
@@ -65,7 +70,8 @@ export function installSectionBoundarySnap() {
     const viewport = window.innerHeight;
     const candidates = targets.map(node => ({
       node, delta: sectionBoundaryDelta(
-        node.getBoundingClientRect().top, viewport, consumed.has(node)),
+        node.getBoundingClientRect().top, viewport, consumed.has(node),
+        scrollDirection),
     })).filter(item => item.delta !== null);
     candidates.sort((a, b) => Math.abs(a.delta) - Math.abs(b.delta));
     const chosen = candidates[0];
@@ -88,6 +94,10 @@ export function installSectionBoundarySnap() {
     frame = requestAnimationFrame(tick);
   }
   function onScroll() {
+    const y = window.scrollY;
+    if (Math.abs(y - lastScrollY) > .5)
+      scrollDirection = Math.sign(y - lastScrollY);
+    lastScrollY = y;
     const viewport = window.innerHeight;
     for (const node of targets) {
       if (rearmSectionBoundary(node.getBoundingClientRect().top, viewport))

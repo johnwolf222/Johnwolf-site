@@ -22,7 +22,7 @@ import {
 import {
   wrapGalleryFocus, wrappedGalleryDistance,
   nearestGalleryIndex, stepGalleryFocus, dragGalleryFocus,
-  gallerySeamOpacity, galleryRestScrollY, shouldAutoLand,
+  gallerySeamOpacity, galleryRestScrollY, shouldAutoLand, mayAutoLandFromHome,
   galleryExitFade, GALLERY_LANDING_VH,
   initialGalleryWheelState, galleryWheelGesture,
   initialGalleryVerticalState, galleryVerticalExitGesture,
@@ -542,10 +542,10 @@ test('Section 2 waits after auto-landing and the next scroll enters About', () =
     'gallery must no longer require seven viewports of scrolling');
   assert.match(source, /shouldAutoLand\(exact, previous, y, snapState,/);
   assert.match(source, /TRAIN_START, 1\.001\)/);
-  assert.match(source, /previous < aboutTop\) &&/,
-    'auto-landing can begin early, but must never restart from the About section');
-  assert.match(source, /y < aboutTop \+ height \* \.50/,
-    'a fast swipe must not bypass the gallery before its controlled landing');
+  assert.match(source, /const fromHome = mayAutoLandFromHome\(/,
+    'auto-landing must originate inside the pinned Home transition');
+  assert.match(source, /const approachingGallery = fromHome && \(/,
+    'About scroll must not re-enable Home-to-Gallery landing');
   assert.match(source, /startLanding\(\);/);
   assert.match(source, /animatePageTo\(galleryAnchor\(\),/);
   assert.match(source, /markGallerySettled/);
@@ -1630,4 +1630,38 @@ test('Contact file picker remains honest for mailto and posts multipart with end
  assert.match(style,/\.contact-files__selected/);
  assert.match(style,/\.contact-files__help--error/);
  assert.match(style,/@media \(max-width: 720px\)/);
+});
+
+test('entering About does not re-arm the Home-to-Projects landing', () => {
+  const height = 844, pinEnd = 4.25 * height;
+  const galleryTop = height * 5.25;
+  const galleryRest = galleryRestScrollY(galleryTop, height);
+  const aboutTop = galleryTop + height * .72;
+  assert.equal(mayAutoLandFromHome(0, 40, pinEnd, aboutTop, height), true,
+    'first mobile swipe is still recognized');
+  assert.equal(mayAutoLandFromHome(pinEnd * .6,
+    pinEnd * .7, pinEnd, aboutTop, height), true);
+  assert.equal(mayAutoLandFromHome(pinEnd - height * .2,
+    galleryRest, pinEnd, aboutTop, height), true,
+    'a fast first swipe can still land on Projects');
+  assert.equal(mayAutoLandFromHome(pinEnd - height * .2,
+    aboutTop, pinEnd, aboutTop, height), false,
+    'a swipe that has reached About must not be pulled backwards');
+  assert.equal(mayAutoLandFromHome(galleryRest,
+    aboutTop - 40, pinEnd, aboutTop, height), false,
+    'the completed gallery exit cannot restart landing');
+  assert.equal(mayAutoLandFromHome(aboutTop - 8,
+    aboutTop + 8, pinEnd, aboutTop, height), false,
+    'About content must remain scrollable');
+  assert.equal(mayAutoLandFromHome(aboutTop,
+    aboutTop + 140, pinEnd, aboutTop, height), false);
+  assert.equal(mayAutoLandFromHome(NaN,
+    aboutTop, pinEnd, aboutTop, height), false,
+    'direct hash navigation to About cannot restart the gallery');
+  assert.equal(mayAutoLandFromHome(NaN,
+    pinEnd * .6, pinEnd, aboutTop, height), true,
+    'initial Home refresh within the pin remains supported');
+  assert.equal(mayAutoLandFromHome(galleryRest,
+    aboutTop - height * .15, pinEnd, aboutTop + 120, height), false,
+    'layout resizing cannot rearm a previously completed gallery exit');
 });

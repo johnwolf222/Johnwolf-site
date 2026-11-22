@@ -57,6 +57,21 @@ export function shouldAutoLand(phase, previousY, currentY, state,
     currentY > previousY + .5;
 }
 
+/**
+ * Gallery auto-landing is a Home-to-Projects handoff only. Never restart
+ * when visiting About, scrolling forward from Projects, or deep-linking.
+ */
+export function mayAutoLandFromHome(previousY, currentY, pinEnd,
+  aboutTop, viewportHeight) {
+  if (![currentY, pinEnd, aboutTop, viewportHeight].every(Number.isFinite) ||
+      viewportHeight <= 0) return false;
+  if (currentY >= aboutTop - viewportHeight * .04) return false;
+  if (Number.isFinite(previousY))
+    return previousY < pinEnd - viewportHeight * .04;
+  // Only permit initial Home pin refreshes, never initial #about loads.
+  return currentY < pinEnd;
+}
+
 export function galleryExitFade(scrollY, sectionTop, sectionHeight,
   viewportHeight) {
   const start = sectionTop + sectionHeight - viewportHeight * .54;
