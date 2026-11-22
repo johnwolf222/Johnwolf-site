@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
-import { silhouetteVisualCenter, headVisualOrbitOffset } from '../src/HeadVisualAnchor.js';
 import {MAX_PROJECT_FILES,mergeProjectFiles,formatProjectFileSize} from '../src/contact-file-utils.js';
 import { HeadController, SETTINGS, pointerRelativeToHead } from '../src/about/controller.js';
 import {wordRangesForLine, hoveredWordAtUV} from '../src/about/word-hover.js';
@@ -116,9 +115,9 @@ test('mobile paper orbit is circular and desktop retains the approved ellipse', 
   }
   const sequence = readFileSync(new URL('../src/ProjectsSequence.jsx', import.meta.url), 'utf8');
   assert.match(sequence, /function mobileHeadOrbitOffset\(\)/);
-  assert.match(sequence, /HEAD_SILHOUETTE_MASK/);
-  assert.match(sequence, /silhouetteVisualCenter/);
-  assert.match(sequence, /headVisualOrbitOffset/);
+  assert.match(sequence, /--jw-visible-head-orbit-x/);
+  assert.match(sequence, /--jw-visible-head-orbit-y/);
+  assert.doesNotMatch(sequence, /silhouetteVisualCenter|headVisualOrbitOffset/);
   assert.doesNotMatch(sequence, /artboard\.style\.getPropertyValue\('--jw-head-local-y'\)/);
   assert.match(sequence, /orbitOffset\.x \* orbitBlend \* depthCorrection/);
   assert.match(sequence, /orbitOffset\.y \* orbitBlend \* depthCorrection/);
@@ -128,25 +127,27 @@ test('mobile paper orbit is circular and desktop retains the approved ellipse', 
   assert.doesNotMatch(sequence, /smooth\(phase, \.04, \.272\) \* \(1 - smooth\(phase, \.82, \.89\)\)/);
 });
 
-test('mobile orbit uses VISIBLE head bounds rather than artboard or GLB pivot', () => {
-  const pixels = new Uint8ClampedArray(10 * 10 * 4);
-  for (let y = 1; y <= 5; y++) {
-    for (let x = 3; x <= 7; x++) {
-      pixels[(y * 10 + x) * 4 + 3] = 255;
-    }
-  }
-  const center = silhouetteVisualCenter(pixels, 10, 10);
-  assert.deepEqual(center, { x: .55, y: .35 });
-  const off = headVisualOrbitOffset({
-    left: 20, top: 30, width: 300, height: 200,
-  }, center, 400, 600, 4, -75);
-  assert.ok(Math.abs(off.x - (-19)) < 1e-8);
-  assert.ok(Math.abs(off.y - (-125)) < 1e-8);
-  // Shifting the whole GLB on scroll must not move the ring twice.
-  const shifted = headVisualOrbitOffset({
-    left: 20, top: -45, width: 300, height: 200,
-  }, center, 400, 600, 4, -150);
-  assert.deepEqual(shifted, off);
+test('mobile orbit uses the rendered 3D head meshes, not canvas or mask', () => {
+  const head = readFileSync(new URL('../src/HomepageHead.jsx',
+    import.meta.url), 'utf8');
+  const sequence = readFileSync(new URL('../src/ProjectsSequence.jsx',
+    import.meta.url), 'utf8');
+  for (const rule of [
+    /const publishVisibleHeadOrbit = \(\) =>/,
+    /geometry\.updateWorldMatrix\(true, true\)/,
+    /geometry\.traverse\(node =>/,
+    /node\.geometry\.computeBoundingBox\(\)/,
+    /applyMatrix4\(node\.matrixWorld\)\.project\(camera\)/,
+    /const rect = surface\.getBoundingClientRect\(\)/,
+    /--jw-visible-head-orbit-x/,
+    /--jw-visible-head-orbit-y/,
+    /publishVisibleHeadOrbit\(\)/,
+  ]) assert.match(head, rule);
+  assert.match(sequence, /--jw-visible-head-orbit-x/);
+  assert.match(sequence, /--jw-visible-head-orbit-y/);
+  assert.doesNotMatch(sequence, /HEAD_SILHOUETTE_MASK|silhouetteImage/);
+  assert.match(head, /visualAnchorFrames < 2/,
+    're-measure after the first real frame applies model translation');
 });
 
 test('before all sheets exit, featured and nonfeatured share the SAME track', () => {
