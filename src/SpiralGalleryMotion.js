@@ -170,18 +170,10 @@ export function galleryHeadPlacement(phase, height, width = Infinity) {
   // the approved GLB pivot. Compensate without changing its 3D controller.
   const faceCenterY = Math.max(148, Math.min(height * .225, 210));
   const galleryShift = faceCenterY - height * .5 - 20;
-  // On mobile the HOME head is already at its approved visual center.
-  // Never send it downward to the old mask/camera pivot as papers fly out.
-  // Hold that exact origin through the orbit, then transition only when
-  // the cards are clearing the frame and the gallery layout takes over.
-  // Desktop keeps its existing camera choreography.
-  if (width <= 700) {
-    const galleryArrival = smooth(phase, .82, .99);
-    return {
-      shift: mix(0, galleryShift, galleryArrival),
-      scale: 1 - .24 * smooth(phase, .84, .995),
-    };
-  }
+  // The mobile homepage head is the single immovable anchor. Keep its
+  // approved position AND scale through the complete paper exit/arrival.
+  // The separate About handoff owns any later movement of the GLB.
+  if (width <= 700) return { shift: 0, scale: 1 };
   const settle = smooth(phase, .66, .86);
   return {
     shift: mix(cameraShift, galleryShift, settle),
@@ -192,7 +184,10 @@ export function galleryHeadPlacement(phase, height, width = Infinity) {
 export function spiralGalleryPose(phase, index, rank, width, height, target) {
   const slot = orbitSlot(index, rank);
   const featured = rank >= 0;
-  const cameraLift = height * CAMERA_DESCENT * galleryCameraProgress(phase);
+  // Mobile cards orbit the fixed homepage head, never the old moving camera.
+  const cameraLift = width <= 700 ? 0 :
+    height * CAMERA_DESCENT * galleryCameraProgress(phase);
+  const galleryCameraOffset = width <= 700 ? 0 : height * CAMERA_DESCENT;
   const path = clockwiseTrack(phase, slot, width, height);
   let { x, y, z, scale, rx, ry, rz } = path;
   let settle = 0;
@@ -224,7 +219,7 @@ export function spiralGalleryPose(phase, index, rank, width, height, target) {
     const stageZ = target.z - 160;
     const stageX = (projectedX - offset) *
       (GALLERY_FOCAL - stageZ) / GALLERY_FOCAL;
-    const stageY = target.y + height * CAMERA_DESCENT + height * .065;
+    const stageY = target.y + galleryCameraOffset + height * .065;
 
     if (phase < TRAIN_START) {
       // Turn around completely OUTSIDE the viewport. A quintic with
@@ -255,7 +250,7 @@ export function spiralGalleryPose(phase, index, rank, width, height, target) {
       z = target.z - 160 * (1 - t);
       x = (projectedX - offset * (1 - t)) *
         (GALLERY_FOCAL - z) / GALLERY_FOCAL;
-      y = stageY + (target.y + height * CAMERA_DESCENT - stageY) * t;
+      y = stageY + (target.y + galleryCameraOffset - stageY) * t;
       scale = target.scale * mix(.72, 1, t);
       rx = 0;
       ry = target.ry * mix(.65, 1, t);
