@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { rollingGlyphs } from '../src/rollingTitleGlyphs.js';
 import { galleryHeadPlacement, galleryCameraProgress, CAMERA_DESCENT, spiralGalleryPose } from '../src/SpiralGalleryMotion.js';
+import { sectionBoundaryDelta, rearmSectionBoundary } from '../src/about/section-boundary-snap.js';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 const css = read('../src/NewHomepage.css');
@@ -109,4 +110,33 @@ test('homepage replaces arrow buttons with an accessible animated swipe-up cue',
   assert.match(css, /animation: none;/);
   assert.match(homepage, /onPointerUp=\{pointerEnd\}/);
   assert.match(homepage, /requestAdvance\(i, 'direct'\)/);
+});
+
+test('new boundaries settle About, capabilities and Contact only near their entrance', () => {
+  assert.equal(sectionBoundaryDelta(200, 800), 200);
+  assert.equal(sectionBoundaryDelta(-200, 800), -200);
+  assert.equal(sectionBoundaryDelta(0, 800), null);
+  assert.equal(sectionBoundaryDelta(700, 800), null);
+  assert.equal(sectionBoundaryDelta(-500, 800), null);
+  assert.equal(sectionBoundaryDelta(200, 800, true), null);
+  assert.equal(rearmSectionBoundary(700, 800), true);
+  assert.equal(rearmSectionBoundary(-650, 800), true);
+  assert.equal(rearmSectionBoundary(-100, 800), false);
+  const source = read('../src/about/section-boundary-snap.js');
+  const app = read('../src/main.jsx');
+  assert.match(app, /installSectionBoundarySnap\(\)/);
+  assert.match(source, /'about', 'about-capabilities', 'contact'/);
+  assert.doesNotMatch(source, /ScrollTrigger|preventDefault|pin:/);
+  assert.match(source, /window\.addEventListener\('touchstart', onTouchStart, \{ passive: true \}\)/);
+  assert.match(source, /window\.removeEventListener\('touchend', onTouchEnd\)/);
+});
+test('a first mobile swipe starts the complete 21-card transition, reverse is preserved', () => {
+  const seq = read('../src/ProjectsSequence.jsx');
+  assert.match(seq, /width <= 700 \? \.018 : TRAIN_START/);
+  assert.match(seq, /const duration = width <= 700/);
+  assert.match(seq, /queuedGalleryDeparture = origin\.direction/);
+  assert.match(seq, /next === 'about'\) leaveForAbout\(\)/);
+  assert.match(seq, /next === 'home'\) leaveForHome\(\)/);
+  assert.match(seq, /animatePageTo\(pinned\.start, 1\.28,/);
+  assert.match(seq, /pinSpacing: true/);
 });

@@ -7,6 +7,7 @@ import NewHomepage from './NewHomepage.jsx';
 import ProjectsSequence from './ProjectsSequence.jsx';
 import VisualContinuity from './VisualContinuity.jsx';
 import AboutExperience from './AboutExperience.jsx';
+import { installSectionBoundarySnap } from './about/section-boundary-snap.js';
 
 function PurpleCursor(){
  useEffect(()=>{
@@ -199,6 +200,7 @@ function Contact(){
 
 
 function App(){
+ useEffect(() => installSectionBoundarySnap(), []);
  return <div>
   <VisualContinuity/>
   <PurpleCursor/>

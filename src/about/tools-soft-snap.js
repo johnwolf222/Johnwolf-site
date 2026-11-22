@@ -8,8 +8,8 @@ export function toolSnapDelta(panelTop, viewportHeight, consumed = false) {
       viewportHeight <= 0 || consumed) return null;
   // Land only when most of the full-screen tools section is already visible.
   // Don't pull the user back after they have started scrolling onward.
-  const ahead = Math.min(viewportHeight * .39, 390);
-  const behind = Math.min(viewportHeight * .14, 125);
+  const ahead = Math.min(viewportHeight * .62, 560);
+  const behind = Math.min(viewportHeight * .36, 320);
   if (panelTop > ahead || panelTop < -behind ||
       Math.abs(panelTop) < 7) return null;
   return panelTop;
@@ -18,8 +18,8 @@ export function toolSnapDelta(panelTop, viewportHeight, consumed = false) {
 export function rearmToolSnap(panelTop, viewportHeight) {
   if (!Number.isFinite(panelTop) || !Number.isFinite(viewportHeight) ||
       viewportHeight <= 0) return false;
-  return panelTop > viewportHeight * .65 ||
-    panelTop < -viewportHeight * .52;
+  return panelTop > viewportHeight * .78 ||
+    panelTop < -viewportHeight * .68;
 }
 
 /**

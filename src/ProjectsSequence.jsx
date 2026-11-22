@@ -139,6 +139,8 @@ export default function ProjectsSequence() {
     let scrollTween = null;
     let snapState = 'idle'; // idle | landing | settled | leaving
     let exitReadyAt = 0;
+    // Keep a second distinct swipe made while the gallery is landing.
+    let queuedGalleryDeparture = null;
     let previousScrollBehavior = null;
     let touchOrigin = null;
     // Preserve the original viewport-centered Home head at page entry.
@@ -552,6 +554,10 @@ export default function ProjectsSequence() {
         loopEnabled = true;
       }
       render();
+      const next = queuedGalleryDeparture;
+      queuedGalleryDeparture = null;
+      if (next === 'about') leaveForAbout();
+      else if (next === 'home') leaveForHome();
     };
     const startLanding = () => {
       if (snapState === 'landing') return;
@@ -559,8 +565,20 @@ export default function ProjectsSequence() {
       snapState = 'landing';
       const viewports = Math.abs(galleryAnchor() - window.scrollY) /
         Math.max(1, height);
-      animatePageTo(galleryAnchor(), Math.min(2, 1.2 + viewports * .15),
-        markGallerySettled);
+      // The native scroll position remains the only head/card motion clock.
+      // One mobile gesture now plays the full approved path and settles.
+      const duration = width <= 700
+        ? Math.min(1.55, 1.18 + viewports * .075)
+        : Math.min(2, 1.2 + viewports * .15);
+      animatePageTo(galleryAnchor(), duration, markGallerySettled);
+    };
+    const leaveForHome = () => {
+      if (snapState !== 'settled') return;
+      snapState = 'leaving';
+      // Reverse the precise existing scroll-to-head/card choreography.
+      animatePageTo(pinned.start, 1.28, () => {
+        snapState = 'idle';
+      }, 'sine.inOut');
     };
     const leaveForAbout = () => {
       if (snapState !== 'settled') return;
@@ -596,12 +614,13 @@ export default function ProjectsSequence() {
       // even if the pinned transition completed between scroll events.
       const approachingGallery = (
         shouldAutoLand(exact, previous, y, snapState,
-          TRAIN_START, 1.001) ||
+          width <= 700 ? .018 : TRAIN_START, 1.001) ||
         // Initial scroll/refresh can enter the gallery approach before
         // lastNativePosition has been initialized.
         (snapState === 'idle' && !Number.isFinite(previous) &&
-          exact >= TRAIN_START)
-      ) && y < galleryAnchor() - height * .04;
+          exact >= (width <= 700 ? .018 : TRAIN_START))
+      ) && (!Number.isFinite(previous) || previous < aboutTop) &&
+        y < aboutTop + height * .50;
       if (approachingGallery) {
         startLanding();
       } else if (snapState === 'idle' && restingInGallery()) {
@@ -673,12 +692,17 @@ export default function ProjectsSequence() {
         event.deltaMode === 2 ? window.innerHeight : 1;
       const dx = event.deltaX * unit;
       const dy = event.deltaY * unit;
-      if (dy <= 0 || dy <= Math.abs(dx) * 1.25) {
+      if (Math.abs(dy) <= Math.abs(dx) * 1.25) {
         verticalGestureRef.current = initialGalleryVerticalState();
         return;
       }
       if (event.cancelable) event.preventDefault();
       const now = performance.now();
+      if (dy < 0) {
+        verticalGestureRef.current = initialGalleryVerticalState();
+        if (now >= exitReadyAt && dy <= -8) leaveForHome();
+        return;
+      }
       if (now < exitReadyAt) {
         // Brief fixed protection against the wheel gesture that landed
         // the gallery. Do NOT move exitReadyAt here: continuous trackpad
@@ -692,38 +716,52 @@ export default function ProjectsSequence() {
       if (result.exit) leaveForAbout();
     };
     const onTouchStart = event => {
-      if (snapState !== 'settled' || !restingInGallery()) return;
+      // Capture a distinct second swipe even before the first landing ends.
+      if (snapState !== 'landing' &&
+          (snapState !== 'settled' || !restingInGallery())) return;
       const point = event.touches[0];
-      if (point) touchOrigin = { x: point.clientX, y: point.clientY,
-        up: false };
+      if (point) touchOrigin = {
+        x: point.clientX, y: point.clientY, direction: null,
+        beganLanding: snapState === 'landing',
+      };
     };
     const onTouchMove = event => {
+      const point = event.touches[0];
+      if (touchOrigin && point) {
+        const dx = point.clientX - touchOrigin.x;
+        const dy = point.clientY - touchOrigin.y;
+        if (Math.abs(dy) > 12 &&
+            Math.abs(dy) > Math.abs(dx) * 1.25) {
+          touchOrigin.direction = dy < 0 ? 'about' : 'home';
+          if (event.cancelable) event.preventDefault();
+        }
+      }
       if (snapState === 'landing' || snapState === 'leaving') {
         if (event.cancelable) event.preventDefault();
         return;
-      }
-      if (snapState !== 'settled' || !touchOrigin) return;
-      const point = event.touches[0];
-      if (!point) return;
-      const dx = point.clientX - touchOrigin.x;
-      const dy = point.clientY - touchOrigin.y;
-      if (dy < -12 && Math.abs(dy) > Math.abs(dx) * 1.25) {
-        touchOrigin.up = true;
-        if (event.cancelable) event.preventDefault();
       }
     };
     const onTouchEnd = event => {
       const origin = touchOrigin;
       touchOrigin = null;
-      if (!origin || !origin.up || snapState !== 'settled' ||
-          performance.now() < exitReadyAt) return;
+      if (!origin || !origin.direction) return;
       const point = event.changedTouches[0];
-      if (point && point.clientY - origin.y < -22) leaveForAbout();
+      const dy = point ? point.clientY - origin.y : 0;
+      if (Math.abs(dy) < 22 ||
+          (dy < 0 ? 'about' : 'home') !== origin.direction) return;
+      if (origin.beganLanding && snapState === 'landing') {
+        queuedGalleryDeparture = origin.direction;
+        return;
+      }
+      if (snapState !== 'settled' ||
+          performance.now() < exitReadyAt) return;
+      if (origin.direction === 'about') leaveForAbout();
+      else leaveForHome();
     };
     const onScrollKey = event => {
       if (event.defaultPrevented || event.altKey || event.ctrlKey ||
           event.metaKey) return;
-      if (!['ArrowDown', 'PageDown', ' '].includes(event.key)) return;
+      if (!['ArrowDown', 'PageDown', 'ArrowUp', 'PageUp', ' '].includes(event.key)) return;
       if (snapState === 'landing' || snapState === 'leaving') {
         event.preventDefault();
         return;
@@ -732,7 +770,11 @@ export default function ProjectsSequence() {
           'input, textarea, select, button, a, [contenteditable]')) return;
       if (snapState !== 'settled' || !restingInGallery()) return;
       event.preventDefault();
-      if (performance.now() >= exitReadyAt) leaveForAbout();
+      if (performance.now() >= exitReadyAt) {
+        if (event.key === 'ArrowUp' || event.key === 'PageUp' ||
+            (event.key === ' ' && event.shiftKey)) leaveForHome();
+        else leaveForAbout();
+      }
     };
     const cancelTween = () => {
       loopTween?.kill();
@@ -964,6 +1006,7 @@ export default function ProjectsSequence() {
       disposed = true;
       cancelScrollTween();
       cancelTween();
+      queuedGalleryDeparture = null;
       wheelGestureRef.current = initialGalleryWheelState();
       verticalGestureRef.current = initialGalleryVerticalState();
       hoverGalleryCard(-1);

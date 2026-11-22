@@ -1438,16 +1438,16 @@ test('tools settle only near full-frame alignment and can scroll out normally', 
       'approach from story aligns the tool panel to top after scrolling rests');
     assert.equal(toolSnapDelta(-height*.08,height),-height*.08,
       'reverse scrolling from Contact can align the same tools panel');
-    assert.equal(toolSnapDelta(height*.55,height),null,
+    assert.equal(toolSnapDelta(height*.75,height),null,
       'do not jump from far away while reading the final story chapter');
-    assert.equal(toolSnapDelta(-height*.35,height),null,
+    assert.equal(toolSnapDelta(-height*.55,height),null,
       'do not pull users back after they choose to continue to Contact');
     assert.equal(toolSnapDelta(height*.10,height,true),null,
       'one completed settle must not trap the next gesture');
     assert.equal(toolSnapDelta(4,height),null,
       'no unnecessary tween once the viewport is already aligned');
-    assert.equal(rearmToolSnap(height*.75,height),true);
-    assert.equal(rearmToolSnap(-height*.60,height),true);
+    assert.equal(rearmToolSnap(height*.85,height),true);
+    assert.equal(rearmToolSnap(-height*.75,height),true);
     assert.equal(rearmToolSnap(0,height),false,
       'approaching/visiting tools does not automatically re-arm the snap');
   }
