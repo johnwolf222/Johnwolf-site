@@ -114,6 +114,63 @@ try {
     if (Math.abs(driftY) > 3)
       throw new Error('Mobile head moved relative to Home artboard by ' +
         driftY.toFixed(2) + 'px during card orbit');
+    // Exercise the same scroll positions in reverse. A stable head must
+    // return to the identical screen coordinates, not just look correct
+    // during downward scrolling. This catches stale viewport/anchor values.
+    const readHeadPose = () => page.evaluate(() => {
+      const head = document.querySelector('.jw-continuous-head');
+      const canvas = head.querySelector('.jw-new-home__head-canvas');
+      const rect = canvas.getBoundingClientRect();
+      const board = document.querySelector('.jw-new-home__artboard')
+        .getBoundingClientRect();
+      const css = getComputedStyle(canvas.parentElement);
+      return {
+        scrollY: window.scrollY,
+        canvasX: rect.left + rect.width / 2,
+        canvasY: rect.top + rect.height / 2,
+        boardX: board.left + board.width / 2,
+        boardY: board.top + board.height / 2,
+        transform: css.transform,
+      };
+    });
+    const scrollToAndSettle = async y => {
+      await page.evaluate(target => window.scrollTo({
+        top: target, behavior: 'instant',
+      }), y);
+      await page.waitForTimeout(600);
+      return readHeadPose();
+    };
+    const midway = height * 4.25 * .40;
+    const forward = await scrollToAndSettle(midway);
+    await scrollToAndSettle(height * 4.25 * .70);
+    const reverse = await scrollToAndSettle(midway);
+    const returnedHome = await scrollToAndSettle(0);
+    const initialHomeY = measurement.headCanvas.top +
+      measurement.headCanvas.height / 2;
+    const initialHomeX = measurement.headCanvas.left +
+      measurement.headCanvas.width / 2;
+    const delta = (a, b) => Math.abs(a - b);
+    const reverseMetrics = {
+      viewport: width + 'x' + height,
+      forward, reverse, returnedHome,
+      sameScrollDeltaX: delta(forward.canvasX, reverse.canvasX),
+      sameScrollDeltaY: delta(forward.canvasY, reverse.canvasY),
+      homeReturnDeltaX: delta(returnedHome.canvasX, initialHomeX),
+      homeReturnDeltaY: delta(returnedHome.canvasY, initialHomeY),
+    };
+    await page.screenshot({
+      path: 'mobile-visual-artifacts/reverse-home-' + width + '.png',
+      animations: 'disabled',
+    });
+    await fs.writeFile('mobile-visual-artifacts/reverse-' + width + '.json',
+      JSON.stringify(reverseMetrics, null, 2));
+    console.log('MOBILE REVERSE:', JSON.stringify(reverseMetrics));
+    if (reverseMetrics.sameScrollDeltaX > 3 ||
+        reverseMetrics.sameScrollDeltaY > 3 ||
+        reverseMetrics.homeReturnDeltaX > 3 ||
+        reverseMetrics.homeReturnDeltaY > 3)
+      throw new Error('Head does not return to its original screen position ' +
+        'after reverse scrolling: ' + JSON.stringify(reverseMetrics));
     await page.close();
   }
   if (errors.length) throw new Error('Browser errors: '+errors.join('\n'));
