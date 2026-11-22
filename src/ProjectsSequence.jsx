@@ -8,7 +8,7 @@ import CaseStudyReader from './CaseStudyReader.jsx';
 import { createHomePaperMotion } from './HomePaperMotion.js';
 import {
   aboutHandoffProgress, departingCardOffset, aboutHeadPose,
-  aboutIntroPose, aboutHeadOpacity,
+  aboutIntroPose, aboutHeadOpacity, aboutHeadingReveal,
   aboutToolsHeadBlend, aboutToolsHeadOffset,
 } from './AboutHandoffMotion.js';
 import { spiralGalleryPose, galleryHeadPlacement, galleryRowOffset, GALLERY_FOCAL, TRAIN_START, TRAIN_END } from './SpiralGalleryMotion.js';
@@ -99,6 +99,7 @@ export default function ProjectsSequence() {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     let sectionTop = 0;
     let sectionHeight = 0;
+    let aboutTop = Infinity;
     let aboutBottom = Infinity;
     let toolsTop = Infinity;
     let width = window.innerWidth;
@@ -140,7 +141,8 @@ export default function ProjectsSequence() {
       sectionTop = docTop(section);
       sectionHeight = section.getBoundingClientRect().height;
       const about = document.querySelector('#about');
-      aboutBottom = about ? docTop(about) + about.getBoundingClientRect().height : Infinity;
+      aboutTop = about ? docTop(about) : Infinity;
+      aboutBottom = about ? aboutTop + about.getBoundingClientRect().height : Infinity;
       toolsTop = toolsPanel ? docTop(toolsPanel) : Infinity;
       const nextWidth = window.innerWidth;
       const nextHeight = window.innerHeight;
@@ -330,6 +332,10 @@ export default function ProjectsSequence() {
       // opacity/settle are derived from the SAME motion clock, no separate
       // CSS animation or layout reflow.
       if (aboutSection) {
+        // The vertical sticky ABOUT heading must NOT overlap Section 2.
+        // Reveal only after the final Projects pixel scrolls past the top.
+        aboutSection.style.setProperty('--jw-about-heading-opacity',
+          aboutHeadingReveal(scrollY, aboutTop, height).toFixed(4));
         aboutSection.style.setProperty('--jw-about-intro-opacity',
           intro.opacity.toFixed(4));
         aboutSection.style.setProperty('--jw-about-intro-lift',
@@ -886,6 +892,7 @@ export default function ProjectsSequence() {
       }
       home.style.removeProperty('--jw-home-blow');
       if (aboutSection) {
+        aboutSection.style.removeProperty('--jw-about-heading-opacity');
         aboutSection.style.removeProperty('--jw-about-intro-opacity');
         aboutSection.style.removeProperty('--jw-about-intro-lift');
       }
