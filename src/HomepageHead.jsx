@@ -210,16 +210,19 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
       const rect = surface.getBoundingClientRect();
       const cx = rect.left + rect.width * (.5 + (minX + maxX) * .25);
       const cy = rect.top + rect.height * (.5 - (minY + maxY) * .25);
-      const shiftX = Number.parseFloat(layer.style.getPropertyValue('--jw-head-x')) || 0;
-      const shiftY = Number.parseFloat(layer.style.getPropertyValue('--jw-head-shift')) || 0;
-      const alignX = Number.parseFloat(layer.style.getPropertyValue('--jw-home-align-x')) || 0;
-      const alignY = Number.parseFloat(layer.style.getPropertyValue('--jw-home-align-y')) || 0;
-      // Store the unshifted home-space anchor. Scroll-driven head movement
-      // is already included in the existing paper paths; don't double-count.
+      // Store the face's LOCAL offset from its own GLB canvas center.
+      // Unlike the old window.innerHeight-based subtraction this remains
+      // invariant if Safari grows its visual viewport, or Projects scales
+      // and translates the entire head artboard. The paper ring and GPU
+      // silhouette mask consume this same source of truth.
+      const scale = Number.parseFloat(
+        layer.style.getPropertyValue('--jw-head-scale')) || 1;
+      const surfaceCenterX = rect.left + rect.width * .5;
+      const surfaceCenterY = rect.top + rect.height * .5;
       layer.style.setProperty('--jw-visible-head-orbit-x',
-        (cx - window.innerWidth * .5 - shiftX - alignX).toFixed(3) + 'px');
+        ((cx - surfaceCenterX) / scale).toFixed(3) + 'px');
       layer.style.setProperty('--jw-visible-head-orbit-y',
-        (cy - window.innerHeight * .5 - shiftY - alignY).toFixed(3) + 'px');
+        ((cy - surfaceCenterY) / scale).toFixed(3) + 'px');
     };
     // The typography uses the *projected model center and top*, not the
     // 16:9 artboard midpoint. Publish only on load and resize: following every
