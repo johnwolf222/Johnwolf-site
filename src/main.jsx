@@ -129,8 +129,8 @@ function Contact(){
     </select>
    </label>
    <label>Project details<textarea name="message" rows={5} required maxLength={6000} placeholder="A little about your project, goals, and timing."/></label>
-   <button className="contact-submit" type="submit" disabled={sending||!canContact}>{sending?'Sending…':endpoint||!email?'Send inquiry':'Continue to Email'} <span aria-hidden="true">↗</span></button>
-   <p className="contact-status" role="status">{canContact?status:'Project inquiries will open once a contact address is available.'}</p>
+   <button className="contact-submit" type="submit" disabled={sending||!canContact}>{sending?'Sending…':'Send for Evaluation'} <span aria-hidden="true">↗</span></button>
+   <p className="contact-status" role="status">{canContact ? (status || (!endpoint ? 'Opens your email app to complete sending.' : '')) : 'Project inquiries will open once a contact address is available.'}</p>
   </form>
  </section>;
 }
