@@ -205,16 +205,20 @@
   #root .jw-new-home__artboard {
     width: min(calc(100vw - 36px), calc(100svh * 16 / 9));
   }
-  /* Scale and optically center each original vector title, including its
-     precisely synchronized white-outline twin above the persistent head. */
+  /* On phones both the animated purple glyphs and their portaled white
+     outline share the projected model center. At .82x the longest title
+     retains side margins, without changing the approved per-letter timeline. */
   .jw-new-home__rolling-title .jw-roll-scene,
   .jw-title-head-ink .jw-roll-scene {
-    transform-origin: center center;
-    transform: translateX(calc(50% - var(--jw-title-center, 50%))) scale(.88);
+    transform-origin: 0 0;
+    transform:
+      translate(var(--jw-head-local-x, 50%), var(--jw-head-local-y, 50%))
+      scale(.82)
+      translate(calc(0% - var(--jw-title-center, 50%)), -50%);
   }
-  /* The dot and subtitle remain one unchanged SVG. Magnify only that artwork
-     so it stays legible on a phone, then center its actual ink above the head.
-     The original GSAP sink/rise transition and clipping are still in force. */
+  /* One original dot+subtitle SVG. Its measured ink midpoint follows the
+     model's projected center; the baseline sits above its projected top.
+     Keep the existing GSAP rise/sink motion and the SVG artwork unchanged. */
   .jw-new-home__subtitle-clip {
     clip-path: inset(-45% 0 58.2716% 0);
   }
@@ -222,8 +226,8 @@
     inset: auto;
     width: 280vw;
     height: 157.5vw;
-    left: calc(50% - var(--jw-subtitle-mobile-center));
-    top: calc(50% - 13svh - 58.15vw);
+    left: calc(var(--jw-head-local-x, 50%) - var(--jw-subtitle-mobile-center));
+    top: calc(var(--jw-head-local-top, 35%) - 20px - 58.33vw);
   }
   .jw-new-home__bottom-bar {font-size:10px;flex-wrap:nowrap;}
   .jw-new-home__counter {max-width:calc(50% - 55px);font-size:9px;}
