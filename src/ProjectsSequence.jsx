@@ -137,6 +137,11 @@ export default function ProjectsSequence() {
     let exitReadyAt = 0;
     let previousScrollBehavior = null;
     let touchOrigin = null;
+    // Preserve the original viewport-centered Home head at page entry.
+    // Subsequent alignment uses only movement relative to this baseline,
+    // not the artboard's absolute offset (which raised the resting head).
+    let homeBaselineX = null;
+    let homeBaselineY = null;
 
     function measure() {
       sectionTop = docTop(section);
@@ -394,10 +399,18 @@ export default function ProjectsSequence() {
       const homeBoard = home.querySelector('.jw-new-home__artboard');
       const boardRect = width <= 700 && homeBoard
         ? homeBoard.getBoundingClientRect() : null;
-      const homeAlignX = boardRect
+      const boardOffsetX = boardRect
         ? boardRect.left + boardRect.width * .5 - width * .5 : 0;
-      const homeAlignY = boardRect
+      const boardOffsetY = boardRect
         ? boardRect.top + boardRect.height * .5 - height * .5 : 0;
+      if (boardRect && (homeBaselineX === null || window.scrollY <= 1)) {
+        // Capture the approved initial head position, including Safari's
+        // original viewport center. Do not recapture after scrolling starts.
+        if (homeBaselineX === null) homeBaselineX = boardOffsetX;
+        if (homeBaselineY === null) homeBaselineY = boardOffsetY;
+      }
+      const homeAlignX = boardRect ? boardOffsetX - (homeBaselineX ?? 0) : 0;
+      const homeAlignY = boardRect ? boardOffsetY - (homeBaselineY ?? 0) : 0;
       const homeAnchorBlend = width <= 700
         ? 1 - smooth(handoff, .001, .12) : 0;
       head.style.setProperty('--jw-home-align-x',
