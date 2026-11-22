@@ -11,7 +11,7 @@ import { installOpticalRipple } from './about/optical-ripple.js';
 // Reuse the model and motion controller, not a generated or approximate portrait.
 const HEAD_MODEL = '/about/head-interactive.glb';
 
-export default function HomepageHead({ reducedMotion = false, onImpact }) {
+export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor }) {
   const stage = useRef(null);
   const canvas = useRef(null);
   const triggerRef = useRef(null);
@@ -19,6 +19,8 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
   reducedRef.current = reducedMotion;
   const onImpactRef = useRef(onImpact);
   onImpactRef.current = onImpact;
+  const onAnchorRef = useRef(onAnchor);
+  onAnchorRef.current = onAnchor;
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [contextVersion, setContextVersion] = useState(0);
@@ -118,6 +120,7 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
     let lastFrame = 0;
     let geometry = null;
     let scale = 1;
+    let headHalfHeight = 0.49;
     // The outline uses an approved, pre-rendered alpha silhouette embedded
     // with the title on first paint. Never recapture/replace CSS mask URLs here:
     // that GPU readback and image decode caused visible blinking.
@@ -130,6 +133,7 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
       camera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
       opticalRipple?.resize();
+      if (loaded) publishHeadAnchor();
     };
     const onPointerMove = event => {
       if (!live || !loaded || event.pointerType === 'touch') return;
@@ -171,6 +175,23 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
         x: rect.left + (position.x * 0.5 + 0.5) * rect.width,
         y: rect.top + (0.5 - position.y * 0.5) * rect.height,
       };
+    };
+    // The typography uses the *projected model center and top*, not the
+    // 16:9 artboard midpoint. Publish only on load and resize: following every
+    // animated nod would make mobile text jitter alongside the head.
+    const publishHeadAnchor = () => {
+      if (!loaded || !onAnchorRef.current) return;
+      pivot.updateWorldMatrix(true, false);
+      const center = pivot.getWorldPosition(new THREE.Vector3());
+      const top = center.clone().add(new THREE.Vector3(0, headHalfHeight, 0));
+      const projectedCenter = center.project(camera);
+      const projectedTop = top.project(camera);
+      const rect = surface.getBoundingClientRect();
+      onAnchorRef.current({
+        x: rect.left + (projectedCenter.x * .5 + .5) * rect.width,
+        y: rect.top + (.5 - projectedCenter.y * .5) * rect.height,
+        topY: rect.top + (.5 - projectedTop.y * .5) * rect.height,
+      });
     };
     const onPointerDown = event => {
       // A click on a navigation/control must never recoil the head.
@@ -296,6 +317,7 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
       const center = bounds.getCenter(new THREE.Vector3());
       // Slightly smaller homepage head (~8.4% reduction); keep its center and motion intact.
       scale = 0.98 / Math.max(dimensions.x, dimensions.y, dimensions.z);
+      headHalfHeight = dimensions.y * scale * 0.5;
       geometry.position.copy(center).multiplyScalar(-1);
       orient.scale.setScalar(scale);
       orient.add(geometry);
@@ -319,6 +341,7 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
       // section doesn't collapse while the gallery is swiping offscreen.
       floatingStory?.prepare();
       loaded = true;
+      publishHeadAnchor();
       setReady(true);
       start();
     }).catch(error => {
