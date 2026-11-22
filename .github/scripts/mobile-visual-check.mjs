@@ -307,11 +307,18 @@ try {
       return window.scrollY + section.getBoundingClientRect().top;
     });
     await scrollToAndSettle(projectsY + height * .10);
+    // Test a SECOND approach from Home. Allow the deliberate gallery
+    // landing tween to finish before asserting the final CSS transform.
+    await page.waitForTimeout(2200);
     const projectsHead = await page.evaluate(() => {
       const head = document.querySelector('.jw-continuous-head');
       const canvas = head.querySelector('.jw-new-home__head-canvas');
       const rect = canvas.getBoundingClientRect();
+      const board = head.querySelector('.jw-continuous-head__artboard')
+        .getBoundingClientRect();
       return {
+        headX: board.left + board.width * .5,
+        headY: board.top + board.height * .5,
         scrollY: window.scrollY,
         visible: getComputedStyle(head).visibility,
         opacity: Number(getComputedStyle(head).opacity),
@@ -328,6 +335,8 @@ try {
       animations: 'disabled',
     });
     if (!projectsHead.canvasReady || projectsHead.visible === 'hidden' ||
+        Math.abs(projectsHead.headX - projectsLandingPose.headX) > 4 ||
+        Math.abs(projectsHead.headY - projectsLandingPose.headY) > 4 ||
         projectsHead.opacity < .95 ||
         projectsHead.canvasBottom <= 0 ||
         projectsHead.canvasTop >= height ||
