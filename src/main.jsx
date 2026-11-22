@@ -164,7 +164,7 @@ function Contact(){
     <div className="contact-files__dropzone"
       onDragOver={event=>event.preventDefault()}
       onDrop={event=>{event.preventDefault();addProjectFiles(event.dataTransfer.files);}}>
-     <input ref={filePickerRef} className="contact-files__input" type="file" multiple
+     <input ref={filePickerRef} className="contact-files__input" type="file" multiple tabIndex={-1}
        aria-label="Select up to three project files"
        onChange={event=>{addProjectFiles(event.target.files);event.target.value='';}}/>
      <span className="contact-files__symbol" aria-hidden="true">↑</span>
