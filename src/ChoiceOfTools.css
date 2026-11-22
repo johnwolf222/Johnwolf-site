@@ -8,20 +8,15 @@
   width: 100%;
   height: 100svh;
   min-height: 440px;
-  background: #fff;
+  background: transparent;
   color: #111;
   overflow: hidden;
   isolation: isolate;
   z-index: 6;
 }
 .jw-about-tools__glow {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse 39% 43% at 55% 17%, rgba(174, 82, 255, .38), transparent 88%),
-    radial-gradient(ellipse 44% 36% at 70% 65%, rgba(174, 82, 255, .23), transparent 88%);
-  pointer-events: none;
-  z-index: 0;
+  /* Decorative layer stays mounted; the About parent now owns the glow. */
+  display: none;
 }
 #root .about.jw-about-experience .jw-about-tools__heading {
   position: absolute;
