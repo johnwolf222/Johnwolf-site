@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './AboutExperience.css';
+import ChoiceOfTools from './ChoiceOfTools.jsx';
 
 // The words and four chapters are preserved from the original Design Is Life
 // about.html. The same Candidate F GLB continues from Home and Projects;
@@ -102,6 +103,7 @@ export default function AboutExperience() {
       >
         <span aria-hidden="true" />
       </button>}
+      <ChoiceOfTools/>
       <div className="jw-about-footer">
         JOHN WOLF <span aria-hidden="true">·</span> DESIGN IS LIFE.
       </div>
