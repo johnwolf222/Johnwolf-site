@@ -309,7 +309,7 @@ export default function ProjectsSequence() {
       // Keep the SAME mounted Candidate F GLB, following the scroll down
       // into the About composition; fade only when Contact approaches.
       const headPlacement = aboutHeadPose(handoff,
-        galleryHeadPlacement(p, height), width, height);
+        galleryHeadPlacement(p, height, width), width, height);
       const headOpacity = aboutHeadOpacity(scrollY, aboutBottom, height);
       // Move the existing Candidate F head from the original About center
       // toward the reference's LEFT portrait slot as tools enter view.
