@@ -196,8 +196,10 @@ try {
     // reaching the automatic Projects landing, and compare all 21 GPU poses.
     const orbitAt = async progress => {
       const y = await page.evaluate(p => {
-        const pin = window.ScrollTrigger?.getById('jw-home-to-projects');
-        return pin.start + (pin.end - pin.start) * p;
+        const pin = window.ScrollTrigger?.getById?.('jw-home-to-projects');
+        return pin
+          ? pin.start + (pin.end - pin.start) * p
+          : window.innerHeight * 4.25 * p;
       }, progress);
       await scrollToAndSettle(y);
       return page.evaluate(() => ({
@@ -223,7 +225,10 @@ try {
       width, orbitHeadError, largestCardDelta: Math.max(...orbitErrors),
       orbitErrors, forwardHead: orbitForward.head, reverseHead: orbitReverse.head,
     }));
-    if (orbitHeadError > 2 || Math.max(...orbitErrors) > .15)
+    if (orbitForward.cards.length !== 21 ||
+        orbitReverse.cards.length !== 21 ||
+        !orbitErrors.every(Number.isFinite) ||
+        orbitHeadError > 2 || Math.max(...orbitErrors) > .15)
       throw new Error('Cards are not exactly retracing their Home orbit ' +
         'on reverse scroll: ' + JSON.stringify({orbitHeadError, orbitErrors}));
     // Check the actual transformed head's destination and return curve.
