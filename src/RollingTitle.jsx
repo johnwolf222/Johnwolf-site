@@ -4,6 +4,14 @@ import { gsap } from 'gsap';
 import { rollingGlyphs } from './rollingTitleGlyphs.js';
 import { HEAD_SILHOUETTE_MASK } from './approvedHeadSilhouetteMask.js';
 
+// Each vector title has a different ink center. Compute it from the approved
+// glyph coordinates so all seven titles stay visually centered on mobile.
+const TITLE_INK_CENTERS = rollingGlyphs.map(glyphs => {
+  const start = Math.min(...glyphs.map(glyph => glyph.x));
+  const end = Math.max(...glyphs.map(glyph => glyph.x + glyph.w));
+  return `${((start + end) / 2 / 1440) * 100}%`;
+});
+
 const glyphPosition = glyph => ({
   left: (glyph.x / 1440 * 100) + '%',
   top: (glyph.y / 810 * 100) + '%',
@@ -189,7 +197,7 @@ export default function RollingTitle({ index, direction = 1, reducedMotion = fal
         if (outline) outlineScenes.current[sceneIndex] = node;
         else scenes.current[sceneIndex] = node;
       }}
-      style={{ visibility: sceneIndex === 0 ? 'visible' : 'hidden' }}
+      style={{ visibility: sceneIndex === 0 ? 'visible' : 'hidden', '--jw-title-center': TITLE_INK_CENTERS[sceneIndex] }}
     >
       {glyphs.map((glyph, glyphIndex) => (
         <span key={glyphIndex}
