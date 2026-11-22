@@ -9,7 +9,15 @@
   padding: 0;
   margin: 0;
   overflow: visible;
-  background: transparent;
+  /* One viewport-anchored atmosphere spans story, capability rows, and Tools. */
+  background-color: #fff;
+  background-image:
+    radial-gradient(ellipse 39% 43% at 55% 17%, rgba(174, 82, 255, .38), transparent 88%),
+    radial-gradient(ellipse 44% 36% at 70% 65%, rgba(174, 82, 255, .23), transparent 88%);
+  background-attachment: fixed, fixed;
+  background-size: 100% 100svh, 100% 100svh;
+  background-position: center, center;
+  background-repeat: no-repeat;
   color: #17151b;
   scroll-margin-top: 0;
 }
