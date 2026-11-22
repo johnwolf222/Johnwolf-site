@@ -38,7 +38,7 @@
   white-space: nowrap;
   color: #0b0b0c;
 }
-.jw-about-tools__heading span:last-child { color: #8750f1; }
+.jw-about-tools__heading > span:last-child { color: #8750f1; }
 .jw-about-tools__detail {
   position: absolute;
   top: 46%;
