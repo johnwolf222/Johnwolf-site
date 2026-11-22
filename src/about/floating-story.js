@@ -245,6 +245,9 @@ export function installFloatingStory(scene,camera,stage,about){
    impactY=clientY-rect.top;
    impactAt=performance.now()/1000;
   },
+  // Set exact geometry BEFORE scrolling into this section, rather than
+  // shrinking the page during the Projects → About transition.
+  prepare(){layout();root.visible=false},
   setVisible(visible){root.visible=Boolean(visible)},
   update,dispose(){
   window.removeEventListener('resize',resize);
