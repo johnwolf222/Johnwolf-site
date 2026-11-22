@@ -171,6 +171,40 @@ try {
         reverseMetrics.homeReturnDeltaY > 3)
       throw new Error('Head does not return to its original screen position ' +
         'after reverse scrolling: ' + JSON.stringify(reverseMetrics));
+    // After Home unpins, its DOM artboard scrolls away. The permanent
+    // GLB must NOT follow that element offscreen during Section 2.
+    const projectsY = await page.evaluate(() => {
+      const section = document.querySelector('.jw-projects-journey');
+      return window.scrollY + section.getBoundingClientRect().top;
+    });
+    await scrollToAndSettle(projectsY + height * .10);
+    const projectsHead = await page.evaluate(() => {
+      const head = document.querySelector('.jw-continuous-head');
+      const canvas = head.querySelector('.jw-new-home__head-canvas');
+      const rect = canvas.getBoundingClientRect();
+      return {
+        scrollY: window.scrollY,
+        visible: getComputedStyle(head).visibility,
+        opacity: Number(getComputedStyle(head).opacity),
+        canvasTop: rect.top, canvasBottom: rect.bottom,
+        alignY: parseFloat(head.style.getPropertyValue('--jw-home-align-y')) || 0,
+        canvasReady: canvas.classList.contains('is-ready'),
+      };
+    });
+    console.log('SECTION 2 HEAD:', JSON.stringify(projectsHead));
+    await fs.writeFile('mobile-visual-artifacts/projects-head-' + width + '.json',
+      JSON.stringify(projectsHead, null, 2));
+    await page.screenshot({
+      path: 'mobile-visual-artifacts/projects-head-' + width + '.png',
+      animations: 'disabled',
+    });
+    if (!projectsHead.canvasReady || projectsHead.visible === 'hidden' ||
+        projectsHead.opacity < .95 ||
+        projectsHead.canvasBottom <= 0 ||
+        projectsHead.canvasTop >= height ||
+        Math.abs(projectsHead.alignY) > 3)
+      throw new Error('Section 2 GLB is missing or following the offscreen ' +
+        'Home artboard: ' + JSON.stringify(projectsHead));
     await page.close();
   }
   if (errors.length) throw new Error('Browser errors: '+errors.join('\n'));
