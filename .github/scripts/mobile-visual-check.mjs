@@ -274,9 +274,14 @@ try {
         modelCanvasY: rect.top + rect.height / 2,
         screenWidth: window.innerWidth,
         headScale: scale,
+        cards: [...document.querySelectorAll('.jw-projects-stage__card')]
+          .map(n => [Number(n.dataset.motionX), Number(n.dataset.motionY),
+            Number(n.dataset.motionZ), Number(n.dataset.motionScale)]),
       };
     });
-    await scrollToAndSettle(0);
+    // Freeze the Home paper flight at a deterministic scroll phase before
+    // simulating Safari's chrome. Its 21 cards must not shift either.
+    await scrollToAndSettle(midway);
     const stableBefore = await stableStageRead();
     const frozenStageCSS = await page.addStyleTag({
       content: '#root .jw-new-home {height:' + height +
@@ -295,6 +300,8 @@ try {
       canvasY: Math.abs(stableBefore.modelCanvasY - stableAfter.modelCanvasY),
       paperY: Math.abs(stableBefore.stageY - stableAfter.stageY),
       homeY: Math.abs(stableBefore.homeY - stableAfter.homeY),
+      largestCardDelta: Math.max(...stableBefore.cards.map((pose, i) =>
+        Math.max(...pose.map((v, k) => Math.abs(v - stableAfter.cards[i][k]))))),
     };
     console.log('MOBILE TOOLBAR STABILITY:', JSON.stringify(mobileToolbarDelta));
     await fs.writeFile('mobile-visual-artifacts/toolbar-' + width + '.json',
@@ -303,6 +310,8 @@ try {
         mobileToolbarDelta.canvasY > 3 ||
         mobileToolbarDelta.paperY > 3 ||
         mobileToolbarDelta.homeY > 3 ||
+        !Number.isFinite(mobileToolbarDelta.largestCardDelta) ||
+        mobileToolbarDelta.largestCardDelta > .15 ||
         Math.abs(stableAfter.windowHeight - stableBefore.windowHeight - 90) > 2)
       throw new Error('Head or mask stage moved when Safari toolbar changed: ' +
         JSON.stringify(mobileToolbarDelta));
