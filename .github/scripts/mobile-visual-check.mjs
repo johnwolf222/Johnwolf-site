@@ -119,18 +119,26 @@ try {
     // during downward scrolling. This catches stale viewport/anchor values.
     const readHeadPose = () => page.evaluate(() => {
       const head = document.querySelector('.jw-continuous-head');
+      const artboard = head.querySelector('.jw-continuous-head__artboard');
       const canvas = head.querySelector('.jw-new-home__head-canvas');
-      const rect = canvas.getBoundingClientRect();
-      const board = document.querySelector('.jw-new-home__artboard')
+      const rect = artboard.getBoundingClientRect();
+      const home = document.querySelector('.jw-new-home__artboard')
         .getBoundingClientRect();
-      const css = getComputedStyle(canvas.parentElement);
+      const style = getComputedStyle(artboard);
       return {
         scrollY: window.scrollY,
-        canvasX: rect.left + rect.width / 2,
-        canvasY: rect.top + rect.height / 2,
-        boardX: board.left + board.width / 2,
-        boardY: board.top + board.height / 2,
-        transform: css.transform,
+        innerHeight: window.innerHeight,
+        visualViewportHeight: window.visualViewport?.height ?? null,
+        headX: rect.left + rect.width / 2,
+        headY: rect.top + rect.height / 2,
+        headWidth: rect.width,
+        headHeight: rect.height,
+        homeX: home.left + home.width / 2,
+        homeY: home.top + home.height / 2,
+        transform: style.transform,
+        headShift: head.style.getPropertyValue('--jw-head-shift'),
+        homeAlignY: head.style.getPropertyValue('--jw-home-align-y'),
+        modelReady: canvas.classList.contains('is-ready'),
       };
     });
     const scrollToAndSettle = async y => {
@@ -141,22 +149,21 @@ try {
       return readHeadPose();
     };
     const midway = height * 4.25 * .40;
+    const initialPose = await scrollToAndSettle(0);
     const forward = await scrollToAndSettle(midway);
     await scrollToAndSettle(height * 4.25 * .70);
     const reverse = await scrollToAndSettle(midway);
     const returnedHome = await scrollToAndSettle(0);
-    const initialHomeY = measurement.headCanvas.top +
-      measurement.headCanvas.height / 2;
-    const initialHomeX = measurement.headCanvas.left +
-      measurement.headCanvas.width / 2;
+    const initialHomeY = initialPose.headY;
+    const initialHomeX = initialPose.headX;
     const delta = (a, b) => Math.abs(a - b);
     const reverseMetrics = {
       viewport: width + 'x' + height,
-      forward, reverse, returnedHome,
-      sameScrollDeltaX: delta(forward.canvasX, reverse.canvasX),
-      sameScrollDeltaY: delta(forward.canvasY, reverse.canvasY),
-      homeReturnDeltaX: delta(returnedHome.canvasX, initialHomeX),
-      homeReturnDeltaY: delta(returnedHome.canvasY, initialHomeY),
+      initialPose, forward, reverse, returnedHome,
+      sameScrollDeltaX: delta(forward.headX, reverse.headX),
+      sameScrollDeltaY: delta(forward.headY, reverse.headY),
+      homeReturnDeltaX: delta(returnedHome.headX, initialHomeX),
+      homeReturnDeltaY: delta(returnedHome.headY, initialHomeY),
     };
     await page.screenshot({
       path: 'mobile-visual-artifacts/reverse-home-' + width + '.png',
