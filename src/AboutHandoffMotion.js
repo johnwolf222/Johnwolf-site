@@ -85,5 +85,6 @@ export function aboutToolsHeadBlend(scrollY, toolsTop, viewportHeight) {
 
 export function aboutToolsHeadOffset(progress, viewportWidth) {
   const slide = viewportWidth <= 600 ? .27 : .31;
-  return -viewportWidth * slide * clamp(progress);
+  const t = clamp(progress);
+  return t === 0 ? 0 : -viewportWidth * slide * t;
 }
