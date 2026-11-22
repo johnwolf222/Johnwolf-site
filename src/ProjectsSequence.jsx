@@ -191,7 +191,7 @@ export default function ProjectsSequence() {
         x: projectedX * (GALLERY_FOCAL - z) / GALLERY_FOCAL,
         // Mobile reference: gallery lives below the head/details area,
         // with the neighboring real cards peeking in from both sides.
-        y: (width <= 700 ? height * .305 :
+        y: (width <= 700 ? height * .22 :
           galleryRowOffset(width, height)) + d * height * .014,
         z,
         scale: 1 / (1 + d * .18),
@@ -362,7 +362,7 @@ export default function ProjectsSequence() {
         mobileHomeToProjects * (1 - mobileProjectsToAbout);
       if (width <= 700) {
         headPlacement.x = -width * .285 * mobileProjectsWeight;
-        headPlacement.shift = -height * .125 * mobileProjectsWeight;
+        headPlacement.shift = -height * .21 * mobileProjectsWeight;
         headPlacement.scale = 1 - .23 * mobileProjectsWeight;
       }
       const headOpacity = aboutHeadOpacity(scrollY, aboutBottom, height);
