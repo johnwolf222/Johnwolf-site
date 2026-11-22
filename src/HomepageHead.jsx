@@ -184,13 +184,16 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
       pivot.updateWorldMatrix(true, false);
       const center = pivot.getWorldPosition(new THREE.Vector3());
       const top = center.clone().add(new THREE.Vector3(0, headHalfHeight, 0));
+      const bottom = center.clone().add(new THREE.Vector3(0, -headHalfHeight, 0));
       const projectedCenter = center.project(camera);
       const projectedTop = top.project(camera);
+      const projectedBottom = bottom.project(camera);
       const rect = surface.getBoundingClientRect();
       onAnchorRef.current({
         x: rect.left + (projectedCenter.x * .5 + .5) * rect.width,
         y: rect.top + (.5 - projectedCenter.y * .5) * rect.height,
         topY: rect.top + (.5 - projectedTop.y * .5) * rect.height,
+        bottomY: rect.top + (.5 - projectedBottom.y * .5) * rect.height,
       });
     };
     const onPointerDown = event => {
