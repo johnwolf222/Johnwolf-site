@@ -188,7 +188,10 @@ export default function ProjectsSequence() {
       const projectedX = distance * Math.min(width * .218, 290);
       return {
         x: projectedX * (GALLERY_FOCAL - z) / GALLERY_FOCAL,
-        y: galleryRowOffset(width, height) + d * height * .014,
+        // Mobile reference: gallery lives below the head/details area,
+        // with the neighboring real cards peeking in from both sides.
+        y: (width <= 700 ? height * .305 :
+          galleryRowOffset(width, height)) + d * height * .014,
         z,
         scale: 1 / (1 + d * .18),
         ry: -Math.sign(distance) * Math.min(65, d * 23),
@@ -343,6 +346,14 @@ export default function ProjectsSequence() {
       // into the About composition; fade only when Contact approaches.
       const headPlacement = aboutHeadPose(handoff,
         galleryHeadPlacement(p, height, width), width, height);
+      // On phones the same GLB settles in the upper-left editorial slot
+      // of Projects. This transition is scroll-seekable in both directions.
+      const mobileProjectsLanding = width <= 700
+        ? smooth(p, .89, .99) * (1 - smooth(handoff, .001, .18))
+        : 0;
+      headPlacement.x += -width * .285 * mobileProjectsLanding;
+      headPlacement.shift += -height * .125 * mobileProjectsLanding;
+      headPlacement.scale *= 1 - .23 * mobileProjectsLanding;
       const headOpacity = aboutHeadOpacity(scrollY, aboutBottom, height);
       // Move the existing Candidate F head from the original About center
       // toward the reference's LEFT portrait slot as tools enter view.
