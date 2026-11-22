@@ -140,8 +140,9 @@ export default function ProjectsSequence() {
     // Preserve the original viewport-centered Home head at page entry.
     // Subsequent alignment uses only movement relative to this baseline,
     // not the artboard's absolute offset (which raised the resting head).
-    let homeBaselineX = null;
-    let homeBaselineY = null;
+    // Capture one stable projected orbit pivot at Home. Never follow
+    // animated face bounds or the pinned Home element while rewinding.
+    let mobileOrbitPivot = null;
 
     function measure() {
       sectionTop = docTop(section);
@@ -209,13 +210,9 @@ export default function ProjectsSequence() {
         head.style.getPropertyValue('--jw-visible-head-orbit-x'));
       const y = Number.parseFloat(
         head.style.getPropertyValue('--jw-visible-head-orbit-y'));
-      const alignX = Number.parseFloat(
-        head.style.getPropertyValue('--jw-home-align-x')) || 0;
-      const alignY = Number.parseFloat(
-        head.style.getPropertyValue('--jw-home-align-y')) || 0;
-      return Number.isFinite(x) && Number.isFinite(y)
-        ? { x: x + alignX, y: y + alignY }
-        : { x: alignX, y: alignY };
+      if (!mobileOrbitPivot && Number.isFinite(x) && Number.isFinite(y))
+        mobileOrbitPivot = { x, y };
+      return mobileOrbitPivot || { x: 0, y: 0 };
     }
 
     function positionCard(card, index, phase, galleryFocus, handoff, orbitOffset) {
@@ -411,35 +408,13 @@ export default function ProjectsSequence() {
       }
       head.style.opacity = String(headOpacity);
       head.style.visibility = headOpacity < .005 ? 'hidden' : 'visible';
-      // The Home artboard, not Safari's changing fixed viewport, owns
-      // the head's mobile position. A pinned Home may be transformed by
-      // ScrollTrigger; measure its actual screen-space center every frame.
-      const homeBoard = home.querySelector('.jw-new-home__artboard');
-      const boardRect = width <= 700 && homeBoard
-        ? homeBoard.getBoundingClientRect() : null;
-      const boardOffsetX = boardRect
-        ? boardRect.left + boardRect.width * .5 - width * .5 : 0;
-      const boardOffsetY = boardRect
-        ? boardRect.top + boardRect.height * .5 - height * .5 : 0;
-      if (boardRect && (homeBaselineX === null || window.scrollY <= 1)) {
-        // Capture the approved initial head position, including Safari's
-        // original viewport center. Do not recapture after scrolling starts.
-        if (homeBaselineX === null) homeBaselineX = boardOffsetX;
-        if (homeBaselineY === null) homeBaselineY = boardOffsetY;
-      }
-      const homeAlignX = boardRect ? boardOffsetX - (homeBaselineX ?? 0) : 0;
-      const homeAlignY = boardRect ? boardOffsetY - (homeBaselineY ?? 0) : 0;
-      // The Home artboard stops being a valid screen-space anchor when
-      // ScrollTrigger releases its pin at the Projects handoff. Fade out
-      // its correction BEFORE that point; otherwise the fixed GLB follows
-      // the offscreen Home element and disappears during Section 2.
-      // The gallery head remains at its approved mobile viewport position.
-      const homeAnchorBlend = width <= 700
-        ? 1 - mobileHomeToProjects : 0;
-      head.style.setProperty('--jw-home-align-x',
-        (homeAlignX * homeAnchorBlend).toFixed(2) + 'px');
-      head.style.setProperty('--jw-home-align-y',
-        (homeAlignY * homeAnchorBlend).toFixed(2) + 'px');
+      // The fixed GLB artboard is already centered on the viewport.
+      // Following the pinned Home DOM rectangle introduced a second,
+      // direction-dependent position that shifted the head/ring on rewind.
+      // Keep the correction at zero; only the single mobile pose curve
+      // is permitted to move the GLB toward Projects and back to About.
+      head.style.setProperty('--jw-home-align-x', '0px');
+      head.style.setProperty('--jw-home-align-y', '0px');
       head.style.setProperty('--jw-head-x',
         (headPlacement.x + toolHeadX).toFixed(2) + 'px');
       head.style.setProperty('--jw-head-shift',
