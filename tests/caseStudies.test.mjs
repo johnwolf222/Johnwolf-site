@@ -102,3 +102,13 @@ test('every case-study close restores section two and the gallery button reads A
  assert.ok(!gallery.includes('>Explore all ↗</button>'));
  assert.ok(gallery.includes("{name:'All case studies'}"));
 });
+
+test('All case studies index is clearly labeled and kept distinct from behind-the-scenes storytelling',()=>{
+ assert.ok(reader.includes('className="jw-case-library" aria-label="All case studies"'));
+ assert.ok(reader.includes('<h2>All case studies</h2>'));
+ assert.ok(reader.includes('Explore all {entries.length} case studies'));
+ assert.ok(!reader.includes('Stories behind the work.'));
+ assert.ok(gallery.includes('>All case studies</button>'));
+ assert.ok(reader.includes('onClick={()=>{setActive(item.id);setDetails(false);}}'),
+   'the case study index still opens the corresponding individual reader');
+});
