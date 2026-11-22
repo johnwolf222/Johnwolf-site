@@ -250,3 +250,54 @@ body:not(.jw-live-paper-ready)
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
+
+/* Mobile Projects landing: preserve the single fixed 3D head and the
+   interactive 3D sheets, but arrange the editorial content like the
+   approved reference. All dimensions are viewport-relative. */
+@media (max-width: 700px) {
+  .jw-projects-stage__information h2 {
+    left: 9.5%;
+    top: 6.5%;
+    font-size: clamp(39px, 9.2vw, 65px);
+    line-height: 1;
+    letter-spacing: -.045em;
+  }
+  .jw-projects-stage__details {
+    left: 44%;
+    right: 4%;
+    top: 19%;
+    width: 52%;
+    min-height: 0;
+  }
+  .jw-projects-stage__details h3 {
+    font-size: clamp(22px, 5.8vw, 38px);
+    line-height: 1.06;
+    letter-spacing: -.04em;
+    margin: 0 0 14px;
+    overflow-wrap: anywhere;
+  }
+  .jw-projects-stage__details p {
+    font-size: clamp(14px, 3.9vw, 23px);
+    line-height: 1.22;
+    color: #a66bec;
+    max-width: 100%;
+  }
+  .jw-projects-stage__details .jw-case-open-button {
+    position: relative;
+    top: 0;
+    margin: 16px 6px 0 0;
+    padding: 9px 11px;
+    font-size: clamp(10px, 2.6vw, 13px);
+    white-space: nowrap;
+  }
+  .jw-projects-stage__details .jw-case-open-all {
+    margin-right: 0;
+  }
+  .jw-projects-stage__controls {
+    bottom: 2.5%;
+  }
+  .jw-projects-stage__card {
+    width: min(55vw, 285px);
+    height: min(43vh, 390px);
+  }
+}
