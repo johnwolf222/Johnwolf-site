@@ -108,6 +108,7 @@
 .jw-new-home__subtitle {
   will-change: transform, opacity;
   pointer-events: none;
+  left: var(--jw-subtitle-desktop-left, 0%);
 }
 .jw-new-home__indicators {
   position: absolute;
@@ -202,7 +203,27 @@
      Only the typography artboard shrinks: paper cards and the continuous
      3D head retain their approved positioning and motion. */
   #root .jw-new-home__artboard {
-    width: min(calc(100vw - 24px), calc(100svh * 16 / 9));
+    width: min(calc(100vw - 36px), calc(100svh * 16 / 9));
+  }
+  /* Scale and optically center each original vector title, including its
+     precisely synchronized white-outline twin above the persistent head. */
+  .jw-new-home__rolling-title .jw-roll-scene,
+  .jw-title-head-ink .jw-roll-scene {
+    transform-origin: center center;
+    transform: translateX(calc(50% - var(--jw-title-center, 50%))) scale(.88);
+  }
+  /* The dot and subtitle remain one unchanged SVG. Magnify only that artwork
+     so it stays legible on a phone, then center its actual ink above the head.
+     The original GSAP sink/rise transition and clipping are still in force. */
+  .jw-new-home__subtitle-clip {
+    clip-path: inset(-45% 0 58.2716% 0);
+  }
+  .jw-new-home__subtitle {
+    inset: auto;
+    width: 280vw;
+    height: 157.5vw;
+    left: calc(50% - var(--jw-subtitle-mobile-center));
+    top: calc(50% - 13svh - 58.15vw);
   }
   .jw-new-home__bottom-bar {font-size:10px;flex-wrap:nowrap;}
   .jw-new-home__counter {max-width:calc(50% - 55px);font-size:9px;}
