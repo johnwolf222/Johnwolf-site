@@ -219,6 +219,13 @@ export function installFloatingStory(scene,camera,stage,about){
   const aboutStart=window.scrollY+about.getBoundingClientRect().top;
   const vh=stage.clientHeight;
   const stageRect=stage.getBoundingClientRect();
+  // Convert the cursor to the exact plane containing our texture words.
+  // No DOM overlay or second WebGL renderer is needed.
+  const cursorInside=Number.isFinite(pointer.x)&&Number.isFinite(pointer.y)&&
+   pointer.x>=stageRect.left&&pointer.x<=stageRect.right&&
+   pointer.y>=stageRect.top&&pointer.y<=stageRect.bottom;
+  const cursorWorldX=(pointer.x-stageRect.left-stageRect.width*.5)*worldPerPixel;
+  const cursorWorldY=(stageRect.height*.5-(pointer.y-stageRect.top))*worldPerPixel;
   // Model transform may vary with pointer motion; follow its projected center.
   let cx=0,cy=0,rx=radiusX,ry=radiusY;
   if(modelBounds&&modelBounds.center){
@@ -264,6 +271,15 @@ export function installFloatingStory(scene,camera,stage,about){
    wave.amplitude.value=14.0;
    mesh.position.x=data.baseX;
    mesh.visible=pixelY>-150&&pixelY<vh+150;
+   // Each line has a list of its exact word advances measured by canvas.
+   // Highlight only the token under the pointer, not the whole paragraph.
+   const hovered=cursorInside&&mesh.visible
+    ? hoveredWordAtUV(data.hoverWords,
+      .5+(cursorWorldX-mesh.position.x)/data.worldWidth,
+      .5+(cursorWorldY-mesh.position.y)/data.worldHeight)
+    : null;
+   if(hovered)wave.hoverRange.value.set(hovered.u0,hovered.u1);
+   wave.hoverStrength.value=smooth(wave.hoverStrength.value,hovered?1:0,18,dt);
   }
  }
  return {
@@ -279,6 +295,9 @@ export function installFloatingStory(scene,camera,stage,about){
   setVisible(visible){root.visible=Boolean(visible)},
   update,dispose(){
   delete about.dataset.storyHeightSource;
+  window.removeEventListener('pointermove',onPointerMove);
+  window.removeEventListener('blur',clearPointer);
+  document.removeEventListener('pointerleave',clearPointer);
   window.removeEventListener('resize',resize);
   clear();scene.remove(root);
  }};
