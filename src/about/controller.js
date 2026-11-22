@@ -66,7 +66,7 @@ export class HeadController{
   // sideways, blinking, and click recoil retain their approved ranges.
   const downward=this.pointer.y<0;
   const pitchTarget=tracking?-this.pointer.y*s.pitchMax*.92*
-   (downward?.82:1):0;
+   (downward?.74:1):0;
   this.pitch=damp(this.pitch,pitchTarget,s.follow,dt);
   this.trackX=damp(this.trackX,tracking?this.pointer.x*.105:0,s.translateFollow,dt);
   const verticalTarget=tracking?this.pointer.y*(downward?.075:.10):0;
