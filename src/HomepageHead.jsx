@@ -315,6 +315,9 @@ export default function HomepageHead({ reducedMotion = false, onImpact }) {
       }
       if (!live) return;
       renderer.render(scene, camera);
+      // Pre-size About's scroll story before the user gets there, so the
+      // section doesn't collapse while the gallery is swiping offscreen.
+      floatingStory?.prepare();
       loaded = true;
       setReady(true);
       start();
