@@ -170,10 +170,19 @@ export function galleryHeadPlacement(phase, height, width = Infinity) {
   // the approved GLB pivot. Compensate without changing its 3D controller.
   const faceCenterY = Math.max(148, Math.min(height * .225, 210));
   const galleryShift = faceCenterY - height * .5 - 20;
-  // On phones, follow the same vertical camera drift as the paper ring
-  // until all sheets nearly complete the orbit. Desktop timing is unchanged.
-  const settle = width <= 700 ? smooth(phase, .82, .99) :
-    smooth(phase, .66, .86);
+  // On mobile the HOME head is already at its approved visual center.
+  // Never send it downward to the old mask/camera pivot as papers fly out.
+  // Hold that exact origin through the orbit, then transition only when
+  // the cards are clearing the frame and the gallery layout takes over.
+  // Desktop keeps its existing camera choreography.
+  if (width <= 700) {
+    const galleryArrival = smooth(phase, .82, .99);
+    return {
+      shift: mix(0, galleryShift, galleryArrival),
+      scale: 1 - .24 * smooth(phase, .84, .995),
+    };
+  }
+  const settle = smooth(phase, .66, .86);
   return {
     shift: mix(cameraShift, galleryShift, settle),
     scale: 1 - .24 * smooth(phase, .84, .995),
