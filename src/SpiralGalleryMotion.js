@@ -64,9 +64,21 @@ function arcAngle(fraction, a, b) {
     TAU / arcCache.samples;
 }
 
+// Phone aspect ratios previously made the orbit taller than it was wide.
+// Keep the desktop ellipse unchanged; mobile uses one shared physical radius.
+export function galleryOrbitRadii(width, height) {
+  if (width <= 700) {
+    const radius = Math.min(width * .40, height * .35, 265);
+    return { x: radius, y: radius };
+  }
+  return {
+    x: Math.min(width * .37, 500),
+    y: Math.min(height * .35, 265),
+  };
+}
+
 function orbitAt(phase, slot, width, height) {
-  const radiusX = Math.min(width * .37, 500);
-  const radiusY = Math.min(height * .35, 265);
+  const { x: radiusX, y: radiusY } = galleryOrbitRadii(width, height);
   const growth = smoother((phase - .285) / .145);
   const orbitClock = (phase - .285) / (.69 - .285);
   const angle = arcAngle(slot / 21 + .90 * orbitClock,
@@ -97,8 +109,7 @@ export function clockwiseTrack(phase, slot, width, height) {
     const early = orbitAt(phase, slot, width, height);
     return { ...early, exited: false, distance: null };
   }
-  const radiusX = Math.min(width * .37, 500);
-  const radiusY = Math.min(height * .35, 265);
+  const { x: radiusX, y: radiusY } = galleryOrbitRadii(width, height);
   arcAngle(0, radiusX, radiusY);
   const perimeter = arcCache.total;
   const duration = OFFSCREEN_START - UNWIND_START;
