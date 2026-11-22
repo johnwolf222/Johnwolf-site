@@ -282,6 +282,10 @@
 @media (max-width: 700px) {
   .jw-continuous-head__artboard {
     width: min(150vw, calc(100svh * 16 / 9));
+    /* Home itself is a 100svh / min-520px stage. Use that SAME stable
+       center, not 50% of Safari's expanding fixed viewport: collapsing
+       address bars must never slide the face away from its paper orbit. */
+    top: max(50svh, 260px);
   }
 }
 
