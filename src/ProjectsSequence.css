@@ -257,7 +257,8 @@ body:not(.jw-live-paper-ready)
 @media (max-width: 700px) {
   .jw-projects-stage__information h2 {
     left: 9.5%;
-    top: 6.5%;
+    /* Clear the persistent mobile navigation instead of clipping PROJECTS. */
+    top: clamp(80px, 11svh, 112px);
     font-size: clamp(39px, 9.2vw, 65px);
     line-height: 1;
     letter-spacing: -.045em;
