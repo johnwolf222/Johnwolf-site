@@ -341,8 +341,15 @@ export default function ProjectsSequence() {
           !isShown && aboutHeadingReveal(scrollY, aboutTop, height) >= 1;
         const actualAboutPastHeader =
           aboutSection.getBoundingClientRect().top <= -headingClearance;
+        // The vertical ABOUT title belongs to the story, not the tools.
+        // Hide the INSTANT any part of the tool panel enters the viewport.
+        // Reading the live rectangle also handles dynamic story height and
+        // reverses correctly when scrolling upward toward the chapters.
+        const toolsEnteredViewport = Boolean(toolsPanel &&
+          toolsPanel.getBoundingClientRect().top < height);
         aboutSection.dataset.headingVisible =
-          passedProjects && actualAboutPastHeader ? 'true' : 'false';
+          passedProjects && actualAboutPastHeader && !toolsEnteredViewport
+            ? 'true' : 'false';
         aboutSection.style.setProperty('--jw-about-intro-opacity',
           intro.opacity.toFixed(4));
         aboutSection.style.setProperty('--jw-about-intro-lift',
