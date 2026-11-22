@@ -495,22 +495,19 @@ const LivePaperRenderer = forwardRef(function LivePaperRenderer(props, ref) {
           head?.style.getPropertyValue('--jw-visible-head-orbit-x'));
         const orbitY = Number.parseFloat(
           head?.style.getPropertyValue('--jw-visible-head-orbit-y'));
-        const shiftX = Number.parseFloat(
-          head?.style.getPropertyValue('--jw-head-x')) || 0;
-        const shiftY = Number.parseFloat(
-          head?.style.getPropertyValue('--jw-head-shift')) || 0;
-        const alignX = Number.parseFloat(
-          head?.style.getPropertyValue('--jw-home-align-x')) || 0;
-        const alignY = Number.parseFloat(
-          head?.style.getPropertyValue('--jw-home-align-y')) || 0;
-        // Anchor the opaque mask region behind the visible GLB silhouette.
-        // The transparent padding of the stored mask must not be mistaken
-        // for its optical center. On desktop preserve approved behavior.
+        // The head renderer publishes the projected face's LOCAL offset
+        // from this very canvas, before scroll transforms. Its live canvas
+        // rectangle already contains the exact CSS translation and scale.
+        // Never reconstruct mask position from window.innerHeight/shift:
+        // Safari's toolbar changes that viewport independently of Home's
+        // fixed 100svh stage, creating a separated head and paper mask.
+        const headScale = Number.parseFloat(
+          head?.style.getPropertyValue('--jw-head-scale')) || 1;
         const targetX = width <= 700 && Number.isFinite(orbitX)
-          ? width * .5 + orbitX + shiftX + alignX
+          ? rect.left + rect.width * .5 + orbitX * headScale
           : rect.left + rect.width * maskAlphaCenter.x;
         const targetY = width <= 700 && Number.isFinite(orbitY)
-          ? height * .5 + orbitY + shiftY + alignY
+          ? rect.top + rect.height * .5 + orbitY * headScale
           : rect.bottom - rect.height * maskAlphaCenter.y;
         sharedUniforms.uHeadBounds.value.set(
           (targetX - rect.width * maskAlphaCenter.x) / width,
