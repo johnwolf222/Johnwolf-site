@@ -191,6 +191,41 @@ try {
         reverseMetrics.viewportRestoreDeltaY > 3)
       throw new Error('Head does not return to its original screen position ' +
         'after reverse scrolling: ' + JSON.stringify(reverseMetrics));
+    // The screenshot bug concerns the reverse CARD arc, not only the head.
+    // Sample the exact same scroll coordinate in both directions before
+    // reaching the automatic Projects landing, and compare all 21 GPU poses.
+    const orbitAt = async progress => {
+      const y = await page.evaluate(p => {
+        const pin = window.ScrollTrigger?.getById('jw-home-to-projects');
+        return pin.start + (pin.end - pin.start) * p;
+      }, progress);
+      await scrollToAndSettle(y);
+      return page.evaluate(() => ({
+        head: (() => {
+          const r = document.querySelector('.jw-continuous-head__artboard')
+            .getBoundingClientRect();
+          return [r.left + r.width / 2, r.top + r.height / 2];
+        })(),
+        cards: [...document.querySelectorAll('.jw-projects-stage__card')]
+          .map(n => [Number(n.dataset.motionX), Number(n.dataset.motionY),
+            Number(n.dataset.motionZ), Number(n.dataset.motionScale)]),
+      }));
+    };
+    const orbitForward = await orbitAt(.53);
+    await orbitAt(.76);
+    const orbitReverse = await orbitAt(.53);
+    const orbitErrors = orbitForward.cards.map((pose, i) =>
+      Math.max(...pose.map((v, k) => Math.abs(v - orbitReverse.cards[i][k]))));
+    const orbitHeadError = Math.hypot(
+      orbitForward.head[0] - orbitReverse.head[0],
+      orbitForward.head[1] - orbitReverse.head[1]);
+    console.log('MOBILE ORBIT REVERSE:', JSON.stringify({
+      width, orbitHeadError, largestCardDelta: Math.max(...orbitErrors),
+      orbitErrors, forwardHead: orbitForward.head, reverseHead: orbitReverse.head,
+    }));
+    if (orbitHeadError > 2 || Math.max(...orbitErrors) > .15)
+      throw new Error('Cards are not exactly retracing their Home orbit ' +
+        'on reverse scroll: ' + JSON.stringify({orbitHeadError, orbitErrors}));
     // Check the actual transformed head's destination and return curve.
     // At Home it stays centered; at Projects it occupies the upper-left
     // editorial slot; in About it returns to the exact Home center.
@@ -199,13 +234,27 @@ try {
       const section = document.querySelector('.jw-projects-journey');
       return window.scrollY + section.getBoundingClientRect().top;
     });
-    const projectsLandingPose = await scrollToAndSettle(projectsLandingY + height * .10);
+    const projectsLandingPose = await (async () => {
+      await scrollToAndSettle(projectsLandingY + height * .10);
+      // The gallery auto-landing has a deliberate 1.2–2.0s tween.
+      // Verify the FINISHED landing, not an intermediate frame.
+      await page.waitForTimeout(2200);
+      return readHeadPose();
+    })();
     const aboutEntryY = await page.evaluate(() => {
       const about = document.querySelector('#about');
       return window.scrollY + about.getBoundingClientRect().top;
     });
-    const aboutCenterPose = await scrollToAndSettle(aboutEntryY);
-    const backToProjectsPose = await scrollToAndSettle(projectsLandingY + height * .10);
+    const aboutCenterPose = await (async () => {
+      await scrollToAndSettle(aboutEntryY);
+      await page.waitForTimeout(1300);
+      return readHeadPose();
+    })();
+    const backToProjectsPose = await (async () => {
+      await scrollToAndSettle(projectsLandingY + height * .10);
+      await page.waitForTimeout(1400);
+      return readHeadPose();
+    })();
     const backToHomePose = await scrollToAndSettle(0);
     const posePath = {
       homeCenterPose, projectsLandingPose, aboutCenterPose,
