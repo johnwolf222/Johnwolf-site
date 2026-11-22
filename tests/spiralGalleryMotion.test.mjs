@@ -10,6 +10,7 @@ import {
 import {
   aboutHandoffProgress, departingCardOffset, aboutHeadPose,
   aboutIntroPose, aboutHeadOpacity,
+  aboutToolsHeadBlend, aboutToolsHeadOffset,
 } from '../src/AboutHandoffMotion.js';
 
 import {
@@ -954,4 +955,83 @@ test('3D drive is completely absent from both About pages and no unused renderer
     'approved purple ABOUT heading must remain');
   assert.match(live, /I was fortunate enough to start early/,
     'second chapter must remain coherent without a model');
+});
+
+test('the exact nine-reference tool row lives at the END of About with responsive hover and tap', () => {
+  const about = readFileSync(new URL('../src/AboutExperience.jsx', import.meta.url), 'utf8');
+  const aboutCss = readFileSync(new URL('../src/AboutExperience.css', import.meta.url), 'utf8');
+  const tools = readFileSync(new URL('../src/ChoiceOfTools.jsx', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../src/ChoiceOfTools.css', import.meta.url), 'utf8');
+  const story = readFileSync(new URL('../src/about/floating-story.js', import.meta.url), 'utf8');
+  const sequence = readFileSync(new URL('../src/ProjectsSequence.jsx', import.meta.url), 'utf8');
+
+  assert.match(about, /import ChoiceOfTools from '\.\/ChoiceOfTools\.jsx';/);
+  assert.match(about, /<ChoiceOfTools\/>/);
+  assert.ok(about.indexOf('<ChoiceOfTools/>') > about.indexOf('data-story="4"'),
+    'tool chooser must follow all four original About chapters');
+  assert.match(css, /height: 100svh/);
+  assert.match(css, /radial-gradient/);
+  assert.match(css, /CHOICE OF TOOLS/);
+  assert.match(tools, /MY /);
+  assert.match(tools, /Choose a tool/);
+  assert.match(tools, /onPointerEnter/);
+  assert.match(tools, /onPointerLeave/);
+  assert.match(tools, /onFocus/);
+  assert.match(tools, /onClick/);
+  assert.match(css, /scale\(1\.38\)/);
+  assert.match(css, /overflow-x: auto/);
+  assert.match(css, /#8750f1/);
+  assert.match(aboutCss, /min-height: 740svh/);
+  assert.match(aboutCss, /min-height: 785svh/);
+  assert.match(story, /about\.style\.minHeight=\(toolsStart\+100\)/);
+  assert.match(sequence, /aboutToolsHeadBlend\(scrollY, toolsTop, height\)/);
+  assert.match(sequence, /aboutToolsHeadOffset\(toolsBlend, width\)/);
+  assert.doesNotMatch(tools, /HomepageHead|head-interactive\.glb|<canvas|<iframe/,
+    'the design-tool viewport must reuse the ONE already mounted head');
+
+  const order = [
+    'illustrator', 'claude', 'procreate', 'canva', 'figma',
+    'github', 'javascript', 'chatgpt', 'photoshop',
+  ];
+  let prior = -1;
+  for (const id of order) {
+    const match = new RegExp("id: '" + id + "', name: '[^']+', src: '([^']+)'");
+    const item = tools.match(match);
+    assert.ok(item, 'missing reference icon: ' + id);
+    assert.ok(tools.indexOf("id: '" + id + "'") > prior,
+      'reference icon order changed at ' + id);
+    prior = tools.indexOf("id: '" + id + "'");
+    assert.equal(existsSync(new URL('../public' + item[1], import.meta.url)), true,
+      'icon source must exist in repository: ' + item[1]);
+  }
+  assert.equal((tools.match(/\{ id: '/g) || []).length, order.length);
+  assert.doesNotMatch(tools, /https?:\/\//,
+    'logo assets should never require a third-party runtime host');
+});
+
+test('the single approved GLB moves left into tool preview and reverse-seeks identically', () => {
+  const top = 4000;
+  for (const [width, height] of sizes) {
+    const start = top - height * .86;
+    const end = top - height * .06;
+    assert.equal(aboutToolsHeadBlend(start, top, height), 0);
+    assert.equal(aboutToolsHeadBlend(end, top, height), 1);
+    assert.equal(aboutToolsHeadBlend(start - 400, top, height), 0);
+    assert.equal(aboutToolsHeadBlend(top, top, height), 1);
+    assert.equal(aboutToolsHeadOffset(0, width), 0);
+    assert.equal(aboutToolsHeadOffset(1, width),
+      -width * (width <= 600 ? .27 : .31));
+    let previous = 0;
+    for (let i = 0; i <= 100; i++) {
+      const y = start + (end - start) * i / 100;
+      const t = aboutToolsHeadBlend(y, top, height);
+      assert.ok(t >= previous - 1e-10,
+        'head must travel continuously left as user scrolls into tool panel');
+      assert.ok(aboutToolsHeadOffset(t, width) <= 0);
+      assert.equal(t, aboutToolsHeadBlend(y, top, height),
+        'scrolling back must seek exactly the same model transform');
+      previous = t;
+    }
+  }
+  assert.equal(aboutToolsHeadBlend(0, Infinity, 700), 0);
 });
