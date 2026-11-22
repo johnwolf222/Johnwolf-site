@@ -1477,6 +1477,9 @@ test('Contact inquiry is a responsive purple card without changing form delivery
   assert.match(page,/fetch\(endpoint,\{method:'POST'/);
   assert.match(page,/window\.location\.href=\x60mailto:/);
   assert.match(page,/role="status"/);
+  assert.match(page,/endpoint\|\|!email\?'Send inquiry':'Continue to Email'/);
+  assert.doesNotMatch(page,/'Open email draft'/,
+    'fallback button should accurately describe the next step');
   assert.match(page,/required maxLength=\{6000\}/);
   assert.match(css,/#root \.contact-form \{/);
   assert.match(css,/border-radius: clamp\(24px, 2\.5vw, 34px\)/);
