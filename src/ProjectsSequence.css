@@ -214,7 +214,7 @@
 
 /* Case-study controls belong above the gesture plane and remain independently clickable. */
 .jw-projects-stage__details{pointer-events:auto;}
-.jw-projects-stage__details .jw-case-open-button{
+.jw-projects-stage__case-actions .jw-case-open-button{
  display:inline-flex;align-items:center;justify-content:center;
  cursor:pointer;pointer-events:auto;
  margin:18px 9px 0 0;padding:10px 14px;
@@ -223,10 +223,10 @@
  font:700 clamp(12px,1vw,14px) 'DM Sans',Arial,sans-serif;
  transition:background .2s ease,transform .2s ease;
 }
-.jw-projects-stage__details .jw-case-open-button:hover{background:rgba(126,63,208,.18);transform:translateY(-1px)}
-.jw-projects-stage__details .jw-case-open-button:focus-visible{outline:3px solid #8750f1;outline-offset:2px}
-.jw-projects-stage__details .jw-case-open-all{background:transparent;border-color:transparent}
-@media(max-width:800px){.jw-projects-stage__details .jw-case-open-button{margin-top:8px;padding:7px 9px;font-size:10px}}
+.jw-projects-stage__case-actions .jw-case-open-button:hover{background:rgba(126,63,208,.18);transform:translateY(-1px)}
+.jw-projects-stage__case-actions .jw-case-open-button:focus-visible{outline:3px solid #8750f1;outline-offset:2px}
+.jw-projects-stage__case-actions .jw-case-open-all{background:transparent;border-color:transparent}
+@media(max-width:800px){.jw-projects-stage__case-actions .jw-case-open-button{margin-top:8px;padding:7px 9px;font-size:10px}}
 
 
 /* The active pointer target is whichever perspective-correct gallery sheet
@@ -282,7 +282,7 @@ body:not(.jw-live-paper-ready)
     color: #a66bec;
     max-width: 100%;
   }
-  .jw-projects-stage__details .jw-case-open-button {
+  .jw-projects-stage__case-actions .jw-case-open-button {
     position: relative;
     top: 0;
     margin: 16px 6px 0 0;
@@ -290,7 +290,7 @@ body:not(.jw-live-paper-ready)
     font-size: clamp(10px, 2.6vw, 13px);
     white-space: nowrap;
   }
-  .jw-projects-stage__details .jw-case-open-all {
+  .jw-projects-stage__case-actions .jw-case-open-all {
     margin-right: 0;
   }
   .jw-projects-stage__controls {
@@ -299,5 +299,33 @@ body:not(.jw-live-paper-ready)
   .jw-projects-stage__card {
     width: min(55vw, 285px);
     height: min(43vh, 390px);
+  }
+}
+
+.jw-projects-stage__case-actions {
+  position: absolute;
+  top: clamp(305px, 48%, 470px);
+  right: 5.5%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  pointer-events: auto;
+  z-index: 125;
+}
+@media (max-width: 700px) {
+  .jw-projects-stage__case-actions {
+    top: 39%;
+    left: 0;
+    right: 0;
+    width: 100%;
+    min-height: 8%;
+    padding: 0 8%;
+    box-sizing: border-box;
+    justify-content: space-between;
+    gap: 4px;
+    background: linear-gradient(90deg, rgba(233,210,255,.48), rgba(255,255,255,0));
+  }
+  .jw-projects-stage__case-actions .jw-case-open-button {
+    margin: 0;
   }
 }
