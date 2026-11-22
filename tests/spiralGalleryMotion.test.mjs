@@ -542,8 +542,10 @@ test('Section 2 waits after auto-landing and the next scroll enters About', () =
     'gallery must no longer require seven viewports of scrolling');
   assert.match(source, /shouldAutoLand\(exact, previous, y, snapState,/);
   assert.match(source, /TRAIN_START, 1\.001\)/);
-  assert.match(source, /y < galleryAnchor\(\) - height \* \.04/,
-    'the auto-landing trigger must not hijack a visitor already at the gallery');
+  assert.match(source, /previous < aboutTop\) &&/,
+    'auto-landing can begin early, but must never restart from the About section');
+  assert.match(source, /y < aboutTop \+ height \* \.50/,
+    'a fast swipe must not bypass the gallery before its controlled landing');
   assert.match(source, /startLanding\(\);/);
   assert.match(source, /animatePageTo\(galleryAnchor\(\),/);
   assert.match(source, /markGallerySettled/);
