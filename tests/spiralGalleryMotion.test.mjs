@@ -9,7 +9,7 @@ import {ABOUT_CAPABILITIES, CAPABILITY_DIRECTIONS, CAPABILITY_STARTS,
   marqueeOffset} from '../src/about/capability-motion.js';
 import {
   spiralGalleryPose, clockwiseTrack, galleryCameraProgress, galleryHeadPlacement,
-  galleryRowOffset, CAMERA_DESCENT, UNWIND_START, OFFSCREEN_START,
+  galleryRowOffset, galleryOrbitRadii, CAMERA_DESCENT, UNWIND_START, OFFSCREEN_START,
   TRAIN_START, TRAIN_END, GALLERY_FOCAL,
 } from '../src/SpiralGalleryMotion.js';
 
@@ -94,6 +94,31 @@ test('all 21 cards stay finite, solid and at bounded 3D scale', () => {
   }
 });
 
+test('mobile paper orbit is circular and desktop retains the approved ellipse', () => {
+  for (const [width, height] of [[375, 812], [390, 844], [430, 932], [700, 850]]) {
+    const radii = galleryOrbitRadii(width, height);
+    assert.equal(radii.x, radii.y,
+      'phone card orbits must not become tall ovals on portrait screens');
+    assert.ok(radii.x <= width * .4 + 1e-9);
+    for (const slot of [0, 5, 10, 15, 20]) {
+      const p = clockwiseTrack(.40, slot, width, height);
+      assert.ok(Math.abs(Math.hypot(p.x, p.y) - radii.x) < .05,
+        'every visible card must follow one centered circle');
+    }
+  }
+  for (const [width, height] of [[1350, 722], [1920, 1080]]) {
+    const radii = galleryOrbitRadii(width, height);
+    assert.equal(radii.x, Math.min(width * .37, 500));
+    assert.equal(radii.y, Math.min(height * .35, 265));
+  }
+  const sequence = readFileSync(new URL('../src/ProjectsSequence.jsx', import.meta.url), 'utf8');
+  assert.match(sequence, /function mobileHeadOrbitOffset\(\)/);
+  assert.match(sequence, /--jw-head-local-x/);
+  assert.match(sequence, /--jw-head-local-y/);
+  assert.match(sequence, /orbitOffset\.x \* orbitBlend \* depthCorrection/);
+  assert.match(sequence, /orbitOffset\.y \* orbitBlend \* depthCorrection/);
+});
+
 test('before all sheets exit, featured and nonfeatured share the SAME track', () => {
   for (const [width, height] of sizes) {
     for (const phase of [.401, .46, .55, .67, .75, .82]) {
@@ -122,7 +147,7 @@ test('all 21 cards keep equal arc-length separation while unwinding', () => {
         const p = clockwiseTrack(phase, slot, width, height);
         if (p.exited) {
           assert.ok(p.x <= 0, 'bottom tangent must lead LEFT');
-          assert.ok(Math.abs(p.y - Math.min(height * .35, 265)) < 1e-6,
+          assert.ok(Math.abs(p.y - galleryOrbitRadii(width, height).y) < 1e-6,
             'cards must exit through the BOTTOM of the circle');
         }
       }
@@ -147,7 +172,7 @@ test('every card crosses the clockwise bottom tangent smoothly', () => {
       const g = clamp((exit - .285) / .145);
       const growth = g * g * g * (g * (g * 6 - 15) + 10);
       assert.ok(Math.abs(center.y -
-        Math.min(height * .35, 265) * growth) < .001);
+        galleryOrbitRadii(width, height).y * growth) < .001);
       const before = clockwiseTrack(exit - .00001, slot, width, height);
       const after = clockwiseTrack(exit + .00001, slot, width, height);
       assert.ok(Math.abs(before.y - after.y) < .01,
