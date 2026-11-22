@@ -214,8 +214,16 @@ try {
       }));
     };
     const orbitForward = await orbitAt(.53);
+    await page.screenshot({
+      path: 'mobile-visual-artifacts/orbit-forward-' + width + '.png',
+      animations: 'disabled',
+    });
     await orbitAt(.76);
     const orbitReverse = await orbitAt(.53);
+    await page.screenshot({
+      path: 'mobile-visual-artifacts/orbit-reverse-' + width + '.png',
+      animations: 'disabled',
+    });
     const orbitErrors = orbitForward.cards.map((pose, i) =>
       Math.max(...pose.map((v, k) => Math.abs(v - orbitReverse.cards[i][k]))));
     const orbitHeadError = Math.hypot(
