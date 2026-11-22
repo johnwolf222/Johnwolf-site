@@ -31,8 +31,11 @@ try {
       const h = document.querySelector('.jw-continuous-head');
       const c = h.querySelector('.jw-new-home__head-canvas');
       const rect = c.getBoundingClientRect();
+      const artboard = document.querySelector('.jw-new-home__artboard')
+        ?.getBoundingClientRect();
       return {
         width: window.innerWidth, height: window.innerHeight,
+        artboardCenterY: artboard ? artboard.top + artboard.height / 2 : null,
         headCanvas: {left: rect.left,top: rect.top,width: rect.width,height: rect.height},
         actualHeadOrbitX: h.style.getPropertyValue('--jw-visible-head-orbit-x'),
         actualHeadOrbitY: h.style.getPropertyValue('--jw-visible-head-orbit-y'),
@@ -99,7 +102,8 @@ try {
     // artboard, not drift when the browser scrolls or its chrome resizes.
     // Record both positions so a failure can be diagnosed from artifacts.
     const beforeRelativeY = height / 2 +
-      parseFloat(measurement.actualHeadOrbitY) - height / 2;
+      parseFloat(measurement.actualHeadOrbitY) -
+      measurement.artboardCenterY;
     const afterRelativeY = orbitMetrics.headScreenCenter.y -
       orbitMetrics.artboardCenter.y;
     const driftY = afterRelativeY - beforeRelativeY;
