@@ -971,7 +971,7 @@ test('the exact nine-reference tool row lives at the END of About with responsiv
     'tool chooser must follow all four original About chapters');
   assert.match(css, /height: 100svh/);
   assert.match(css, /radial-gradient/);
-  assert.match(css, /CHOICE OF TOOLS/);
+  assert.match(tools, /CHOICE OF TOOLS/);
   assert.match(tools, /MY /);
   assert.match(tools, /Choose a tool/);
   assert.match(tools, /onPointerEnter/);
