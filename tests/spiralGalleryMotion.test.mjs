@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
+import {MAX_PROJECT_FILES,mergeProjectFiles,formatProjectFileSize} from '../src/contact-file-utils.js';
 import { HeadController, SETTINGS, pointerRelativeToHead } from '../src/about/controller.js';
 import {wordRangesForLine, hoveredWordAtUV} from '../src/about/word-hover.js';
 import {toolSnapDelta, rearmToolSnap} from '../src/about/tools-soft-snap.js';
@@ -1517,4 +1518,50 @@ test('Contact project dropdown includes the expanded services in accessible grou
     'selected category must still reach the unchanged inquiry handler');
   assert.match(source,/Project inquiry — \$\{inquiry\.projectType\}/,
     'mailto subject must still include the selected category');
+});
+
+test('three-file project picker caps selection and preserves removal/reselection', () => {
+  assert.equal(MAX_PROJECT_FILES,3);
+  const fake=(name,size=1024,lastModified=1)=>({name,size,lastModified});
+  const a=fake('logo.ai'),b=fake('brief.pdf'),c=fake('moodboard.png'),d=fake('extra.zip');
+  const first=mergeProjectFiles([], [a,b]);
+  assert.equal(first.error,'');
+  assert.deepEqual(first.files,[a,b]);
+  assert.deepEqual(mergeProjectFiles(first.files,[b]).files,[a,b],
+    'choosing the same file should not create a duplicate');
+  const three=mergeProjectFiles(first.files,[c]);
+  assert.deepEqual(three.files,[a,b,c]);
+  const over=mergeProjectFiles(three.files,[d]);
+  assert.deepEqual(over.files,[a,b,c],
+    'a fourth file must never be silently appended');
+  assert.match(over.error,/no more than three files/);
+  assert.deepEqual(mergeProjectFiles([a],[b,c,d]).files,[a],
+    'a too-large multi-selection is rejected atomically');
+  assert.deepEqual(mergeProjectFiles([a,c],[d]).files,[a,c,d],
+    'after removal a new file can be chosen');
+  assert.equal(formatProjectFileSize(0),'0 B');
+  assert.equal(formatProjectFileSize(1024),'1.0 KB');
+  assert.equal(formatProjectFileSize(1024*1024),'1.0 MB');
+});
+
+test('Contact file picker remains honest for mailto and posts multipart with endpoint', () => {
+ const page=readFileSync(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const style=readFileSync(new URL('../src/ContactCard.css',import.meta.url),'utf8');
+ assert.match(page,/type="file" multiple/);
+ assert.match(page,/mergeProjectFiles\(projectFiles,incoming\)/);
+ assert.match(page,/event\.dataTransfer\.files/);
+ assert.match(page,/filePickerRef\.current\?\.click\(\)/);
+ assert.match(page,/removeProjectFile\(index\)/);
+ assert.match(page,/MAX_PROJECT_FILES/);
+ assert.match(page,/projectFiles\.map\(file=>'- '\+file\.name\)/);
+ assert.match(page,/Please attach these files before sending/);
+ assert.match(page,/They have not been uploaded/);
+ assert.match(page,/const payload=hasAttachments\?new FormData\(form\):JSON\.stringify\(inquiry\)/);
+ assert.match(page,/payload\.append\('attachments',file,file\.name\)/);
+ assert.match(page,/const headers=hasAttachments\?\{Accept:'application\/json'\}/);
+ assert.match(page,/form\.reset\(\);setProjectFiles\(\[\]\);/);
+ assert.match(style,/\.contact-files__dropzone/);
+ assert.match(style,/\.contact-files__selected/);
+ assert.match(style,/\.contact-files__help--error/);
+ assert.match(style,/@media \(max-width: 720px\)/);
 });

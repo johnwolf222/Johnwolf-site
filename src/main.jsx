@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import './style.css';
 import './ContactCard.css';
+import {MAX_PROJECT_FILES,mergeProjectFiles,formatProjectFileSize} from './contact-file-utils.js';
 import NewHomepage from './NewHomepage.jsx';
 import ProjectsSequence from './ProjectsSequence.jsx';
 import VisualContinuity from './VisualContinuity.jsx';
@@ -78,6 +79,17 @@ const contactServices = [
 
 function Contact(){
  const [status,setStatus]=useState(''),[sending,setSending]=useState(false);
+ const [projectFiles,setProjectFiles]=useState([]),[fileNotice,setFileNotice]=useState('');
+ const filePickerRef=useRef(null);
+ const addProjectFiles=incoming=>{
+  const result=mergeProjectFiles(projectFiles,incoming);
+  setProjectFiles(result.files);
+  setFileNotice(result.error);
+ };
+ const removeProjectFile=index=>{
+  setProjectFiles(current=>current.filter((_,item)=>item!==index));
+  setFileNotice('');
+ };
  const endpoint=import.meta.env.VITE_CONTACT_ENDPOINT?.trim();
  const email=import.meta.env.VITE_CONTACT_EMAIL?.trim() || 'johnwolf.connect@gmail.com';
  const canContact=Boolean(endpoint||email);
@@ -88,16 +100,31 @@ function Contact(){
   const inquiry=Object.fromEntries(new FormData(form));
   if(!endpoint){
    const subject=encodeURIComponent(`Project inquiry — ${inquiry.projectType}`);
-   const body=encodeURIComponent(`Name: ${inquiry.name}\r\nEmail: ${inquiry.email}\r\n\r\n${inquiry.message}`);
+   const fileInstructions=projectFiles.length
+    ? `\r\n\r\nProject files to attach (${projectFiles.length}):\r\n${projectFiles.map(file=>'- '+file.name).join('\r\n')}\r\n\r\nPlease attach these files before sending.`
+    : '';
+   const body=encodeURIComponent(`Name: ${inquiry.name}\r\nEmail: ${inquiry.email}\r\n\r\n${inquiry.message}${fileInstructions}`);
    window.location.href=`mailto:${email}?subject=${subject}&body=${body}`;
-   setStatus('Finish sending your inquiry in your email app.');
+   setStatus(projectFiles.length
+    ? 'Attach your selected files in your email app before sending. They have not been uploaded.'
+    : 'Finish sending your inquiry in your email app.');
    return;
   }
   setSending(true);setStatus('');
   try{
-   const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(inquiry)});
+   const hasAttachments=projectFiles.length>0;
+   const payload=hasAttachments?new FormData(form):JSON.stringify(inquiry);
+   if(hasAttachments){
+    projectFiles.forEach(file=>payload.append('attachments',file,file.name));
+   }
+   // Multipart boundaries are supplied by the browser; JSON remains the
+   // unchanged format for inquiries without project files.
+   const headers=hasAttachments?{Accept:'application/json'}:{'Content-Type':'application/json',Accept:'application/json'};
+   const response=await fetch(endpoint,{method:'POST',headers,body:payload});
    if(!response.ok)throw new Error('Delivery failed');
-   setStatus('Thank you. Your inquiry has been submitted.');form.reset();
+   setStatus(hasAttachments?'Thank you. Your inquiry and project files have been submitted.':'Thank you. Your inquiry has been submitted.');
+   form.reset();setProjectFiles([]);setFileNotice('');
+   if(filePickerRef.current)filePickerRef.current.value='';
   }catch{setStatus('Your inquiry could not be sent. Your details are still here so you can try again.')}
   finally{setSending(false)}
  };
@@ -129,6 +156,41 @@ function Contact(){
     </select>
    </label>
    <label>Project details<textarea name="message" rows={5} required maxLength={6000} placeholder="A little about your project, goals, and timing."/></label>
+   <div className="contact-files" aria-label="Project attachments">
+    <div className="contact-files__header">
+     <span className="contact-files__label">Project files <span>(optional)</span></span>
+     <span className="contact-files__count">{projectFiles.length} / {MAX_PROJECT_FILES}</span>
+    </div>
+    <div className="contact-files__dropzone"
+      onDragOver={event=>event.preventDefault()}
+      onDrop={event=>{event.preventDefault();addProjectFiles(event.dataTransfer.files);}}>
+     <input ref={filePickerRef} className="contact-files__input" type="file" multiple
+       aria-label="Select up to three project files"
+       onChange={event=>{addProjectFiles(event.target.files);event.target.value='';}}/>
+     <span className="contact-files__symbol" aria-hidden="true">↑</span>
+     <div className="contact-files__prompt">
+      <strong>Add your project files</strong>
+      <span>Drag files here, or browse your device</span>
+      <span>Images, PDFs, design files or ZIP archives</span>
+     </div>
+     <button type="button" className="contact-files__browse"
+      disabled={sending||projectFiles.length===MAX_PROJECT_FILES}
+      onClick={()=>filePickerRef.current?.click()}>Choose files</button>
+    </div>
+    {projectFiles.length>0&&<ul className="contact-files__selected" aria-label="Selected project files">
+     {projectFiles.map((file,index)=><li key={file.name+'-'+file.size+'-'+file.lastModified}>
+      <span className="contact-files__file-name" title={file.name}>{file.name}</span>
+      <span className="contact-files__file-size">{formatProjectFileSize(file.size)}</span>
+      <button type="button" disabled={sending} onClick={()=>removeProjectFile(index)}
+       aria-label={'Remove '+file.name} title="Remove file">×</button>
+     </li>)}
+    </ul>}
+    <p className={'contact-files__help'+(fileNotice?' contact-files__help--error':'')} aria-live="polite">
+     {fileNotice||(!endpoint
+      ? 'Selected files stay on your device. Attach them in your email app after it opens.'
+      : 'Up to three files can be included with your submission.')}
+    </p>
+   </div>
    <button className="contact-submit" type="submit" disabled={sending||!canContact}>{sending?'Sending…':'Send for Evaluation'} <span aria-hidden="true">↗</span></button>
    <p className="contact-status" role="status">{canContact ? (status || (!endpoint ? 'Opens your email app to complete sending.' : '')) : 'Project inquiries will open once a contact address is available.'}</p>
   </form>
