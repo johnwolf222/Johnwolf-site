@@ -159,8 +159,8 @@ test('before all sheets exit, featured and nonfeatured share the SAME track', ()
         assert.ok(Math.abs(track.x - p.x) < 1e-6);
         assert.ok(Math.abs(track.z - p.z) < 1e-6);
         assert.ok(Math.abs(track.y -
-          (p.y + height * CAMERA_DESCENT *
-            galleryCameraProgress(phase))) < 1e-6);
+          (p.y + (width <= 700 ? 0 : height * CAMERA_DESCENT *
+            galleryCameraProgress(phase)))) < 1e-6);
       }
     }
   }
