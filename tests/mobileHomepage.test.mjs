@@ -77,8 +77,15 @@ test('mobile head remains at its original height during the outward paper orbit'
     'desktop should retain its earlier approved settle');
   assert.equal(galleryHeadPlacement(0, height, 390).shift, 0);
   assert.ok(Math.abs(galleryHeadPlacement(0, height, 1280).shift) < 1e-8);
-  assert.deepEqual(galleryHeadPlacement(1, height, 390),
-    galleryHeadPlacement(1, height, 1280));
+  for (const p of [0, .12, .40, .78, .89, .99, 1]) {
+    assert.deepEqual(galleryHeadPlacement(p, height, 390),
+      { shift: 0, scale: 1 }, 'mobile head must not move on Home');
+  }
+  const mobileCard = spiralGalleryPose(.65, 0, -1, 390, height,
+    { x: 0, y: 0, z: 0, scale: 1, ry: 0, opacity: 1 });
+  const desktopCard = spiralGalleryPose(.65, 0, -1, 1280, height,
+    { x: 0, y: 0, z: 0, scale: 1, ry: 0, opacity: 1 });
+  assert.ok(Number.isFinite(mobileCard.y) && Number.isFinite(desktopCard.y));
   const sequence = read('../src/ProjectsSequence.jsx');
   assert.match(sequence, /galleryHeadPlacement\(p, height, width\)/);
 });
