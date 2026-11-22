@@ -264,6 +264,9 @@ try {
     const posePath = {
       homeCenterPose, projectsLandingPose, aboutCenterPose,
       backToProjectsPose, backToHomePose,
+      // Home typography/artboard must also return, not just the GLB.
+      homePinReturnDeltaY: Math.abs(
+        backToHomePose.homeY - homeCenterPose.homeY),
     };
     console.log('MOBILE HEAD POSE PATH:', JSON.stringify(posePath));
     await fs.writeFile('mobile-visual-artifacts/head-pose-path-' + width + '.json',
@@ -275,7 +278,9 @@ try {
         Math.abs(backToProjectsPose.headX - projectsLandingPose.headX) > 4 ||
         Math.abs(backToProjectsPose.headY - projectsLandingPose.headY) > 4 ||
         Math.abs(backToHomePose.headX - homeCenterPose.headX) > 4 ||
-        Math.abs(backToHomePose.headY - homeCenterPose.headY) > 4)
+        Math.abs(backToHomePose.headY - homeCenterPose.headY) > 4 ||
+        Math.abs(backToHomePose.homeX - homeCenterPose.homeX) > 4 ||
+        Math.abs(backToHomePose.homeY - homeCenterPose.homeY) > 4)
       throw new Error('Mobile center–Projects–center pose path is unstable: ' +
         JSON.stringify(posePath));
     // After Home unpins, its DOM artboard scrolls away. The permanent
