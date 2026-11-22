@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './AboutExperience.css';
 import ChoiceOfTools from './ChoiceOfTools.jsx';
+import WordHighlight from './WordHighlight.jsx';
+import './WordHighlight.css';
 
 // The words and four chapters are preserved from the original Design Is Life
 // about.html. The same Candidate F GLB continues from Home and Projects;
@@ -88,33 +90,30 @@ export default function AboutExperience() {
       className="about jw-about-experience"
       aria-label="About John Wolf — Design Is Life"
     >
-      <h2 id="jw-about-heading" className="jw-about-heading">ABOUT</h2>
-      <div className="jw-about-signature" aria-hidden="true">
-        JOHN WOLF <span>●</span> VISION LAB / 01
-      </div>
+      <h2 id="jw-about-heading" className="jw-about-heading"><WordHighlight>ABOUT</WordHighlight></h2>
       <div className="jw-about-statement" aria-label="Design is life">
         <div className="jw-about-type-stack">
-          <p className="jw-about-line">Now I can’t speak for</p>
-          <p className="jw-about-line">everyone... But at least for me,</p>
-          <p className="jw-about-line jw-about-line--last">Design is life!</p>
+          <p className="jw-about-line"><WordHighlight>Now I can’t speak for</WordHighlight></p>
+          <p className="jw-about-line"><WordHighlight>everyone... But at least for me,</WordHighlight></p>
+          <p className="jw-about-line jw-about-line--last"><WordHighlight>Design is life!</WordHighlight></p>
         </div>
       </div>
 
       <div className="jw-about-story-messages" aria-label="My story about design">
         <article className="jw-about-message story-message story-left" data-story="1">
-          <p>So… what is the human nature of design to me?</p>
-          <p>Well, it's the creation of the mind's eye, a way to take something intangible like dreams, thoughts, imaginations, ideas, and turn them into things that can literally function in the physical world.</p>
+          <p><WordHighlight>So… what is the human nature of design to me?</WordHighlight></p>
+          <p><WordHighlight>Well, it's the creation of the mind's eye, a way to take something intangible like dreams, thoughts, imaginations, ideas, and turn them into things that can literally function in the physical world.</WordHighlight></p>
         </article>
         <article className="jw-about-message story-message story-right" data-story="2">
-          <p>I was fortunate enough to start early, knowing what makes designs unique and how to communicate that is a practice that can be explained but is better experienced.</p>
+          <p><WordHighlight>I was fortunate enough to start early, knowing what makes designs unique and how to communicate that is a practice that can be explained but is better experienced.</WordHighlight></p>
         </article>
         <article className="jw-about-message story-message story-left" data-story="3">
-          <p>Some people say <em>“art is subjective.”</em> However, I believe there is always a fine line.</p>
-          <p>It twists, turns, it bends, and breaks, but somewhere along those lines, we genuinely agree with appealing visuals that intentional lines create.</p>
+          <p><WordHighlight>Some people say </WordHighlight><em><WordHighlight>“art is subjective.”</WordHighlight></em><WordHighlight> However, I believe there is always a fine line.</WordHighlight></p>
+          <p><WordHighlight>It twists, turns, it bends, and breaks, but somewhere along those lines, we genuinely agree with appealing visuals that intentional lines create.</WordHighlight></p>
         </article>
         <article className="jw-about-message story-message story-right" data-story="4">
-          <p>What am I good at? <em>Let's see.</em></p>
-          <p>Photoshop, Illustrator, Procreate, graphic design, copywriting, visual design, brand identity, logo development, presentations, and recently website development, machine learning, and AI prompt writing. Just to keep it short.</p>
+          <p><WordHighlight>What am I good at? </WordHighlight><em><WordHighlight>Let's see.</WordHighlight></em></p>
+          <p><WordHighlight>Photoshop, Illustrator, Procreate, graphic design, copywriting, visual design, brand identity, logo development, presentations, and recently website development, machine learning, and AI prompt writing. Just to keep it short.</WordHighlight></p>
         </article>
       </div>
 
@@ -130,7 +129,7 @@ export default function AboutExperience() {
       </button>}
       <ChoiceOfTools/>
       <div className="jw-about-footer">
-        JOHN WOLF <span aria-hidden="true">·</span> DESIGN IS LIFE.
+        <WordHighlight>JOHN WOLF</WordHighlight> <span aria-hidden="true">·</span> <WordHighlight>DESIGN IS LIFE.</WordHighlight>
       </div>
     </section>
   );
