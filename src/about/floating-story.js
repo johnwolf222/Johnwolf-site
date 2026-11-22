@@ -207,7 +207,10 @@ export function installFloatingStory(scene,camera,stage,about){
   const textEnd=positions.reduce((last,chapter)=>
    Math.max(last,chapter.top+chapter.height),0);
   const storyEnd=Math.max(textEnd,domEnd);
-  const toolsStart=Math.ceil((storyEnd+Math.min(vh*.15,110))/vh*100);
+  // A compact 24–30px buffer is enough for the retained signature footer.
+  // The prior 110px gap left an unnecessary blank scroll tail.
+  const breathing=Math.max(24,Math.min(30,vh*.048));
+  const toolsStart=Math.ceil((storyEnd+breathing)/vh*100);
   about.dataset.storyHeightSource='three';
   about.style.minHeight=(toolsStart+100)+'svh';
  }
