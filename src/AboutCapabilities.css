@@ -12,7 +12,20 @@
   z-index: 6;
   pointer-events: none;
 }
+/* Match the approved Tools glow while keeping the same white base. */
+#root .about.jw-about-experience .jw-about-capabilities::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 39% 43% at 55% 17%, rgba(174, 82, 255, .38), transparent 88%),
+    radial-gradient(ellipse 44% 36% at 70% 65%, rgba(174, 82, 255, .23), transparent 88%);
+  pointer-events: none;
+  z-index: 0;
+}
 .jw-about-capabilities__rows {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-rows: repeat(5, minmax(0, 1fr));
   width: 100%;
