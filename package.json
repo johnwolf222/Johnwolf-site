@@ -9,7 +9,7 @@
     "preview": "vite preview --host 0.0.0.0",
     "predev": "node scripts/restore-approved-project-cards.mjs && node scripts/restore-brewty-media.mjs",
     "prebuild": "node scripts/restore-approved-project-cards.mjs && node scripts/restore-brewty-media.mjs",
-    "test:motion": "node --test tests/spiralGalleryMotion.test.mjs",
+    "test:motion": "node --test tests/spiralGalleryMotion.test.mjs tests/mobileHomepage.test.mjs",
     "test:cases": "node --test tests/caseStudies.test.mjs",
     "pretest:cases": "node scripts/restore-brewty-media.mjs"
   },
