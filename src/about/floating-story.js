@@ -165,19 +165,22 @@ export function installFloatingStory(scene,camera,stage,about){
     offset+=lineHeightPx;
    }
    positions[index]={top:nextTop,height:offset};
+   // The DOM fallback previously sat one to two full viewports BELOW the
+   // actual 3D text. Align their positions so both reading modes take the
+   // same amount of scroll, and neither reserves a phantom blank chapter.
+   article.style.top=(nextTop/vh*100).toFixed(2)+'svh';
    nextTop+=offset+Math.max(vh*.085,58);
   });
-  // Place the final tools viewport shortly after the FOURTH chapter,
-  // instead of reserving more than a full blank viewport. Account for
-  // BOTH the live WebGL text and its accessible DOM fallback so a device
-  // with reduced motion or no WebGL never gets clipped.
-  const fourth=articles[articles.length-1];
+  // Size About from the actual final rendered line AND the DOM fallback
+  // instead of a 5–6 viewport hard-coded floor. Reserve just a small
+  // breathing space before one full viewport for My Choice of Tools.
   const aboutTop=about.getBoundingClientRect().top;
-  const fallbackEnd=fourth
-    ? fourth.getBoundingClientRect().bottom-aboutTop : 0;
-  const chapterEnd=Math.ceil((nextTop+vh*.15)/vh*100);
-  const fallbackEndVh=Math.ceil((fallbackEnd+vh*.12)/vh*100);
-  const toolsStart=Math.max(vw<=800?600:515,chapterEnd,fallbackEndVh);
+  const domEnd=articles.reduce((last,article)=>
+   Math.max(last,article.getBoundingClientRect().bottom-aboutTop),0);
+  const textEnd=positions.reduce((last,chapter)=>
+   Math.max(last,chapter.top+chapter.height),0);
+  const storyEnd=Math.max(textEnd,domEnd);
+  const toolsStart=Math.ceil((storyEnd+Math.min(vh*.15,110))/vh*100);
   about.style.minHeight=(toolsStart+100)+'svh';
  }
  function update(dt,modelBounds){
