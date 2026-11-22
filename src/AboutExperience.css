@@ -4,7 +4,7 @@
   position: relative;
   display: block;
   isolation: isolate;
-  min-height: 615svh;
+  min-height: 545svh;
   width: 100%;
   padding: 0;
   margin: 0;
@@ -35,11 +35,21 @@
   text-transform: uppercase;
   writing-mode: vertical-rl;
   text-orientation: upright;
-  /* The heading starts hidden: Section 2 scroll completion controls reveal.
-     Sticky still belongs to About, never the fixed Projects stage. */
-  opacity: var(--jw-about-heading-opacity, 0);
-  transition: none;
+  /* Strict visibility boundary: the element is NEVER painted above
+     Projects, even if the sticky geometry is within the viewport early.
+     ProjectsSequence marks the section only once its real top is past
+     the header and the fixed gallery renderer has left. */
+  opacity: 0;
+  visibility: hidden;
+  transform: translate3d(-10px, 0, 0);
+  transition: opacity .25s ease, transform .25s ease, visibility 0s linear .25s;
   pointer-events: none;
+}
+#root .about.jw-about-experience[data-heading-visible="true"] > .jw-about-heading {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: opacity .25s ease, transform .25s ease, visibility 0s;
 }
 @media (max-width: 800px) {
   #root .about.jw-about-experience > .jw-about-heading {
@@ -128,10 +138,10 @@
   right: clamp(26px, 18.7vw, 330px);
   text-align: right;
 }
-.jw-about-message[data-story="1"] { top: 121svh; }
-.jw-about-message[data-story="2"] { top: 230svh; }
-.jw-about-message[data-story="3"] { top: 349svh; }
-.jw-about-message[data-story="4"] { top: 465svh; }
+.jw-about-message[data-story="1"] { top: 116svh; }
+.jw-about-message[data-story="2"] { top: 200svh; }
+.jw-about-message[data-story="3"] { top: 285svh; }
+.jw-about-message[data-story="4"] { top: 375svh; }
 .jw-about-message p {
   max-width: none;
   margin: 0 0 .9em;
@@ -205,7 +215,7 @@
   34% { filter: drop-shadow(7px 0 0 rgba(135,80,241,.3)); transform: translate(-4px,2px); }
 }
 @media (max-width: 800px) {
-  #root .about.jw-about-experience { min-height: 700svh; padding: 0; }
+  #root .about.jw-about-experience { min-height: 650svh; padding: 0; }
   .jw-about-signature { top: 17px; left: 20px; font-size: 9px; }
   .jw-about-type-stack { padding: 0 15px; transform: translateY(-7svh); }
   .jw-about-experience .jw-about-line { font-size: clamp(30px, 6.8vw, 52px); line-height: 1.39; }
@@ -225,10 +235,10 @@
     pointer-events: auto;
     box-shadow: 0 6px 30px rgba(40, 24, 60, .05);
   }
-  .jw-about-message[data-story="1"] { top: 122svh; }
-  .jw-about-message[data-story="2"] { top: 250svh; }
-  .jw-about-message[data-story="3"] { top: 383svh; }
-  .jw-about-message[data-story="4"] { top: 513svh; }
+  .jw-about-message[data-story="1"] { top: 120svh; }
+  .jw-about-message[data-story="2"] { top: 224svh; }
+  .jw-about-message[data-story="3"] { top: 340svh; }
+  .jw-about-message[data-story="4"] { top: 462svh; }
 }
 @media (prefers-reduced-motion: reduce) {
   .jw-about-experience *,
