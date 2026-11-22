@@ -24,6 +24,29 @@ export default function AboutExperience() {
       }
     }, { rootMargin: '80px 0px 80px 0px' });
     visibility.observe(section);
+    // On phones, reduced-motion devices, or when WebGL is unavailable,
+    // the four readable DOM chapters determine the true About height.
+    // The tools panel follows directly after the final visible paragraph.
+    const lastChapter = section.querySelector('[data-story="4"]');
+    const toolsPanel = section.querySelector('#about-tools');
+    const fitFallbackStory = () => {
+      if (section.dataset.storyHeightSource === 'three' || !lastChapter)
+        return;
+      const top = section.getBoundingClientRect().top;
+      const lastLine = lastChapter.getBoundingClientRect().bottom - top;
+      const panelHeight = toolsPanel?.getBoundingClientRect().height ||
+        window.innerHeight;
+      const breathing = Math.min(100, window.innerHeight * .12);
+      section.style.minHeight =
+        Math.ceil(lastLine + breathing + panelHeight) + 'px';
+    };
+    fitFallbackStory();
+    const chapterObserver = new ResizeObserver(fitFallbackStory);
+    if (lastChapter) chapterObserver.observe(lastChapter);
+    window.addEventListener('resize', fitFallbackStory, { passive: true });
+    document.fonts?.ready.then(() => {
+      if (section.isConnected) fitFallbackStory();
+    });
     const impact = event => {
       if (!section.getBoundingClientRect().height) return;
       section.classList.remove('jw-about-impact');
@@ -42,6 +65,8 @@ export default function AboutExperience() {
     window.addEventListener('jw-about-impact', impact);
     return () => {
       visibility.disconnect();
+      chapterObserver.disconnect();
+      window.removeEventListener('resize', fitFallbackStory);
       section.removeEventListener('animationend', clearImpact);
       window.removeEventListener('jw-about-impact', impact);
       section.classList.remove('jw-about-three-ready', 'jw-about-impact');
