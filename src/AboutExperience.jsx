@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './AboutExperience.css';
 import ChoiceOfTools from './ChoiceOfTools.jsx';
+import AboutCapabilities from './AboutCapabilities.jsx';
 import WordHighlight from './WordHighlight.jsx';
 import './WordHighlight.css';
 import {installToolsSoftSnap} from './about/tools-soft-snap.js';
@@ -32,6 +33,7 @@ export default function AboutExperience() {
     // The tools panel follows directly after the final visible paragraph.
     const lastChapter = section.querySelector('[data-story="4"]');
     const toolsPanel = section.querySelector('#about-tools');
+    const capabilitiesPanel = section.querySelector('#about-capabilities');
     const fitFallbackStory = () => {
       if (section.dataset.storyHeightSource === 'three' || !lastChapter)
         return;
@@ -39,9 +41,11 @@ export default function AboutExperience() {
       const lastLine = lastChapter.getBoundingClientRect().bottom - top;
       const panelHeight = toolsPanel?.getBoundingClientRect().height ||
         window.innerHeight;
+      const capabilityHeight = capabilitiesPanel?.getBoundingClientRect().height ||
+        window.innerHeight;
       const breathing = Math.max(24, Math.min(30, window.innerHeight * .048));
       section.style.minHeight =
-        Math.ceil(lastLine + breathing + panelHeight) + 'px';
+        Math.ceil(lastLine + breathing + capabilityHeight + panelHeight) + 'px';
     };
     fitFallbackStory();
     const chapterObserver = new ResizeObserver(fitFallbackStory);
@@ -132,6 +136,7 @@ export default function AboutExperience() {
       >
         <span aria-hidden="true" />
       </button>}
+      <AboutCapabilities/>
       <ChoiceOfTools/>
       <div className="jw-about-footer">
         <WordHighlight>JOHN WOLF</WordHighlight> <span aria-hidden="true">·</span> <WordHighlight>DESIGN IS LIFE.</WordHighlight>

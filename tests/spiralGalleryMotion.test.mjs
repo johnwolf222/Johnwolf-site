@@ -4,6 +4,8 @@ import { readFileSync, existsSync } from 'node:fs';
 import { HeadController, SETTINGS, pointerRelativeToHead } from '../src/about/controller.js';
 import {wordRangesForLine, hoveredWordAtUV} from '../src/about/word-hover.js';
 import {toolSnapDelta, rearmToolSnap} from '../src/about/tools-soft-snap.js';
+import {ABOUT_CAPABILITIES, CAPABILITY_DIRECTIONS, CAPABILITY_STARTS,
+  marqueeOffset} from '../src/about/capability-motion.js';
 import {
   spiralGalleryPose, clockwiseTrack, galleryCameraProgress, galleryHeadPlacement,
   galleryRowOffset, CAMERA_DESCENT, UNWIND_START, OFFSCREEN_START,
@@ -984,7 +986,7 @@ test('the exact nine-reference tool row lives at the END of About with responsiv
   assert.match(css, /#8750f1/);
   assert.match(aboutCss, /min-height: 545svh/);
   assert.match(aboutCss, /min-height: 650svh/);
-  assert.match(story, /about\.style\.minHeight=\(toolsStart\+100\)/);
+  assert.match(story, /about\.style\.minHeight=\(toolsStart\+200\)/);
   assert.match(sequence, /aboutToolsHeadBlend\(scrollY, toolsTop, height\)/);
   assert.match(sequence, /aboutToolsHeadOffset\(toolsBlend, width\)/);
   assert.doesNotMatch(tools, /HomepageHead|head-interactive\.glb|<canvas|<iframe/,
@@ -1149,7 +1151,7 @@ test('About story ends near the tool viewport instead of leaving multi-screen bl
   assert.match(story, /const storyEnd=Math\.max\(textEnd,domEnd\)/);
   assert.match(story, /const breathing=Math\.max\(24,Math\.min\(30,vh\*\.048\)\)/);
   assert.match(story, /const toolsStart=Math\.ceil\(\(storyEnd\+breathing\)/);
-  assert.match(story, /about\.style\.minHeight=\(toolsStart\+100\)\+'svh'/);
+  assert.match(story, /about\.style\.minHeight=\(toolsStart\+200\)\+'svh'/);
   assert.match(story, /prepare\(\)\{layout\(\);root\.visible=false\}/,
     'layout must be prepared before reaching About, not during scroll');
   assert.match(story, /about\.dataset\.storyHeightSource='three';/,
@@ -1158,7 +1160,7 @@ test('About story ends near the tool viewport instead of leaving multi-screen bl
   assert.match(fallback, /const lastChapter = section\.querySelector\('\[data-story="4"\]'\)/);
   assert.match(fallback, /const lastLine = lastChapter\.getBoundingClientRect\(\)\.bottom - top/);
   assert.match(fallback, /section\.style\.minHeight =/);
-  assert.match(fallback, /Math\.ceil\(lastLine \+ breathing \+ panelHeight\) \+ 'px'/);
+  assert.match(fallback, /Math\.ceil\(lastLine \+ breathing \+ capabilityHeight \+ panelHeight\) \+ 'px'/);
   assert.match(fallback, /section\.dataset\.storyHeightSource === 'three'/,
     'fallback must not fight the prepared 3D layout');
   assert.match(fallback, /chapterObserver\.disconnect\(\)/);
@@ -1274,6 +1276,8 @@ test('vertical ABOUT heading disappears as soon as the tools viewport enters', (
   assert.match(sequence, /toolsPanel\.getBoundingClientRect\(\)\.top < height\)/);
   assert.match(sequence, /passedProjects && actualAboutPastHeader && !toolsEnteredViewport/,
     'the story label must be gated by the live tools viewport');
+  assert.match(sequence, /!capabilitiesEnteredViewport \? 'true' : 'false'/,
+    'the capability composition must hide the vertical ABOUT label');
   assert.match(style, /data-heading-visible="true"/);
   const inactive = style.match(
     /#root \.about\.jw-about-experience > \.jw-about-heading\s*\{([^}]*)\}/)?.[1];
@@ -1346,7 +1350,7 @@ test('About footer, 3D story and fallback all use the same compact gap before to
     'the old 110px white tail must be gone');
   assert.doesNotMatch(about, /Math\.min\(100, window\.innerHeight \* \.12\)/,
     'the old 100px mobile/DOM white tail must be gone');
-  assert.match(css, /bottom: calc\(100svh \+ 7px\);/);
+  assert.match(css, /bottom: calc\(max\(100svh, 440px\) \+ 100svh \+ 7px\);/);
   assert.match(css, /padding: 0 24px;/);
   for(const height of [480,722,844,1080]){
     const gap=Math.max(24,Math.min(30,height*.048));
@@ -1403,4 +1407,38 @@ test('tools soft-snap never intercepts scrolling, cancels immediately and cleans
   assert.match(tools, /height: 100svh;/);
   assert.doesNotMatch(tools, /position: (fixed|sticky);/,
     'tools can scroll past into Contact normally');
+});
+
+test('five purple capability rows are reversible and move only with scroll', () => {
+  assert.equal(ABOUT_CAPABILITIES.length, 22);
+  assert.equal(new Set(ABOUT_CAPABILITIES).size, 22);
+  assert.deepEqual(CAPABILITY_DIRECTIONS, [-1, 1, -1, 1, -1]);
+  assert.deepEqual(CAPABILITY_STARTS, [0, 4, 8, 12, 16]);
+  const width = 2200;
+  assert.equal(marqueeOffset(0, width, -1), -width);
+  assert.equal(marqueeOffset(0, width, 1), -width);
+  assert.equal(marqueeOffset(100, width, -1), -2280);
+  assert.equal(marqueeOffset(100, width, 1), -2120);
+  assert.equal(marqueeOffset(200, width, -1), -2360);
+  assert.equal(marqueeOffset(100, width, -1), -2280,
+    'return to the identical position when scrolling backward');
+  assert.ok(Math.abs(marqueeOffset(999999, width, -1) -
+    marqueeOffset(999999 + width / 0.8, width, -1)) < 1e-6);
+  assert.equal(marqueeOffset(80, 0, 1), 0);
+  const component = readFileSync(new URL('../src/AboutCapabilities.jsx', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../src/AboutCapabilities.css', import.meta.url), 'utf8');
+  const about = readFileSync(new URL('../src/AboutExperience.jsx', import.meta.url), 'utf8');
+  const sequence = readFileSync(new URL('../src/ProjectsSequence.jsx', import.meta.url), 'utf8');
+  assert.match(about, /<AboutCapabilities\/>\s*<ChoiceOfTools\/>/);
+  assert.match(component, /\[0, 1, 2\]\.map\(copy =>/);
+  assert.match(component, /requestAnimationFrame\(positionRows\)/);
+  assert.match(component, /window\.addEventListener\('scroll', schedule, \{ passive: true \}\)/);
+  assert.match(component, /reduced\.matches \? 0 : scrollDistance/);
+  assert.doesNotMatch(component, /setInterval|setTimeout|gsap\.to|preventDefault/);
+  assert.match(css, /grid-template-rows: repeat\(5, minmax\(0, 1fr\)\)/);
+  assert.match(css, /bottom: max\(100svh, 440px\)/);
+  assert.match(css, /background: #fff/);
+  assert.match(css, /color: #8750f1/);
+  assert.match(css, /overflow: hidden/);
+  assert.match(sequence, /capabilitiesPanel\.getBoundingClientRect\(\)\.top < height/);
 });

@@ -94,6 +94,7 @@ export default function ProjectsSequence() {
     const copy = copyRef.current;
     const aboutSection = document.querySelector('#about');
     const toolsPanel = aboutSection?.querySelector('#about-tools');
+    const capabilitiesPanel = aboutSection?.querySelector('#about-capabilities');
     if (!home || !section || !stage || !head) return undefined;
 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -347,9 +348,11 @@ export default function ProjectsSequence() {
         // reverses correctly when scrolling upward toward the chapters.
         const toolsEnteredViewport = Boolean(toolsPanel &&
           toolsPanel.getBoundingClientRect().top < height);
+        const capabilitiesEnteredViewport = Boolean(capabilitiesPanel &&
+          capabilitiesPanel.getBoundingClientRect().top < height);
         aboutSection.dataset.headingVisible =
-          passedProjects && actualAboutPastHeader && !toolsEnteredViewport
-            ? 'true' : 'false';
+          passedProjects && actualAboutPastHeader && !toolsEnteredViewport &&
+          !capabilitiesEnteredViewport ? 'true' : 'false';
         aboutSection.style.setProperty('--jw-about-intro-opacity',
           intro.opacity.toFixed(4));
         aboutSection.style.setProperty('--jw-about-intro-lift',

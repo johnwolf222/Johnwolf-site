@@ -184,7 +184,7 @@
 .jw-about-footer {
   position: absolute;
   /* Fit the approved signature into the compact final story gap. */
-  bottom: calc(100svh + 7px);
+  bottom: calc(max(100svh, 440px) + 100svh + 7px);
   left: 0;
   right: 0;
   padding: 0 24px;
@@ -214,6 +214,7 @@
   .jw-about-experience .jw-about-line:nth-child(2) { font-size: clamp(29px, 6.4vw, 50px); }
   .jw-about-experience .jw-about-line--last { font-size: clamp(34px, 8vw, 60px); }
   .jw-about-story-messages { z-index: 15; }
+  .jw-about-footer { bottom: calc(max(100svh, 510px) + 100svh + 7px); }
   .jw-about-message, .jw-about-message.story-left, .jw-about-message.story-right {
     left: 18px;
     right: 18px;

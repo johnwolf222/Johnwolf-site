@@ -200,7 +200,7 @@ export function installFloatingStory(scene,camera,stage,about){
   });
   // Size About from the actual final rendered line AND the DOM fallback
   // instead of a 5–6 viewport hard-coded floor. Reserve just a small
-  // breathing space before one full viewport for My Choice of Tools.
+  // breathing space before the capability rows and final Tools viewport.
   const aboutTop=about.getBoundingClientRect().top;
   const domEnd=articles.reduce((last,article)=>
    Math.max(last,article.getBoundingClientRect().bottom-aboutTop),0);
@@ -212,7 +212,7 @@ export function installFloatingStory(scene,camera,stage,about){
   const breathing=Math.max(24,Math.min(30,vh*.048));
   const toolsStart=Math.ceil((storyEnd+breathing)/vh*100);
   about.dataset.storyHeightSource='three';
-  about.style.minHeight=(toolsStart+100)+'svh';
+  about.style.minHeight=(toolsStart+200)+'svh';
  }
  function update(dt,modelBounds){
   layout();
