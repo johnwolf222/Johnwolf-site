@@ -37,6 +37,27 @@ function useReducedMotion() {
 
 export default function NewHomepage() {
   const homeRef = useRef(null);
+  const [headAnchor, setHeadAnchor] = useState(null);
+  // Project the model's actual center/top into the existing Home artboard.
+  // This changes typography placement only; the head and card renderers stay put.
+  const receiveHeadAnchor = point => {
+    const artboard = homeRef.current?.querySelector('.jw-new-home__artboard');
+    if (!artboard || window.innerWidth > 700) return;
+    const rect = artboard.getBoundingClientRect();
+    const next = {
+      x: Math.round(point.x - rect.left),
+      y: Math.round(point.y - rect.top),
+      top: Math.round(point.topY - rect.top),
+    };
+    setHeadAnchor(previous => previous &&
+      previous.x === next.x && previous.y === next.y && previous.top === next.top
+      ? previous : next);
+  };
+  const mobileHeadAnchorStyle = headAnchor ? {
+    '--jw-head-local-x': `${headAnchor.x}px`,
+    '--jw-head-local-y': `${headAnchor.y}px`,
+    '--jw-head-local-top': `${headAnchor.top}px`,
+  } : undefined;
   const [index, setIndex] = useState(0);
   const [manual, setManual] = useState(false);
   const touch = useRef(null);
@@ -136,12 +157,13 @@ export default function NewHomepage() {
     <section id="home" ref={homeRef} className="jw-new-home" aria-label="John Wolf Vision homepage">
       <div
         className="jw-new-home__artboard"
+        style={mobileHeadAnchorStyle}
         onPointerDown={pointerStart}
         onPointerUp={pointerEnd}
         onPointerCancel={() => { touch.current = null; }}
       >
         {/* Shared cards render once outside Home and Work so they can cross both sections. */}
-        <RollingTitle index={index} direction={rollDirection.current} reducedMotion={reduced} onRollComplete={titleHasSettled} />
+        <RollingTitle index={index} direction={rollDirection.current} reducedMotion={reduced} onRollComplete={titleHasSettled} anchorStyle={mobileHeadAnchorStyle} />
         <EmergingSubtitle ref={subtitle} index={index} slug={scene.slug} reducedMotion={reduced} />
         <div className="jw-new-home__indicators" aria-label="Choose a featured discipline">
           {SCENES.map((item, i) => (
@@ -170,7 +192,7 @@ export default function NewHomepage() {
       {createPortal(
         <div className="jw-continuous-head" data-continuous-head="true">
           <div className="jw-continuous-head__artboard">
-            <HomepageHead reducedMotion={reduced} onImpact={textImpact} />
+            <HomepageHead reducedMotion={reduced} onImpact={textImpact} onAnchor={receiveHeadAnchor} />
           </div>
         </div>,
         document.body,
