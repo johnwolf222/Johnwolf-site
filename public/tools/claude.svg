@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Claude">
+  <g stroke="#d97757" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="5" d="M32 7v14M32 43v14M7 32h14M43 32h14M14.5 14.5l10 10M39.5 39.5l10 10M49.5 14.5l-10 10M24.5 39.5l-10 10"/>
+    <path stroke-width="4.5" d="M21.5 6.5l5 13.7M37.5 43.8l5 13.7M6.5 42.5l13.7-5M43.8 26.5l13.7-5M42.5 6.5l-5 13.7M26.5 43.8l-5 13.7M6.5 21.5l13.7 5M43.8 37.5l13.7 5"/>
+  </g>
+</svg>
