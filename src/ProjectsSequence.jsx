@@ -9,6 +9,7 @@ import { createHomePaperMotion } from './HomePaperMotion.js';
 import {
   aboutHandoffProgress, departingCardOffset, aboutHeadPose,
   aboutIntroPose, aboutHeadOpacity,
+  aboutToolsHeadBlend, aboutToolsHeadOffset,
 } from './AboutHandoffMotion.js';
 import { spiralGalleryPose, galleryHeadPlacement, galleryRowOffset, GALLERY_FOCAL, TRAIN_START, TRAIN_END } from './SpiralGalleryMotion.js';
 import {
@@ -92,12 +93,14 @@ export default function ProjectsSequence() {
     const bottom = document.querySelector('.jw-new-home__bottom-bar');
     const copy = copyRef.current;
     const aboutSection = document.querySelector('#about');
+    const toolsPanel = aboutSection?.querySelector('#about-tools');
     if (!home || !section || !stage || !head) return undefined;
 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     let sectionTop = 0;
     let sectionHeight = 0;
     let aboutBottom = Infinity;
+    let toolsTop = Infinity;
     let width = window.innerWidth;
     let height = window.innerHeight;
     let homeMotion = createHomePaperMotion(width, height);
@@ -138,6 +141,7 @@ export default function ProjectsSequence() {
       sectionHeight = section.getBoundingClientRect().height;
       const about = document.querySelector('#about');
       aboutBottom = about ? docTop(about) + about.getBoundingClientRect().height : Infinity;
+      toolsTop = toolsPanel ? docTop(toolsPanel) : Infinity;
       const nextWidth = window.innerWidth;
       const nextHeight = window.innerHeight;
       if (width !== nextWidth || height !== nextHeight) {
@@ -304,6 +308,10 @@ export default function ProjectsSequence() {
       const headPlacement = aboutHeadPose(handoff,
         galleryHeadPlacement(p, height), width, height);
       const headOpacity = aboutHeadOpacity(scrollY, aboutBottom, height);
+      // Move the existing Candidate F head from the original About center
+      // toward the reference's LEFT portrait slot as tools enter view.
+      const toolsBlend = aboutToolsHeadBlend(scrollY, toolsTop, height);
+      const toolHeadX = aboutToolsHeadOffset(toolsBlend, width);
       const intro = reduced.matches
         ? { opacity: 1, lift: 0 }
         : aboutIntroPose(handoff, height);
@@ -330,7 +338,7 @@ export default function ProjectsSequence() {
       head.style.opacity = String(headOpacity);
       head.style.visibility = headOpacity < .005 ? 'hidden' : 'visible';
       head.style.setProperty('--jw-head-x',
-        headPlacement.x.toFixed(2) + 'px');
+        (headPlacement.x + toolHeadX).toFixed(2) + 'px');
       head.style.setProperty('--jw-head-shift',
         headPlacement.shift.toFixed(2) + 'px');
       head.style.setProperty('--jw-head-scale',
