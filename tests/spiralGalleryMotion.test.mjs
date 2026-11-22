@@ -1484,6 +1484,10 @@ test('Contact inquiry is a responsive purple card without changing form delivery
   assert.match(css,/background: #8750f1;/);
   assert.match(css,/@media \(max-width: 720px\)/);
   assert.match(css,/prefers-reduced-motion: reduce/);
-  assert.doesNotMatch(css,/position: fixed|ScrollTrigger|pointer-events: none;\s*\}/,
-    'contact card must not trap normal form interaction or page scroll');
+  const formBlock = css.match(/#root \.contact-form \{([^}]*)\}/)?.[1];
+  assert.ok(formBlock, 'contact card style must exist');
+  assert.doesNotMatch(formBlock,/pointer-events:\s*none/,
+    'actual form must remain interactive; pseudo-element may be decorative');
+  assert.doesNotMatch(css,/position:\s*fixed|ScrollTrigger/,
+    'contact card must never pin or intercept normal page scrolling');
 });
