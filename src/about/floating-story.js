@@ -167,11 +167,17 @@ export function installFloatingStory(scene,camera,stage,about){
    positions[index]={top:nextTop,height:offset};
    nextTop+=offset+Math.max(vh*.085,58);
   });
-  // The original four chapters finish before the reference tool chooser.
-  // Reserve an additional FULL viewport; the tool panel stays the last
-  // viewport even when responsive font wrapping changes story height.
-  const chapterEnd=Math.ceil((nextTop+vh*.24)/vh*100);
-  const toolsStart=Math.max(vw<=800?685:640,chapterEnd);
+  // Place the final tools viewport shortly after the FOURTH chapter,
+  // instead of reserving more than a full blank viewport. Account for
+  // BOTH the live WebGL text and its accessible DOM fallback so a device
+  // with reduced motion or no WebGL never gets clipped.
+  const fourth=articles[articles.length-1];
+  const aboutTop=about.getBoundingClientRect().top;
+  const fallbackEnd=fourth
+    ? fourth.getBoundingClientRect().bottom-aboutTop : 0;
+  const chapterEnd=Math.ceil((nextTop+vh*.15)/vh*100);
+  const fallbackEndVh=Math.ceil((fallbackEnd+vh*.12)/vh*100);
+  const toolsStart=Math.max(vw<=800?600:515,chapterEnd,fallbackEndVh);
   about.style.minHeight=(toolsStart+100)+'svh';
  }
  function update(dt,modelBounds){
