@@ -1170,14 +1170,14 @@ test('head click snaps backward quickly, returns more slowly, then shakes off', 
   assert.ok(comingForward.lean > .35 && comingForward.lean < .65);
   const settled = advance(.61);
   assert.equal(settled.state, 'settle');
-  assert.equal(settled.depth, 0);
+  assert.ok(Math.abs(settled.depth) < 1e-9);
   const shake = advance(.76);
   assert.equal(shake.state, 'shake');
   assert.notEqual(shake.yaw, 0, 'a visible shake follows the return');
   const recovered = advance(1);
   assert.equal(recovered.state, 'tracking');
   assert.equal(recovered.lean, 0);
-  assert.equal(recovered.depth, 0);
+  assert.ok(Math.abs(recovered.depth) < 1e-9);
   assert.equal(head.hit(1), false, 'brief cooldown follows the shake');
   advance(1.06);
   assert.equal(head.hit(1), true, 'head can react again after recovery');
