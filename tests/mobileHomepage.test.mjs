@@ -353,7 +353,8 @@ test('mobile Tools crossing has a single native scroll owner and never bounces b
   const boundaries = read('../src/about/section-boundary-snap.js');
   const about = read('../src/AboutExperience.jsx');
   assert.match(about, /installToolsSoftSnap\(section, toolsPanel\)/);
-  assert.match(toolsSnap, /if \(window\.matchMedia\('\(max-width: 800px\)'\)\.matches\) return \(\) => \{\};/);
+  assert.match(toolsSnap, /const mobile=window\.matchMedia\('\(max-width: 800px\)'\)\.matches;/);
+  assert.match(toolsSnap, /mobileToolLandingDelta\(rect\.top,rect\.height,window\.innerHeight,/);
   assert.match(boundaries, /mobile \? \['about'\] :\s*\['about', 'about-capabilities', 'contact'\]/);
   // Desktop remains unchanged, including its native reverse/forward snap.
   assert.match(toolsSnap, /window\.addEventListener\('scroll', onScroll, \{ passive: true \}\)/);
@@ -561,4 +562,42 @@ test('newly split word fragments never animate across neighboring words',()=>{
  const visual=css.match(/#root \.about\.jw-about-experience \.jw-about-message \.jw-hover-word\.jw-about-bilateral-word \{([^}]+)\}/)?.[1];
  assert.ok(visual);
  assert.doesNotMatch(visual,/transition:[^;]*opacity/);
+});
+
+test('Tools mobile scene is shorter and all adjacent sections remain flush',()=>{
+  const tools=read('../src/ChoiceOfTools.css');
+  const capabilities=read('../src/AboutCapabilities.css');
+  const about=read('../src/AboutExperience.css');
+  assert.match(tools,/height: clamp\(510px, 83svh, 710px\);/);
+  assert.match(capabilities,/bottom: clamp\(510px, 83svh, 710px\);/);
+  assert.match(about,/bottom: calc\(clamp\(510px, 83svh, 710px\) \+ 100svh \+ 7px\);/);
+  assert.match(tools,/top: clamp\(52px, 8\.5svh, 75px\);/);
+  assert.match(tools,/\.jw-about-tools__detail \{\s*top: 45%;/);
+  assert.match(tools,/\.jw-about-tools__row \{\s*bottom: max\(28px, env\(safe-area-inset-bottom\)\);/);
+  assert.match(tools,/height: 100svh;/,
+    'the original desktop Tools height is unchanged');
+});
+
+test('iPhone Tools lands after momentum, lets visitors continue and reverses from Contact',async()=>{
+  const {mobileToolLandingTarget,mobileToolLandingDelta}=
+    await import('../src/about/tools-soft-snap.js');
+  assert.equal(mobileToolLandingTarget(700,844),72);
+  assert.equal(mobileToolLandingTarget(510,568),68);
+  assert.equal(mobileToolLandingTarget(844,844),0);
+  assert.equal(mobileToolLandingTarget(-1,844),null);
+  assert.equal(mobileToolLandingDelta(210,700,844,false,1),138);
+  assert.equal(mobileToolLandingDelta(40,700,844,false,1),-32);
+  assert.equal(mobileToolLandingDelta(-80,700,844,false,-1),-152);
+  assert.equal(mobileToolLandingDelta(-200,700,844,false,1),null);
+  assert.equal(mobileToolLandingDelta(250,700,844,false,-1),null);
+  assert.equal(mobileToolLandingDelta(210,700,844,true,1),null);
+  assert.equal(mobileToolLandingDelta(500,700,844,false,1),null);
+  const source=read('../src/about/tools-soft-snap.js');
+  assert.match(source,/window\.addEventListener\('scrollend', mobile \? onScrollEnd : onScroll,/);
+  assert.match(source,/window\.removeEventListener\('scrollend', mobile \? onScrollEnd : onScroll\)/);
+  assert.match(source,/if\(mobile\)queue\(\);/);
+  assert.match(source,/cancelAnimationFrame\(frame\)/);
+  assert.doesNotMatch(source,/preventDefault\s*\(/);
+  assert.match(read('../src/about/section-boundary-snap.js'),
+    /mobile \? \['about'\] :\s*\['about', 'about-capabilities', 'contact'\]/);
 });

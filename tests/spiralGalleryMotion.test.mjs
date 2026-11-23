@@ -1707,3 +1707,20 @@ test('Home to Projects gives the 21-paper choreography time to be appreciated', 
   assert.match(seq, /homeMotion = createHomePaperMotion\(width, height\)/);
   assert.match(seq, /spiralGalleryPose\(phase, index, rank,/);
 });
+
+test('Tools keeps desktop landing while mobile settles a compact screen with one reversible stop',async()=>{
+  const {toolSnapDelta,mobileToolLandingDelta,rearmToolSnap}=
+    await import('../src/about/tools-soft-snap.js');
+  for(const vh of [568,700,844]){
+    const h=Math.max(510,Math.min(vh*.83,710));
+    const target=Math.min(92,Math.max(68,(vh-h)/2));
+    assert.ok(Math.abs(mobileToolLandingDelta(target+100,h,vh,false,1)-100)<.01);
+    assert.equal(mobileToolLandingDelta(target+100,h,vh,true,1),null);
+    assert.equal(rearmToolSnap(0,vh),false);
+    assert.equal(toolSnapDelta(vh*.2,vh),vh*.2);
+  }
+  const source=readFileSync(new URL('../src/about/tools-soft-snap.js',import.meta.url),'utf8');
+  assert.match(source,/const mobile=window\.matchMedia\('\(max-width: 800px\)'\)\.matches;/);
+  assert.match(source,/const onScrollEnd=\(\)=>/);
+  assert.match(source,/window\.addEventListener\('touchstart', onTouchStart, \{ passive: true \}\)/);
+});
