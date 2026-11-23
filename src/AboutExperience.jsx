@@ -5,6 +5,7 @@ import AboutCapabilities from './AboutCapabilities.jsx';
 import WordHighlight from './WordHighlight.jsx';
 import './WordHighlight.css';
 import {installToolsSoftSnap} from './about/tools-soft-snap.js';
+import {installMobileStoryFlow} from './about/mobile-story-flow.js';
 
 // The words and four chapters are preserved from the original Design Is Life
 // about.html. The same Candidate F GLB continues from Home and Projects;
@@ -44,6 +45,10 @@ export default function AboutExperience() {
     }, { threshold: .02, rootMargin: '0px 0px -8% 0px' });
     chapters.forEach(chapter => chapterVisibility.observe(chapter));
     section.classList.add('jw-about-mobile-reveal-ready');
+    // The original DOM paragraphs remain the accessible source text.
+    // On phones, visual line copies follow the actual projected head
+    // boundary; desktop retains its approved Three.js story planes.
+    const disposeMobileStory = installMobileStoryFlow(section);
 
     // A finger tap reproduces the existing single-word hover effect.
     // It never prevents native scroll, and a scroll clears the ink.
@@ -113,6 +118,7 @@ export default function AboutExperience() {
       visibility.disconnect();
       toolsVisibility.disconnect();
       chapterVisibility.disconnect();
+      disposeMobileStory();
       clearTouchedWord();
       section.removeEventListener('pointerdown', onWordTouch);
       window.removeEventListener('scroll', clearTouchedWord);

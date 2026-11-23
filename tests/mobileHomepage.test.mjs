@@ -5,6 +5,9 @@ import { rollingGlyphs } from '../src/rollingTitleGlyphs.js';
 import { galleryHeadPlacement, galleryCameraProgress, CAMERA_DESCENT, spiralGalleryPose } from '../src/SpiralGalleryMotion.js';
 import { sectionBoundaryDelta, rearmSectionBoundary } from '../src/about/section-boundary-snap.js';
 import { isMobileHeadTap, centeredToolScrollLeft } from '../src/about/mobile-interactions.js';
+import {
+  mobileStoryCorridorWidth, mobileStoryLineX,
+} from '../src/about/mobile-story-flow.js';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 const css = read('../src/NewHomepage.css');
@@ -237,4 +240,75 @@ test('capability rows preserve reversible scroll motion while avoiding offscreen
   assert.match(source, /segmentWidths\[index\]/);
   assert.match(source, /requestAnimationFrame\(positionRows\)/);
   assert.match(source, /window\.addEventListener\('scroll', schedule, \{ passive: true \}\)/);
+});
+
+test('the persistent 3D head follows finger coordinates from any section without hijacking touch scroll', () => {
+  const source = read('../src/HomepageHead.jsx');
+  assert.match(source, /let activeTouchId = null;/);
+  assert.match(source, /const followScreenPoint = \(clientX, clientY\) =>/);
+  assert.match(source, /const onTouchStart = event =>/);
+  assert.match(source, /const onTouchMove = event =>/);
+  assert.match(source, /candidate\.identifier === activeTouchId/);
+  assert.match(source, /followScreenPoint\(touch\.clientX, touch\.clientY\)/);
+  assert.match(source, /window\.addEventListener\('touchmove', onTouchMove, \{ passive: true \}\)/);
+  assert.match(source, /window\.addEventListener\('touchstart', onTouchStart, \{ passive: true \}\)/);
+  assert.match(source, /window\.removeEventListener\('touchmove', onTouchMove\)/);
+  assert.match(source, /activeTouchId = null;/);
+  const touchScope = source.slice(source.indexOf('const followScreenPoint'),
+    source.indexOf('const getContact'));
+  assert.doesNotMatch(touchScope, /preventDefault|stopPropagation|setPointerCapture/);
+  assert.match(source, /event\.target\.closest\?\.\(/,
+    'head tap reaction still excludes buttons and story words');
+  assert.match(source, /isMobileHeadTap\(initial\.x, initial\.y,/);
+});
+
+test('mobile About text lines bend around the actual projected face without clipping', () => {
+  const bounds = { left: 120, right: 270, top: 300, bottom: 520 };
+  assert.equal(mobileStoryCorridorWidth(bounds, 390), 92);
+  assert.equal(mobileStoryCorridorWidth(null, 390), 0);
+  assert.equal(mobileStoryCorridorWidth(bounds, 0), 0);
+  for (const y of [120, 250, 300, 350, 410, 480, 520, 570, 700]) {
+    const width = mobileStoryCorridorWidth(bounds, 390);
+    const left = mobileStoryLineX('left', width, y, bounds, 390);
+    const right = mobileStoryLineX('right', width, y, bounds, 390);
+    assert.ok(left >= 0 && left + width <= 390,
+      'left story line stays visible on the phone');
+    assert.ok(right >= 0 && right + width <= 390,
+      'right story line stays visible on the phone');
+    assert.ok(left + width <= right,
+      'two paths keep the central face corridor free');
+  }
+  const w = mobileStoryCorridorWidth(bounds, 390);
+  const centerLeft = mobileStoryLineX('left', w, 410, bounds, 390);
+  const centerRight = mobileStoryLineX('right', w, 410, bounds, 390);
+  assert.ok(centerLeft + w < bounds.left,
+    'left ink detours before the projected head');
+  assert.ok(centerRight > bounds.right,
+    'right ink detours past the projected head');
+  assert.ok(mobileStoryLineX('left', w, 240, bounds, 390) >
+    centerLeft, 'moving into the head zone visibly bends lines left');
+  assert.equal(mobileStoryLineX('left', w, 410, bounds, 390),
+    centerLeft, 'identical scrolling restores the identical text pose');
+});
+
+test('mobile story preserves original accessible copy and dynamically avoids the face silhouette', () => {
+  const module = read('../src/about/mobile-story-flow.js');
+  const headSource = read('../src/HomepageHead.jsx');
+  const about = read('../src/AboutExperience.jsx');
+  const css = read('../src/AboutExperience.css');
+  assert.match(module, /paragraph\.querySelectorAll\('\.jw-hover-word'\)/);
+  assert.match(module, /layer\.setAttribute\('aria-hidden', 'true'\)/);
+  assert.match(module, /node\.className = 'jw-about-flow-line'/);
+  assert.match(module, /position\(\)/);
+  assert.doesNotMatch(module, /preventDefault|window\.scrollTo\(/);
+  assert.match(module, /window\.addEventListener\('scroll', schedule, \{ passive: true \}\)/);
+  assert.match(headSource, /geometry\.updateWorldMatrix\(true, true\)/);
+  assert.match(headSource, /'jw-about-head-envelope'/);
+  assert.match(headSource, /aboutProjectionFrames % 4 === 0/);
+  assert.match(about, /installMobileStoryFlow\(section\)/);
+  assert.match(about, /disposeMobileStory\(\)/);
+  assert.match(css, /\.jw-about-message\.jw-about-flow-active \{/);
+  assert.match(css, /\.jw-about-flow-line \{/);
+  assert.match(css, /\.jw-about-flow-active > p \{/);
+  assert.match(css, /background: transparent;/);
 });

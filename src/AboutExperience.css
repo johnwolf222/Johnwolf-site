@@ -253,6 +253,45 @@
     box-shadow: 0 6px 30px rgba(40, 24, 60, .05);
     scroll-margin-top: clamp(82px, 12svh, 120px);
   }
+  /* Native mobile ink stays OUTSIDE the projected head shape. Visual
+     line copies move horizontally as they approach its ellipse; the
+     original full paragraphs stay accessible and reappear if GLB fails.
+     Never overlay the head with a solid white text-card background. */
+  .jw-about-message.jw-about-flow-active {
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    pointer-events: none;
+  }
+  .jw-about-flow-active > p {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    opacity: 0;
+    clip-path: inset(50%);
+    pointer-events: none;
+  }
+  .jw-about-flow-lines {
+    position: relative;
+    width: 100%;
+    overflow: visible;
+  }
+  .jw-about-flow-line {
+    position: absolute;
+    display: inline-block;
+    left: 0;
+    white-space: nowrap;
+    font: inherit;
+    line-height: 1.5;
+    pointer-events: auto;
+    transform: translate3d(0, 0, 0);
+    transition: transform .09s linear;
+    will-change: transform;
+  }
   /* Animate only content entering the viewport, never the native scroll.
      Disable the reveal layer for reduced-motion devices below. */
   .jw-about-mobile-reveal-ready .jw-about-message {

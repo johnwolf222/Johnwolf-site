@@ -123,6 +123,7 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
     let scale = 1;
     let headHalfHeight = 0.49;
     let visualAnchorFrames = 0;
+    let aboutProjectionFrames = 0;
     // The outline uses an approved, pre-rendered alpha silhouette embedded
     // with the title on first paint. Never recapture/replace CSS mask URLs here:
     // that GPU readback and image decode caused visible blinking.
@@ -138,22 +139,46 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
       if (loaded) { publishHeadAnchor(); publishVisibleHeadOrbit(); }
     };
     let headTouch = null;
-    const onPointerMove = event => {
+    let activeTouchId = null;
+    const followScreenPoint = (clientX, clientY) => {
       if (!live || !loaded) return;
-      // Touch only guides the head when the gesture actually began on its
-      // rendered geometry in About. All vertical page swipes stay native.
-      if (event.pointerType === 'touch' &&
-          (!headTouch || headTouch.id !== event.pointerId)) return;
-      // This ONE head moves across Home, the gallery, About, and Tools.
-      // Follow its projected face center, never a fixed viewport midpoint.
+      // Follow every finger position on the page, regardless of whether
+      // the touch began on Home, a project, a story word, or a button.
       const center = headScreenCenter();
       const target = pointerRelativeToHead(
-        event.clientX, event.clientY, center.x, center.y,
+        clientX, clientY, center.x, center.y,
         window.innerWidth, window.innerHeight,
       );
       controller.movePointer(target.x, target.y);
     };
-    const onBlur = () => controller.movePointer(0, 0);
+    const onPointerMove = event => {
+      if (event.pointerType !== 'touch')
+        followScreenPoint(event.clientX, event.clientY);
+    };
+    const onTouchStart = event => {
+      if (activeTouchId !== null) return;
+      const touch = event.changedTouches?.[0];
+      if (!touch) return;
+      activeTouchId = touch.identifier;
+      followScreenPoint(touch.clientX, touch.clientY);
+    };
+    const onTouchMove = event => {
+      if (activeTouchId === null) return;
+      const touch = Array.from(event.touches).find(
+        candidate => candidate.identifier === activeTouchId);
+      if (touch) followScreenPoint(touch.clientX, touch.clientY);
+    };
+    const onTouchEnd = event => {
+      if (activeTouchId === null) return;
+      if (Array.from(event.touches).some(
+          touch => touch.identifier === activeTouchId)) return;
+      activeTouchId = null;
+      controller.movePointer(0, 0);
+    };
+    const onBlur = () => {
+      activeTouchId = null;
+      controller.movePointer(0, 0);
+    };
     const getContact = event => {
       // The old `visible` identifier was undeclared and could throw on any
       // pointer hit. Read the real shared head layer instead.
@@ -187,7 +212,7 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
     // Project each visible mesh's eight local bounding-box corners through
     // the actual head camera: no GPU readback, guesswork or canvas midpoint.
     const publishVisibleHeadOrbit = () => {
-      if (!geometry || window.innerWidth > 700) return;
+      if (!geometry || window.innerWidth > 800) return;
       const layer = host.closest('.jw-continuous-head');
       if (!layer) return;
       geometry.updateWorldMatrix(true, true);
@@ -215,6 +240,19 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
       const rect = surface.getBoundingClientRect();
       const cx = rect.left + rect.width * (.5 + (minX + maxX) * .25);
       const cy = rect.top + rect.height * (.5 - (minY + maxY) * .25);
+      // Publish the same REAL projected mesh silhouette used for the
+      // mobile paper ring. Native About text lines then steer around
+      // its changing ellipse rather than passing under the head.
+      if (aboutSection && aboutIsVisible()) {
+        aboutSection.dispatchEvent(new CustomEvent('jw-about-head-envelope', {
+          detail: {
+            left: rect.left + (minX * .5 + .5) * rect.width,
+            right: rect.left + (maxX * .5 + .5) * rect.width,
+            top: rect.top + (.5 - maxY * .5) * rect.height,
+            bottom: rect.top + (.5 - minY * .5) * rect.height,
+          },
+        }));
+      }
       // Store the face's LOCAL offset from its own GLB canvas center.
       // Unlike the old window.innerHeight-based subtraction this remains
       // invariant if Safari grows its visual viewport, or Projects scales
@@ -285,7 +323,7 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
           isMobileHeadTap(initial.x, initial.y,
             event.clientX, event.clientY) && aboutIsVisible())
         reactToHeadContact(initial.contact);
-      controller.movePointer(0, 0);
+      if (activeTouchId === null) controller.movePointer(0, 0);
     };
 
     const stop = () => {
@@ -321,6 +359,12 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
         orient.scale.setScalar(scale * motion.scale);
       }
       const aboutActive = aboutIsVisible();
+      // Re-measure the actual moving beanie/face every fourth frame while
+      // About is visible. The rest of the website keeps its existing fast
+      // one-time orbit and typography anchor measurements.
+      if (aboutActive && window.innerWidth <= 800 &&
+          ++aboutProjectionFrames % 4 === 0)
+        publishVisibleHeadOrbit();
       const rect = aboutBounds();
       aboutSection?.classList.toggle('jw-about-reading',
         aboutActive && rect.top < -window.innerHeight * .62);
@@ -389,6 +433,12 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
     const resizer = new ResizeObserver(measure);
     resizer.observe(host);
     window.addEventListener('pointermove', onPointerMove, { passive: true });
+    // Passive touch listeners remain active during native vertical scrolling.
+    // No touch-action overrides, pointer capture, or preventDefault calls.
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchend', onTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', onTouchEnd, { passive: true });
     window.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('pointercancel', onPointerUp);
@@ -453,6 +503,11 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
       surface.removeEventListener('webglcontextlost', onContextLost);
       surface.removeEventListener('webglcontextrestored', onContextRestored);
       window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+      window.removeEventListener('touchcancel', onTouchEnd);
+      activeTouchId = null;
       window.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
