@@ -63,10 +63,15 @@
 
 /* Restore the layout and interaction grammar of the original Branding Guidelines reader. */
 .jw-case-reader{display:block;animation:none;perspective:1600px;background:rgba(255,255,255,.74);color:#111;z-index:50000}
-.jw-case-sheet{position:absolute;inset:0;background:#fafafa;overflow:hidden;transform-origin:0 0}
-.jw-case-meta{position:absolute;left:3.3vw;top:40px;z-index:5;display:flex;flex-direction:column;gap:2px;font-size:12px;line-height:1.55;max-width:15vw;pointer-events:none}
-.jw-case-details-toggle{position:absolute;right:3.3vw;top:32px;z-index:7;padding:10px 15px;font-size:12px;cursor:pointer;background:rgba(153,0,255,.72);color:#fff;border:0;border-radius:5px}
-.jw-case-details{position:absolute;right:3.3vw;top:82px;z-index:8;width:min(350px,86vw);padding:24px;background:#fff;border:1px solid #eee;box-shadow:0 8px 45px #00000014}
+.jw-case-sheet{position:absolute;inset:0;background:#fff;overflow:hidden;transform-origin:0 0}
+/* The top-left case-study metadata sidebar has been removed. */
+.jw-case-details-toggle{
+ position:absolute;right:3.3vw;top:25px;z-index:11;display:inline-flex;align-items:center;gap:10px;
+ min-height:44px;padding:10px 0 10px 12px;font-family:inherit;font-size:14px;font-weight:500;
+ line-height:1.25;cursor:pointer;background:transparent;border:0;border-radius:0;color:#171717
+}
+.jw-case-details-icon{font-size:21px;line-height:1;font-weight:400;min-width:12px;text-align:center}
+.jw-case-details{position:absolute;right:3.3vw;top:75px;z-index:12;width:min(350px,86vw);padding:24px;background:#fff;border:1px solid #e9e6ec;box-shadow:0 12px 36px #00000010}
 .jw-case-details h3{margin:0 0 12px}.jw-case-details p{font-size:13px;line-height:1.65}
 .jw-case-scroll{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;padding:0 16.6vw;cursor:grab;touch-action:none;scroll-behavior:auto;scrollbar-width:none;user-select:none;-webkit-user-select:none}
 .jw-case-scroll::-webkit-scrollbar{display:none}.jw-case-scroll:active{cursor:grabbing}
@@ -79,31 +84,58 @@
 .jw-case-grid{width:100%;max-width:none;margin:0 auto 48px;gap:clamp(8px,1.25vw,20px)}
 .jw-case-interlude,.jw-case-beats{max-width:none;width:100%;margin:0 auto 48px;padding:18px 0}
 .jw-case-end{margin:0 auto;max-width:none;padding:45px 0 70px}
-.jw-case-progress,.jw-case-exit{position:absolute;bottom:34px;z-index:10;width:46px;height:46px;border-radius:5px;border:0;background:rgba(153,0,255,.72);color:#fff;backdrop-filter:blur(12px)}
-.jw-case-progress{left:3.3vw;padding:4px;pointer-events:none}
-.jw-case-progress svg{width:100%;height:100%}
-.jw-case-exit{right:3.3vw;font-size:28px;line-height:1;cursor:pointer}
-.jw-case-bottom-nav{position:absolute;bottom:34px;left:50%;transform:translateX(-50%);z-index:10;display:flex;align-items:center;justify-content:space-between;gap:18px;min-width:270px;min-height:46px;background:rgba(153,0,255,.72);color:#fff;border-radius:5px;backdrop-filter:blur(12px)}
-.jw-case-bottom-nav button{background:transparent;color:#fff;border:0;font-size:24px;padding:7px 16px;cursor:pointer}
-.jw-case-bottom-nav span{font-size:15px;text-align:center;white-space:nowrap}
-.jw-case-library-toggle{position:absolute;z-index:10;top:32px;left:50%;transform:translateX(-50%);background:rgba(153,0,255,.72);border:0;border-radius:5px;color:white;padding:10px 15px;font-size:12px;cursor:pointer}
-.jw-case-exit:hover,.jw-case-bottom-nav button:hover,.jw-case-library-toggle:hover,.jw-case-details-toggle:hover{background:rgba(153,0,255,.9)}
-.jw-case-reader button:focus-visible{outline:2px solid #9900ff;outline-offset:4px}
-.jw-case-library{position:absolute;inset:0;overflow:auto;padding:100px 16.6vw 96px;background:#fafafa}
+.jw-case-progress,.jw-case-exit{
+ position:absolute;bottom:28px;z-index:10;width:44px;height:44px;
+ border:0;border-radius:0;background:transparent;color:#171717;box-shadow:none;backdrop-filter:none
+}
+.jw-case-progress{left:3.3vw;padding:3px;pointer-events:none}
+.jw-case-progress svg{width:100%;height:100%;transform:scale(1.13)}
+.jw-case-exit{right:3.3vw;font-size:32px;line-height:1;display:grid;place-items:center;cursor:pointer}
+.jw-case-bottom-nav{
+ position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:10;
+ display:flex;align-items:center;justify-content:center;gap:clamp(14px,2.4vw,34px);
+ min-height:44px;min-width:0;padding:0;background:transparent;color:#171717;
+ border:0;border-radius:0;box-shadow:none;backdrop-filter:none
+}
+.jw-case-bottom-nav button{
+ appearance:none;display:grid;place-items:center;min-width:44px;min-height:44px;
+ background:transparent;border:0;border-radius:0;color:#171717;
+ font-family:inherit;font-size:29px;line-height:1;font-weight:400;cursor:pointer;padding:0
+}
+.jw-case-bottom-nav span{font-size:15px;font-weight:550;letter-spacing:.02em;text-align:center;white-space:nowrap}
+.jw-case-library-toggle{
+ position:absolute;z-index:11;top:25px;left:50%;transform:translateX(-50%);
+ appearance:none;min-height:44px;padding:10px 2px;background:transparent;
+ border:0;border-radius:0;color:#171717;font-family:inherit;font-size:14px;
+ font-weight:500;line-height:1.25;white-space:nowrap;cursor:pointer
+}
+.jw-case-library-toggle::after{
+ content:'';position:absolute;bottom:4px;left:0;right:0;height:2px;
+ background:#8750f1;transform:scaleX(0);transform-origin:center;transition:transform .18s ease
+}
+/* Black controls at rest, signature purple only when interacted with. */
+@media (hover:hover) and (pointer:fine){
+ .jw-case-exit:hover,.jw-case-bottom-nav button:hover,.jw-case-library-toggle:hover,.jw-case-details-toggle:hover{color:#8750f1;background:transparent}
+ .jw-case-library-toggle:hover::after{transform:scaleX(1)}
+}
+.jw-case-exit:focus-visible,.jw-case-bottom-nav button:focus-visible,.jw-case-library-toggle:focus-visible,.jw-case-details-toggle:focus-visible{color:#8750f1}
+.jw-case-library-toggle:focus-visible::after{transform:scaleX(1)}
+.jw-case-exit,.jw-case-bottom-nav button,.jw-case-library-toggle,.jw-case-details-toggle{transition:color .18s ease}
+.jw-case-reader button:focus-visible{outline:2px solid #8750f1;outline-offset:4px}
+.jw-case-library{position:absolute;inset:0;overflow:auto;padding:100px 16.6vw 96px;background:#fff}
 .jw-case-library__grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:25px}
 .jw-case-tile img,.jw-case-tile__type{height:clamp(140px,19vw,245px)}
 @media(max-width:720px){
- .jw-case-meta{left:18px;top:16px;font-size:9px;max-width:65vw}
- .jw-case-details-toggle{right:8px;top:9px;font-size:10px}
- .jw-case-library-toggle{top:9px;padding:9px 11px;font-size:10px}
+ .jw-case-details-toggle{right:18px;top:10px;font-size:12px;gap:6px}
+ .jw-case-library-toggle{top:10px;font-size:12px}
  .jw-case-scroll{padding:0 5vw}
  .jw-case-cycle{padding-top:90px}
  .jw-case-library{padding:95px 5vw 85px}
- .jw-case-progress{left:14px;bottom:18px;width:34px;height:34px}
- .jw-case-exit{right:14px;bottom:18px;width:34px;height:34px}
- .jw-case-bottom-nav{bottom:18px;min-width:0;width:calc(100% - 130px);gap:0;min-height:34px}
- .jw-case-bottom-nav span{font-size:11px;white-space:normal}
- .jw-case-bottom-nav button{font-size:19px;padding:7px 9px}
+ .jw-case-progress{left:12px;bottom:16px;width:40px;height:40px}
+ .jw-case-exit{right:12px;bottom:16px;width:40px;height:40px}
+ .jw-case-bottom-nav{bottom:16px;min-width:0;max-width:calc(100% - 120px);min-height:40px;gap:clamp(4px,2vw,12px)}
+ .jw-case-bottom-nav span{font-size:12px;white-space:normal;line-height:1.2;max-width:32vw}
+ .jw-case-bottom-nav button{font-size:23px;min-height:40px;min-width:40px}
 }
 
 /* Brewty: preserve all three original panels without cropping and keep them equal-sized. */
