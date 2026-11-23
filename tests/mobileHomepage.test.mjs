@@ -499,7 +499,9 @@ test('mobile head parts ONE word with two compositor-animated pieces, preserves 
   assert.match(css,/\.jw-about-word-parting-layer \{/);
   assert.match(css,/\.jw-about-parted-fragment \{/);
   assert.match(css,/white-space: pre;/);
-  assert.doesNotMatch(css,/\.jw-head-splittable\.is-head-splitting \{[\s\S]{0,200}display: block;/);
+  const activeWordRule=css.match(/\.jw-head-splittable\.is-head-splitting \{([^}]+)\}/)?.[1];
+  assert.ok(activeWordRule,'the split-word rule must exist');
+  assert.doesNotMatch(activeWordRule,/display:\s*block|width:\s*100%/);
   assert.match(words,/headSplit = false/);
   assert.match(flow,/entry\.float\.style\.shapeOutside = shape/);
   assert.doesNotMatch(flow,/word\.style\.transform|cloneNode|measureText/);
