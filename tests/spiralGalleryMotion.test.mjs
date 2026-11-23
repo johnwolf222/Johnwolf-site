@@ -1141,6 +1141,48 @@ test('3D cursor tracking follows the projected head center with precise larger m
     'reversing the pointer reverses head look direction quickly');
 });
 
+test('head click snaps backward quickly, returns more slowly, then shakes off', () => {
+  assert.equal(SETTINGS.impact, .16, 'quick backward flinch takes 160 ms');
+  assert.equal(SETTINGS.returnEnd - SETTINGS.impact, .44,
+    'forward travel is intentionally slower than recoil');
+  assert.ok(SETTINGS.shakeStart > SETTINGS.returnEnd,
+    'a short settle separates the return from the shake');
+  assert.ok(SETTINGS.recover < 1.05, 'head reaction finishes around one second');
+  assert.ok(SETTINGS.hitCooldown >= SETTINGS.recover,
+    'next click cannot interrupt unfinished shake');
+
+  const head = new HeadController(() => .5);
+  assert.equal(head.hit(-1), true);
+  let motion = head.update(0);
+  const advance = to => {
+    while (head.time < to - .000001)
+      motion = head.update(Math.min(.01, to - head.time));
+    return motion;
+  };
+  const flinch = advance(.08);
+  assert.equal(flinch.state, 'impact');
+  assert.ok(flinch.lean > .8, 'the head retreats immediately, not late');
+  const deepest = advance(.16);
+  assert.equal(deepest.state, 'return');
+  assert.ok(deepest.depth < -.35, 'existing full recoil distance is preserved');
+  const comingForward = advance(.38);
+  assert.equal(comingForward.state, 'return');
+  assert.ok(comingForward.lean > .35 && comingForward.lean < .65);
+  const settled = advance(.61);
+  assert.equal(settled.state, 'settle');
+  assert.equal(settled.depth, 0);
+  const shake = advance(.76);
+  assert.equal(shake.state, 'shake');
+  assert.notEqual(shake.yaw, 0, 'a visible shake follows the return');
+  const recovered = advance(1);
+  assert.equal(recovered.state, 'tracking');
+  assert.equal(recovered.lean, 0);
+  assert.equal(recovered.depth, 0);
+  assert.equal(head.hit(1), false, 'brief cooldown follows the shake');
+  advance(1.04);
+  assert.equal(head.hit(1), true, 'head can react again after recovery');
+});
+
 test('short Projects exit still rests with responsive card controls before About', () => {
   const css = readFileSync(new URL('../src/ProjectsSequence.css', import.meta.url), 'utf8');
   const source = readFileSync(new URL('../src/ProjectsSequence.jsx', import.meta.url), 'utf8');
