@@ -232,8 +232,8 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    padding: max(0px, calc(100svh - 110px)) 18px 0;
-    gap: clamp(60px, 10svh, 100px);
+    padding: max(0px, calc(100svh - 110px)) 24px 0;
+    gap: clamp(48px, 7svh, 80px);
   }
   .jw-about-footer { bottom: calc(max(100svh, 510px) + 100svh + 7px); }
   .jw-about-message, .jw-about-message.story-left, .jw-about-message.story-right {
@@ -244,7 +244,7 @@
     max-width: 560px;
     margin-inline: auto;
     text-align: left;
-    font: 400 clamp(19px, 5vw, 22px)/1.52 'Avenir Next', Inter, Arial, sans-serif;
+    font: 400 clamp(18px, 4.75vw, 21px)/1.55 'Avenir Next', Inter, Arial, sans-serif;
     letter-spacing: -.012em;
     padding: clamp(18px, 5vw, 24px);
     background: rgba(255,255,255,.97);
@@ -253,49 +253,43 @@
     box-shadow: 0 6px 30px rgba(40, 24, 60, .05);
     scroll-margin-top: clamp(82px, 12svh, 120px);
   }
-  /* Native mobile ink stays OUTSIDE the projected head shape. Visual
-     line copies move horizontally as they approach its ellipse; the
-     original full paragraphs stay accessible and reappear if GLB fails.
-     Never overlay the head with a solid white text-card background. */
+  /* Full-width, native paragraphs restore normal reading. The former
+     head-side corridor was only 48–146px wide and cut entire words
+     (e.g. "fortu / nate") into dozens of rows. Preserve text, paragraph
+     spacing, and stable About/Tools document height. */
   .jw-about-message.jw-about-flow-active {
     padding: 0;
     background: transparent;
     box-shadow: none;
     border-radius: 0;
-    pointer-events: none;
-  }
-  .jw-about-flow-active > p {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    opacity: 0;
-    clip-path: inset(50%);
-    pointer-events: none;
-  }
-  .jw-about-flow-lines {
-    position: relative;
-    width: 100%;
-    overflow: visible;
-  }
-  .jw-about-flow-line {
-    position: absolute;
-    display: inline-block;
-    left: 0;
-    white-space: nowrap;
-    font: inherit;
-    line-height: 1.5;
     pointer-events: auto;
-    transform: translate3d(0, 0, 0);
-    transition: transform .09s linear;
-    will-change: transform;
   }
-  /* The original purple ink recoil is composed through individual
-     translate/scale properties, leaving the JS head-clearance transform
-     untouched and restoring the original black text after the wave. */
-  .jw-about-experience.jw-about-impact .jw-about-flow-line {
+  .jw-about-message.jw-about-flow-active > p {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    opacity: 1;
+    clip-path: none;
+    pointer-events: auto;
+    margin-bottom: .85em;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
+  }
+  /* Only the paint of words near the actual head may bend away; inline
+     word geometry stays in native paragraph flow. No per-scroll rewrap. */
+  #root .about.jw-about-experience .jw-about-message .jw-hover-word {
+    display: inline-block;
+    white-space: nowrap;
+    transform: translate3d(0,0,0);
+    transition: transform .16s cubic-bezier(.22,.78,.2,1),
+      background-color .15s ease, box-shadow .15s ease;
+    will-change: auto;
+  }
+  /* The original purple ink recoil composes through translate and scale
+     independently of JS head-clearance transform, leaving black ink. */
+  .jw-about-experience.jw-about-impact .jw-about-message .jw-hover-word {
     animation: jw-about-mobile-ink-impact 900ms cubic-bezier(.12, .75, .22, 1) both;
     animation-delay: var(--jw-about-wave-delay, 0ms);
   }

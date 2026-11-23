@@ -1,217 +1,146 @@
 /**
- * Native-DOM equivalent of the desktop head-clearance story.
- * Keeps the four original paragraphs in the accessibility tree and moves
- * only visible line copies along a seekable ellipse surrounding the ACTUAL
- * projected 3D head. Never prevents or writes window scroll.
+ * The four original paragraphs form their OWN readable mobile lines.
+ * Do not manufacture 80px-wide copies: they split whole words into
+ * hundreds of rows and make the About page needlessly long.
+ *
+ * Each original word remains in normal document flow. When its native
+ * position approaches the actual projected 3D face, its paint moves
+ * outside the face's ellipse without changing the paragraph's layout.
+ * Original source, hover targets and screen-reader reading order survive.
  */
-const clamp = (value, lo, hi) => Math.max(lo, Math.min(hi, value));
+const safe = value => Number.isFinite(value);
 
-export function mobileStoryCorridorWidth(head, viewportWidth) {
-  if (!head || ![head.left, head.right, viewportWidth].every(Number.isFinite) ||
-      viewportWidth <= 0) return 0;
-  const available = Math.min(head.left, viewportWidth - head.right) - 28;
-  return Math.max(48, Math.min(146, Math.floor(available)));
-}
+export function mobileWordAvoidance(word, head, viewportWidth) {
+  if (!head || !word || ![word.left,word.top,word.width,word.height,
+      head.left,head.right,head.top,head.bottom,viewportWidth].every(safe) ||
+      viewportWidth <= 0 || word.width <= 0 || word.height <= 0 ||
+      head.right <= head.left || head.bottom <= head.top)
+    return { x: 0, y: 0 };
 
-export function mobileStoryLineX(side, lineWidth, screenY, head, viewportWidth) {
-  if (!head || ![head.left, head.right, head.top, head.bottom,
-    lineWidth, screenY, viewportWidth].every(Number.isFinite) ||
-    viewportWidth <= 0 || lineWidth <= 0) return 0;
-  const centerX = (head.left + head.right) * .5;
-  const centerY = (head.top + head.bottom) * .5;
-  const rx = Math.max(8, (head.right - head.left) * .5 + 9);
-  const ry = Math.max(8, (head.bottom - head.top) * .5 + 14);
-  const dy = Math.abs((screenY - centerY) / ry);
-  // This varies continuously from no displacement outside the model to
-  // full face/beanie clearance alongside its widest projected outline.
-  const displacement = dy >= 1 ? 0 :
-    (rx + 11) * Math.sqrt(Math.max(0, 1 - dy * dy));
-  const x = side === 'left'
-    ? Math.min(viewportWidth * .5, centerX - displacement) - lineWidth
-    : Math.max(viewportWidth * .5, centerX + displacement);
-  const edge = Math.min(10, Math.max(0, (viewportWidth - lineWidth) / 2));
-  return clamp(x, edge, Math.max(edge, viewportWidth - lineWidth - edge));
+  const cx = word.left + word.width / 2;
+  const cy = word.top + word.height / 2;
+  const hx = (head.left + head.right) / 2;
+  const hy = (head.top + head.bottom) / 2;
+  // Include the full word's painted extent and a small safety margin.
+  const rx = (head.right - head.left) / 2 + word.width / 2 + 15;
+  const ry = (head.bottom - head.top) / 2 + word.height / 2 + 17;
+  const dx = cx - hx;
+  const dy = cy - hy;
+  const nx = dx / rx;
+  const ny = dy / ry;
+  if (nx * nx + ny * ny >= 1) return { x: 0, y: 0 };
+
+  // Prefer a lateral route: words visually flow around the face instead
+  // of stacking up in a narrow 1-word column. Don't leave the viewport.
+  const edge = 12;
+  const crossX = rx * Math.sqrt(Math.max(0, 1 - ny * ny));
+  const leftStep = Math.max(0, dx + crossX + 3);
+  const rightStep = Math.max(0, crossX - dx + 3);
+  const leftRoom = Math.max(0, word.left - edge);
+  const rightRoom = Math.max(0, viewportWidth - edge -
+    (word.left + word.width));
+  const lateral = [];
+  if (leftStep <= leftRoom) lateral.push({ x: -leftStep, y: 0 });
+  if (rightStep <= rightRoom) lateral.push({ x: rightStep, y: 0 });
+  if (lateral.length) {
+    // Keep words on their original side when both routes are possible.
+    const preferredSign = dx < 0 ? -1 : 1;
+    lateral.sort((a, b) =>
+      (Math.sign(a.x) === preferredSign ? 0 : 1) -
+      (Math.sign(b.x) === preferredSign ? 0 : 1));
+    return lateral[0];
+  }
+
+  // Near a screen edge there may be no room beside the head. The same
+  // elliptical clearance can then be taken above or below it, without
+  // narrowing, chopping or rebuilding the paragraph.
+  const crossY = ry * Math.sqrt(Math.max(0, 1 - nx * nx));
+  const upStep = Math.max(0, dy + crossY + 3);
+  const downStep = Math.max(0, crossY - dy + 3);
+  return { x: 0, y: dy < 0 ? -upStep : downStep };
 }
 
 export function installMobileStoryFlow(section) {
   if (typeof window === 'undefined' || !section) return () => {};
   const articles = [...section.querySelectorAll('.jw-about-message')];
   if (!articles.length) return () => {};
-
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const allLines = [];
-  let head = null, frame = 0, disposed = false;
-  let lastViewport = 0;
-  const measure = document.createElement('canvas').getContext('2d');
-  if (!measure) return () => {};
+  const wordsByArticle = articles.map(article => ({
+    article,
+    words: [...article.querySelectorAll('.jw-hover-word')],
+  }));
+  let head = null;
+  let frame = 0;
+  let disposed = false;
+  const positions = new Map();
+  // Plain paragraphs are always visible and readable even if the model
+  // fails, arrives late, or reduced-motion is enabled.
+  articles.forEach(article => article.classList.add('jw-about-flow-active'));
 
-  const clear = () => {
-    allLines.length = 0;
-    for (const article of articles) {
-      article.querySelector(':scope > .jw-about-flow-lines')?.remove();
-      article.classList.remove('jw-about-flow-active');
-    }
-  };
   const schedule = () => {
     if (!disposed && !frame) frame = requestAnimationFrame(position);
   };
   function position() {
     frame = 0;
-    if (disposed || !head || window.innerWidth > 800) return;
-    const viewport = window.innerWidth;
-    const height = window.innerHeight;
-    // Read each article's geometry just once. Interleaving a bounding
-    // read after every line transform forced repeated Safari layouts.
-    const rects = new Map(articles.map(article =>
-      [article, article.getBoundingClientRect()]));
-    const transforms = [];
-    for (const line of allLines) {
-      const rect = rects.get(line.article);
-      if (!rect || rect.bottom < -80 || rect.top > height + 80) continue;
-      const cy = rect.top + line.y + line.height * .5;
-      if (cy < -65 || cy > height + 65) continue;
-      const x = mobileStoryLineX(
-        line.side, line.width, cy, head, viewport);
-      const localX = x - rect.left;
-      transforms.push([line.node,
-        'translate3d(' + localX.toFixed(2) + 'px,0,0)']);
-    }
-    for (const [node, transform] of transforms)
-      if (node.style.transform !== transform)
-        node.style.transform = transform;
-  }
-  function rebuild() {
-    if (disposed) return;
-    if (!head || window.innerWidth > 800) { clear(); return; }
-    const vw = window.innerWidth;
-    const corridor = mobileStoryCorridorWidth(head, vw);
-    if (!corridor) return;
-    clear();
-    lastViewport = vw;
-
-    articles.forEach(article => {
-      const sourceParagraphs = [...article.querySelectorAll(':scope > p')];
-      const style = getComputedStyle(article);
-      const fontSize = parseFloat(style.fontSize) || 19;
-      const fontFamily = style.fontFamily || 'Inter, Arial, sans-serif';
-      const lineHeight = fontSize * 1.54;
-      const side = article.classList.contains('story-left') ? 'left' : 'right';
-      const layer = document.createElement('div');
-      layer.className = 'jw-about-flow-lines';
-      layer.setAttribute('aria-hidden', 'true');
-      let y = 0;
-
-      const wordWidth = token => {
-        measure.font = (token.italic ? 'italic ' : '') +
-          '400 ' + fontSize + 'px ' + fontFamily;
-        return measure.measureText(token.text).width;
-      };
-      const space = (() => {
-        measure.font = '400 ' + fontSize + 'px ' + fontFamily;
-        return measure.measureText(' ').width;
-      })();
-
-      const addLine = (tokens, inkWidth) => {
-        if (!tokens.length) return;
-        const node = document.createElement('span');
-        node.className = 'jw-about-flow-line';
-        node.style.top = y.toFixed(2) + 'px';
-        for (const token of tokens) {
-          if (token.gap) node.appendChild(document.createTextNode(' '));
-          const ink = document.createElement('span');
-          ink.className = 'jw-hover-word';
-          ink.textContent = token.text;
-          if (token.italic) ink.style.fontStyle = 'italic';
-          node.appendChild(ink);
-        }
-        layer.appendChild(node);
-        allLines.push({
-          article, node, side, y, height: lineHeight, width: inkWidth,
-        });
-        y += lineHeight;
-      };
-
-      for (const paragraph of sourceParagraphs) {
-        const words = [...paragraph.querySelectorAll('.jw-hover-word')]
-          .map(node => ({
-            text: node.textContent,
-            italic: Boolean(node.closest('em')),
-          })).filter(word => word.text);
-        const fragments = [];
-        for (const word of words) {
-          if (wordWidth(word) <= corridor) {
-            fragments.push({ ...word, continued: false });
-            continue;
+    if (disposed || window.innerWidth > 800) return;
+    const changes = [];
+    for (const { article, words } of wordsByArticle) {
+      const bounds = article.getBoundingClientRect();
+      const canAvoid = Boolean(head && !reduced.matches &&
+        bounds.bottom > head.top - 100 &&
+        bounds.top < head.bottom + 100);
+      if (!canAvoid && !words.some(word => positions.has(word))) continue;
+      // All reads happen before ANY style writes. Offset positions are
+      // unaffected by paint-only transforms and cannot feed back into wrap.
+      for (const word of words) {
+        let next = { x: 0, y: 0 };
+        if (canAvoid) {
+          const width = word.offsetWidth;
+          const height = word.offsetHeight;
+          const localLeft = word.offsetLeft;
+          const localTop = word.offsetTop;
+          const top = bounds.top + localTop;
+          if (top + height >= head.top - 20 &&
+              top <= head.bottom + 20) {
+            next = mobileWordAvoidance({
+              left: bounds.left + localLeft,
+              top, width, height,
+            }, head, window.innerWidth);
           }
-          // Exceptionally long words split across consecutive lines without
-          // adding visible hyphens or changing the original accessible copy.
-          let chunk = '';
-          let continued = false;
-          for (const character of Array.from(word.text)) {
-            const next = chunk + character;
-            if (chunk && wordWidth({ ...word, text: next }) > corridor) {
-              fragments.push({
-                text: chunk, italic: word.italic, continued,
-              });
-              chunk = character;
-              continued = true;
-            } else chunk = next;
-          }
-          if (chunk) fragments.push({
-            text: chunk, italic: word.italic, continued,
-          });
         }
-
-        let current = [], currentWidth = 0;
-        for (const token of fragments) {
-          const width = wordWidth(token);
-          let gap = current.length > 0 && !token.continued;
-          let candidate = currentWidth + (gap ? space : 0) + width;
-          if (current.length && candidate > corridor) {
-            addLine(current, currentWidth);
-            current = [];
-            currentWidth = 0;
-            gap = false;
-            candidate = width;
+        const previous = positions.get(word);
+        if (next.x === 0 && next.y === 0 && !previous) continue;
+        if (next.x === 0 && next.y === 0) {
+          positions.delete(word);
+          changes.push([word, '']);
+        } else {
+          const transform = 'translate3d(' +
+            next.x.toFixed(1) + 'px,' + next.y.toFixed(1) + 'px,0)';
+          if (previous !== transform) {
+            positions.set(word, transform);
+            changes.push([word, transform]);
           }
-          current.push({ ...token, gap });
-          currentWidth = candidate;
         }
-        addLine(current, currentWidth);
-        y += lineHeight * .64;
       }
-      layer.style.height = Math.ceil(y + 2) + 'px';
-      article.appendChild(layer);
-      article.classList.add('jw-about-flow-active');
-    });
-    schedule();
+    }
+    for (const [word, transform] of changes)
+      word.style.transform = transform;
   }
 
   function onHead(event) {
     const next = event.detail;
-    if (!next || ![next.left, next.right, next.top, next.bottom]
-      .every(Number.isFinite) || next.right <= next.left ||
-      next.bottom <= next.top) return;
+    if (!next || ![next.left,next.right,next.top,next.bottom].every(safe) ||
+        next.right <= next.left || next.bottom <= next.top) return;
     head = next;
-    // A turning head changes its projected width many times per second.
-    // Rebuilding all DOM lines for those changes changed the About height,
-    // reset word highlights, and caused unwanted scroll jumps. Construct
-    // lines only on first load or a TRUE change of screen width.
-    if (window.innerWidth !== lastViewport || !allLines.length)
-      rebuild();
-    else schedule();
+    schedule();
   }
-  const onResize = () => {
-    if (!head) return;
-    // Safari address-bar height changes are NOT new screen layouts.
-    if (window.innerWidth !== lastViewport) rebuild();
-    else schedule();
-  };
+  const onResize = () => schedule();
   section.addEventListener('jw-about-head-envelope', onHead);
   window.addEventListener('scroll', schedule, { passive: true });
   window.addEventListener('resize', onResize, { passive: true });
+  reduced.addEventListener?.('change', schedule);
   document.fonts?.ready.then(() => {
-    if (!disposed && head) rebuild();
+    if (!disposed) schedule();
   });
   return () => {
     disposed = true;
@@ -219,6 +148,10 @@ export function installMobileStoryFlow(section) {
     section.removeEventListener('jw-about-head-envelope', onHead);
     window.removeEventListener('scroll', schedule);
     window.removeEventListener('resize', onResize);
-    clear();
+    reduced.removeEventListener?.('change', schedule);
+    for (const word of positions.keys()) word.style.transform = '';
+    positions.clear();
+    articles.forEach(article => article.classList.remove(
+      'jw-about-flow-active'));
   };
 }

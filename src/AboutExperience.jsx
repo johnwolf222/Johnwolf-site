@@ -50,9 +50,9 @@ export default function AboutExperience() {
     }, { threshold: .02, rootMargin: '0px 0px -8% 0px' });
     chapters.forEach(chapter => chapterVisibility.observe(chapter));
     section.classList.add('jw-about-mobile-reveal-ready');
-    // The original DOM paragraphs remain the accessible source text.
-    // On phones, visual line copies follow the actual projected head
-    // boundary; desktop retains its approved Three.js story planes.
+    // The original DOM paragraphs remain both visual and accessible.
+    // Mobile words bend away from the projected head without being
+    // copied into narrow columns. Desktop keeps its 3D text planes.
     const disposeMobileStory = installMobileStoryFlow(section);
 
     // A finger tap reproduces the existing single-word hover effect.
@@ -123,14 +123,16 @@ export default function AboutExperience() {
       // measured head and is never replaced by this ripple.
       if (window.innerWidth <= 800 &&
           Number.isFinite(center.x) && Number.isFinite(center.y)) {
-        for (const line of section.querySelectorAll('.jw-about-flow-line')) {
-          const rect = line.getBoundingClientRect();
+        for (const word of section.querySelectorAll(
+          '.jw-about-message .jw-hover-word')) {
+          const rect = word.getBoundingClientRect();
           if (rect.bottom < 0 || rect.top > window.innerHeight) continue;
           const distance = Math.hypot(
             (rect.left + rect.right) * .5 - center.x,
             (rect.top + rect.bottom) * .5 - center.y);
           const delay = Math.min(600, distance / 790 * 1000);
-          line.style.setProperty('--jw-about-wave-delay', delay.toFixed(1) + 'ms');
+          word.style.setProperty('--jw-about-wave-delay',
+            delay.toFixed(1) + 'ms');
         }
       }
       if (Number.isFinite(center.x) && Number.isFinite(center.y)) {
