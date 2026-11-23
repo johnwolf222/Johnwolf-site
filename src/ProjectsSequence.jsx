@@ -6,6 +6,7 @@ import './ProjectsSequence.css';
 import LivePaperRenderer from './LivePaperRenderer.jsx';
 import CaseStudyReader from './CaseStudyReader.jsx';
 import { createHomePaperMotion } from './HomePaperMotion.js';
+import { needsPaperFrame } from './about/paper-frame-visibility.js';
 import {
   aboutHandoffProgress, departingCardOffset, aboutHeadPose,
   aboutIntroPose, aboutHeadOpacity, aboutHeadingReveal,
@@ -452,13 +453,21 @@ export default function ProjectsSequence() {
       if (copy) copy.style.opacity = String(smooth(p, .922, .992) *
         (1 - smooth(handoff, .02, .38)));
 
-      const orbitOffset = mobileHeadOrbitOffset();
-      for (let i = 0; i < CARD_COUNT; i++) {
-        if (cardRefs.current[i]) {
-          positionCard(cardRefs.current[i], i, p, galleryFocus, handoff, orbitOffset);
+      // The paper GPU scene belongs to Home and Projects, not the long
+      // About/Tools/Contact reading journey. It previously repainted all
+      // 21 textured 3D meshes on every Tools scroll event, competing with
+      // the continuously animated 20MB head and slowing down iOS Safari.
+      // Render the full transition, then ONE final exit frame to clear it;
+      // reverse scrolling naturally resumes the exact same poses.
+      if (needsPaperFrame(p, handoff, isShown, showing)) {
+        const orbitOffset = mobileHeadOrbitOffset();
+        for (let i = 0; i < CARD_COUNT; i++) {
+          if (cardRefs.current[i]) {
+            positionCard(cardRefs.current[i], i, p, galleryFocus, handoff, orbitOffset);
+          }
         }
+        gpuPaperRef.current?.draw(p);
       }
-      gpuPaperRef.current?.draw(p);
 
       const nextActive = nearestGalleryIndex(galleryFocus);
       if (nextActive !== active) {

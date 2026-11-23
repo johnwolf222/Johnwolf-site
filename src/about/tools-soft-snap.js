@@ -33,6 +33,11 @@ export function rearmToolSnap(panelTop, viewportHeight) {
  */
 export function installToolsSoftSnap(section, toolsPanel) {
   if (!section || !toolsPanel || typeof window === 'undefined') return () => {};
+  // Touch/mobile: native scrolling owns the boundary. A second
+  // scrollTo animation competing with the section-boundary controller
+  // and iOS inertial scroll made the tools handoff oscillate.
+  // Preserve the original one-time desktop landing only.
+  if (window.matchMedia('(max-width: 800px)').matches) return () => {};
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   const doc = document.documentElement;
   let consumed = false;

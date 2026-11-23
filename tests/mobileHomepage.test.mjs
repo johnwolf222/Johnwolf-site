@@ -358,3 +358,34 @@ test('About never rebuilds its story lines for rotating head or Safari viewport 
   assert.match(head, /const projectedMeshBoxes = \[\]/);
   assert.match(head, /for \(const \{ node, corners \} of projectedMeshBoxes\)/);
 });
+
+test('mobile Tools crossing has a single native scroll owner and never bounces between controllers', () => {
+  const toolsSnap = read('../src/about/tools-soft-snap.js');
+  const boundaries = read('../src/about/section-boundary-snap.js');
+  const about = read('../src/AboutExperience.jsx');
+  assert.match(about, /installToolsSoftSnap\(section, toolsPanel\)/);
+  assert.match(toolsSnap, /if \(window\.matchMedia\('\(max-width: 800px\)'\)\.matches\) return \(\) => \{\};/);
+  assert.match(boundaries, /mobile \? \['about'\] :\s*\['about', 'about-capabilities', 'contact'\]/);
+  // Desktop remains unchanged, including its native reverse/forward snap.
+  assert.match(toolsSnap, /window\.addEventListener\('scroll', onScroll, \{ passive: true \}\)/);
+  assert.match(boundaries, /window\.addEventListener\('scroll', onScroll, \{ passive: true \}\)/);
+  assert.match(boundaries, /sectionBoundaryDelta\(/);
+});
+
+test('paper GPU redraws stop in About and Tools but preserve Home/Projects and reversibility', async () => {
+  const { needsPaperFrame } = await import('../src/about/paper-frame-visibility.js');
+  assert.equal(needsPaperFrame(0, 0, false, false), true, 'Home ring plays');
+  assert.equal(needsPaperFrame(.7, 0, true, true), true, 'Home train runs');
+  assert.equal(needsPaperFrame(1, .5, true, true), true, 'gallery papers depart');
+  assert.equal(needsPaperFrame(1, 1, false, true), true, 'clear departure once');
+  assert.equal(needsPaperFrame(1, 1, false, false), false, 'Tools does not redraw papers');
+  assert.equal(needsPaperFrame(1, 1, false, false), false, 'Contact does not redraw papers');
+  assert.equal(needsPaperFrame(1, .8, false, false), true, 'reverse entrance redraws');
+  assert.equal(needsPaperFrame(.5, 1, false, false), true, 'reverse Home redraws');
+  const sequence = read('../src/ProjectsSequence.jsx');
+  assert.match(sequence, /if \(needsPaperFrame\(p, handoff, isShown, showing\)\)/);
+  assert.match(sequence, /gpuPaperRef\.current\?\.draw\(p\)/);
+  const head = read('../src/HomepageHead.jsx');
+  assert.match(head, /lastStoryChapter\.getBoundingClientRect\(\)\.bottom > -80/);
+  assert.match(head, /const motion = controller\.update\(dt\)/);
+});

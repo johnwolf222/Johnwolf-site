@@ -81,6 +81,7 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
     const rippleSurfaces = new Map();
     const morphTargets = [];
     const aboutSection = document.querySelector('.jw-about-experience');
+    const lastStoryChapter = aboutSection?.querySelector('[data-story="4"]');
     const aboutLines = aboutSection
       ? [...aboutSection.querySelectorAll('.jw-about-line')] : [];
     // Both effects live in this exact existing renderer, not a second head.
@@ -363,6 +364,11 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
       // About is visible. The rest of the website keeps its existing fast
       // one-time orbit and typography anchor measurements.
       if (aboutActive && window.innerWidth <= 800 &&
+          // Once the final paragraph has passed, no wrapping text needs
+          // new 3D mesh projections. The head's gaze and scroll pose still
+          // update every frame through Capabilities, Tools and Contact.
+          (!lastStoryChapter ||
+            lastStoryChapter.getBoundingClientRect().bottom > -80) &&
           ++aboutProjectionFrames % 4 === 0)
         publishVisibleHeadOrbit();
       const rect = aboutBounds();

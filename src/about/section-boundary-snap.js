@@ -23,7 +23,13 @@ export function rearmSectionBoundary(top, viewportHeight) {
 }
 export function installSectionBoundarySnap() {
   if (typeof window === 'undefined') return () => {};
-  const targets = ['about', 'about-capabilities', 'contact']
+  // iPhone/iPad-sized screens traverse Capabilities -> Tools -> Contact
+  // with one uninterrupted native scroll. The independent Tools aligner
+  // must never compete with an auto-snap toward Capabilities or Contact.
+  // About's original entrance landing remains available.
+  const mobile = window.matchMedia('(max-width: 800px)').matches;
+  const targets = (mobile ? ['about'] :
+    ['about', 'about-capabilities', 'contact'])
     .map(id => document.getElementById(id)).filter(Boolean);
   if (!targets.length) return () => {};
   const root = document.documentElement;
