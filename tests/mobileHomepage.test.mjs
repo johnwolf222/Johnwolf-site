@@ -7,6 +7,7 @@ import { sectionBoundaryDelta, rearmSectionBoundary } from '../src/about/section
 import { sharedGlowReveal } from '../src/visual-continuity-motion.js';
 import { isMobileHeadTap, centeredToolScrollLeft } from '../src/about/mobile-interactions.js';
 import { mobileStoryExclusion } from '../src/about/mobile-story-flow.js';
+import {centeredHeadWordParts, headWordEdgeDistance} from '../src/about/head-word-split.js';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 const css = read('../src/NewHomepage.css');
@@ -427,4 +428,55 @@ test('one moving glow is visible throughout the post-Home site without section s
   assert.doesNotMatch(about,/background-attachment: fixed/);
   assert.doesNotMatch(css,/filter:blur\(26px\)/);
   assert.match(component,/mq\.matches\?0:time\/1000/);
+});
+
+test('split fragments preserve every original letter, punctuation and word order', () => {
+  for (const token of ['fortunate','experienced.','intangible','imaginations,',
+    'function','beautiful','“subjective.”','Photoshop,','development,']) {
+    const halves=centeredHeadWordParts(token);
+    assert.ok(halves);
+    assert.equal(halves.join(''),token);
+    assert.ok(halves[0].length && halves[1].length);
+  }
+  for (const token of ['a','to','head','life!','3D','I']) {
+    assert.equal(centeredHeadWordParts(token),null);
+  }
+  assert.equal(centeredHeadWordParts(null),null);
+  const render=read('../src/WordHighlight.jsx');
+  const about=read('../src/AboutExperience.jsx');
+  assert.match(render,/headSplit = false/);
+  assert.match(render,/centeredHeadWordParts\(part\)/);
+  assert.match(render,/jw-head-splittable/);
+  assert.match(render,/jw-head-word-first/);
+  assert.match(render,/jw-head-word-last/);
+  assert.match(about,/<WordHighlight headSplit>Well, it's the creation/);
+  assert.match(about,/<WordHighlight>Design is life!<\/WordHighlight>/,
+    'the original Home/About intro is still intact');
+});
+
+test('only head-adjacent words split and native wrapping keeps characters from overlapping',()=>{
+  const head={left:160,right:240,top:300,bottom:500};
+  assert.ok(headWordEdgeDistance(
+    {left:88,right:145,top:360,bottom:388},head)<43);
+  assert.ok(headWordEdgeDistance(
+    {left:8,right:46,top:360,bottom:388},head)>43);
+  assert.equal(headWordEdgeDistance(
+    {left:100,right:150,top:50,bottom:80},head),Infinity);
+  assert.equal(headWordEdgeDistance(null,head),Infinity);
+  const flow=read('../src/about/mobile-story-flow.js');
+  const css=read('../src/AboutExperience.css');
+  assert.match(flow,/const activeSplits = new Set\(\)/);
+  assert.match(flow,/splitFrame = requestAnimationFrame\(updateSplits\)/);
+  assert.match(flow,/if \(next.size>=2\) break/);
+  assert.match(flow,/Math.abs\(other.top-candidate.top\)<16/);
+  assert.match(flow,/word.classList.add\('is-head-splitting'\)/);
+  assert.match(flow,/clearSplits\(\)/);
+  assert.match(flow,/if \(splitFrame\) cancelAnimationFrame\(splitFrame\)/);
+  assert.match(css,/\.jw-head-splittable.is-head-splitting/);
+  assert.match(css,/margin-inline-end: var\(--jw-head-word-gap, 10px\)/);
+  assert.match(css,/display: inline-block;/);
+  assert.match(css,/white-space: nowrap;/);
+  assert.match(css,/white-space: normal;/);
+  assert.doesNotMatch(flow,/word.style.transform|cloneNode|measureText/);
+  assert.match(flow,/entry.float.style.shapeOutside = shape/);
 });

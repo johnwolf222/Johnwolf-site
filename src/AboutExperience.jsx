@@ -51,8 +51,9 @@ export default function AboutExperience() {
     chapters.forEach(chapter => chapterVisibility.observe(chapter));
     section.classList.add('jw-about-mobile-reveal-ready');
     // The original DOM paragraphs remain both visual and accessible.
-    // Mobile sentences wrap around an invisible projected-head shape.
-    // Nothing moves words independently. Desktop retains 3D text planes.
+    // Mobile sentences still wrap natively around the head; nearby
+    // longer words temporarily part while retaining their reading order.
+    // Desktop retains the approved 3D text-plane choreography.
     const disposeMobileStory = installMobileStoryFlow(section);
 
     // A finger tap reproduces the existing single-word hover effect.
@@ -196,19 +197,19 @@ export default function AboutExperience() {
 
       <div className="jw-about-story-messages" aria-label="My story about design">
         <article className="jw-about-message story-message story-left" data-story="1">
-          <p><WordHighlight>So… what is the human nature of design to me?</WordHighlight></p>
-          <p><WordHighlight>Well, it's the creation of the mind's eye, a way to take something intangible like dreams, thoughts, imaginations, ideas, and turn them into things that can literally function in the physical world.</WordHighlight></p>
+          <p><WordHighlight headSplit>So… what is the human nature of design to me?</WordHighlight></p>
+          <p><WordHighlight headSplit>Well, it's the creation of the mind's eye, a way to take something intangible like dreams, thoughts, imaginations, ideas, and turn them into things that can literally function in the physical world.</WordHighlight></p>
         </article>
         <article className="jw-about-message story-message story-right" data-story="2">
-          <p><WordHighlight>I was fortunate enough to start early, knowing what makes designs unique and how to communicate that is a practice that can be explained but is better experienced.</WordHighlight></p>
+          <p><WordHighlight headSplit>I was fortunate enough to start early, knowing what makes designs unique and how to communicate that is a practice that can be explained but is better experienced.</WordHighlight></p>
         </article>
         <article className="jw-about-message story-message story-left" data-story="3">
-          <p><WordHighlight>Some people say </WordHighlight><em><WordHighlight>“art is subjective.”</WordHighlight></em><WordHighlight> However, I believe there is always a fine line.</WordHighlight></p>
-          <p><WordHighlight>It twists, turns, it bends, and breaks, but somewhere along those lines, we genuinely agree with appealing visuals that intentional lines create.</WordHighlight></p>
+          <p><WordHighlight headSplit>Some people say </WordHighlight><em><WordHighlight headSplit>“art is subjective.”</WordHighlight></em><WordHighlight headSplit> However, I believe there is always a fine line.</WordHighlight></p>
+          <p><WordHighlight headSplit>It twists, turns, it bends, and breaks, but somewhere along those lines, we genuinely agree with appealing visuals that intentional lines create.</WordHighlight></p>
         </article>
         <article className="jw-about-message story-message story-right" data-story="4">
-          <p><WordHighlight>What am I good at? </WordHighlight><em><WordHighlight>Let's see.</WordHighlight></em></p>
-          <p><WordHighlight>Photoshop, Illustrator, Procreate, graphic design, copywriting, visual design, brand identity, logo development, presentations, and recently website development, machine learning, and AI prompt writing. Just to keep it short.</WordHighlight></p>
+          <p><WordHighlight headSplit>What am I good at? </WordHighlight><em><WordHighlight headSplit>Let's see.</WordHighlight></em></p>
+          <p><WordHighlight headSplit>Photoshop, Illustrator, Procreate, graphic design, copywriting, visual design, brand identity, logo development, presentations, and recently website development, machine learning, and AI prompt writing. Just to keep it short.</WordHighlight></p>
         </article>
       </div>
 

@@ -288,6 +288,30 @@
     transform: none;
     transition: background-color .15s ease, box-shadow .15s ease;
   }
+  /* The original words contain two adjoining inline halves, with no
+     visible split until the real head nears their projected position.
+     The gap participates in native line layout, so words never overlap. */
+  #root .about.jw-about-experience .jw-about-message .jw-head-splittable {
+    white-space: nowrap;
+  }
+  #root .about.jw-about-experience .jw-about-message .jw-head-word-first,
+  #root .about.jw-about-experience .jw-about-message .jw-head-word-last {
+    display: inline;
+  }
+  #root .about.jw-about-experience .jw-about-message .jw-head-word-first {
+    margin-inline-end: 0;
+    transition: margin-inline-end .23s cubic-bezier(.22,.78,.2,1);
+  }
+  #root .about.jw-about-experience .jw-about-message .jw-head-splittable.is-head-splitting {
+    white-space: normal;
+  }
+  #root .about.jw-about-experience .jw-about-message .is-head-splitting .jw-head-word-first,
+  #root .about.jw-about-experience .jw-about-message .is-head-splitting .jw-head-word-last {
+    display: inline-block;
+  }
+  #root .about.jw-about-experience .jw-about-message .is-head-splitting .jw-head-word-first {
+    margin-inline-end: var(--jw-head-word-gap, 10px);
+  }
   /* The original purple ink recoil composes through translate and scale
      independently of JS head-clearance transform, leaving black ink. */
   .jw-about-experience.jw-about-impact .jw-about-message .jw-hover-word {

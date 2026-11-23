@@ -1,3 +1,4 @@
+import {headWordEdgeDistance} from './head-word-split.js';
 /**
  * Browser-native sentence wrapping around the SAME projected 3D head.
  * One invisible CSS shape changes the line widths for each paragraph.
@@ -36,9 +37,68 @@ export function installMobileStoryFlow(section) {
   const enabled = () => window.innerWidth <= 800 && !reduced.matches;
   const entries = [];
   let lastWidth = window.innerWidth, wasEnabled = false;
-  let head = null, frame = 0, disposed = false;
+  let head = null, frame = 0, splitFrame = 0, disposed = false;
+  const activeSplits = new Set();
+  const clearSplits = () => {
+    for (const word of activeSplits) {
+      word.classList.remove('is-head-splitting');
+      word.style.removeProperty('--jw-head-word-gap');
+    }
+    activeSplits.clear();
+  };
+  const scheduleSplits = () => {
+    if (!disposed && !splitFrame)
+      splitFrame = requestAnimationFrame(updateSplits);
+  };
+  function updateSplits() {
+    splitFrame = 0;
+    if (disposed || !enabled() || !head) {
+      clearSplits();
+      return;
+    }
+    // Wait until the CSS-shape paragraph wrapping finishes; read the
+    // browser-calculated word boxes, never create arbitrary word positions.
+    const candidates = [];
+    for (const entry of entries) {
+      const article = entry.article.getBoundingClientRect();
+      if (article.bottom < head.top - 45 ||
+          article.top > head.bottom + 45) continue;
+      for (const word of entry.words) {
+        const box = word.getBoundingClientRect();
+        if (box.bottom < head.top - 30 ||
+            box.top > head.bottom + 30) continue;
+        const distance = headWordEdgeDistance(box, head);
+        if (distance > (activeSplits.has(word) ? 67 : 43)) continue;
+        candidates.push({word,top:box.top,
+          distance:distance-(activeSplits.has(word)?12:0)});
+      }
+    }
+    candidates.sort((a,b)=>a.distance-b.distance);
+    // At most two words on different lines can split at any moment.
+    const next=new Map();
+    for (const candidate of candidates) {
+      if (next.size>=2) break;
+      if ([...next.values()].some(other =>
+        Math.abs(other.top-candidate.top)<16)) continue;
+      next.set(candidate.word,candidate);
+    }
+    for (const word of activeSplits) {
+      if (next.has(word)) continue;
+      word.classList.remove('is-head-splitting');
+      word.style.removeProperty('--jw-head-word-gap');
+    }
+    activeSplits.clear();
+    for (const {word,distance} of next.values()) {
+      const gap=Math.round(Math.max(8,Math.min(16,
+        16-Math.max(0,distance)*.13)));
+      word.style.setProperty('--jw-head-word-gap',gap+'px');
+      word.classList.add('is-head-splitting');
+      activeSplits.add(word);
+    }
+  }
 
   function build() {
+    clearSplits();
     for (const e of entries) e.float.remove();
     entries.length = 0;
     for (const article of articles) {
@@ -64,7 +124,10 @@ export function installMobileStoryFlow(section) {
       article.insertBefore(float, article.firstChild);
       article.style.minHeight = height + 'px';
       article.classList.add('jw-about-flow-active');
-      entries.push({ article, float, side, height, shape: '', width: '' });
+      entries.push({
+        article, float, side, height, shape: '', width: '',
+        words: [...article.querySelectorAll('.jw-head-splittable')],
+      });
     }
   }
   function schedule() {
@@ -100,6 +163,9 @@ export function installMobileStoryFlow(section) {
         entry.shape = shape;
       }
     }
+    // Separate frame: allow browser native wrapping to settle before
+    // choosing which actual word is closest to the moving silhouette.
+    scheduleSplits();
   }
   function onHead(event) {
     const next = event.detail;
@@ -124,6 +190,8 @@ export function installMobileStoryFlow(section) {
   return () => {
     disposed = true;
     if (frame) cancelAnimationFrame(frame);
+    if (splitFrame) cancelAnimationFrame(splitFrame);
+    clearSplits();
     section.removeEventListener('jw-about-head-envelope', onHead);
     window.removeEventListener('scroll', schedule);
     window.removeEventListener('resize', onResize);

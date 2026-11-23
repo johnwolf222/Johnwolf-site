@@ -1296,8 +1296,8 @@ test('About highlights each DOM word independently without changing original cop
   assert.match(css, /pointer-events: auto/);
   assert.match(about, /<WordHighlight>Now I can’t speak for<\/WordHighlight>/);
   assert.match(about, /<WordHighlight>Design is life!<\/WordHighlight>/);
-  assert.match(about, /<em><WordHighlight>“art is subjective\.”<\/WordHighlight><\/em>/);
-  assert.match(about, /<WordHighlight>Photoshop, Illustrator, Procreate/);
+  assert.match(about, /<em><WordHighlight headSplit>“art is subjective\.”<\/WordHighlight><\/em>/);
+  assert.match(about, /<WordHighlight headSplit>Photoshop, Illustrator, Procreate/);
   assert.match(about, /<h2 id="jw-about-heading" className="jw-about-heading">ABOUT<\/h2>/,
     'vertical ABOUT must remain plain text without hover highlights');
   assert.doesNotMatch(tools, /WordHighlight|jw-hover-word/,
