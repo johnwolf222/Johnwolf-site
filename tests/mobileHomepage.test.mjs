@@ -276,7 +276,7 @@ test('mobile About preserves original paragraphs while rendering two measured no
  const about=read('../src/AboutExperience.jsx');
  assert.match(css,/\.jw-about-message\.jw-about-bilateral-active > p \{/);
  assert.match(css,/\.jw-about-bilateral-layer \{/);
- assert.match(css,/\.jw-about-message \.jw-about-bilateral-word \{/);
+ assert.match(css,/\.jw-about-message \.jw-hover-word\.jw-about-bilateral-word \{/);
  assert.match(css,/overflow-wrap: normal;/);
  assert.match(css,/word-break: normal;/);
  assert.match(source,/export function layoutBilateralStory/);
@@ -534,7 +534,7 @@ test('two-sided copy preserves all words in order, restores full-width rows and 
  const source=read('../src/about/bilateral-story-flow.js');
  const css=read('../src/AboutExperience.css');
  assert.match(source,/const lanes=lanesAt\(y\+lineHeight\/2\)/);
- assert.match(css,/\.jw-about-message \.jw-about-bilateral-word \{/);
+ assert.match(css,/\.jw-about-message \.jw-hover-word\.jw-about-bilateral-word \{/);
  assert.doesNotMatch(css,/\.jw-head-splittable\.is-head-splitting \{\s*position: relative;\s*display: block;/);
 });
 
@@ -544,7 +544,7 @@ test('bilateral glyphs override original inline word styles without resurrecting
  assert.match(source,/article\.classList\.add\('jw-about-flow-active'\)/);
  assert.match(source,/article\.classList\.remove\('jw-about-bilateral-active','jw-about-flow-active'\)/);
  assert.match(source,/e\.article\.classList\.remove\('jw-about-bilateral-active','jw-about-flow-active'\)/);
- const block=css.match(/#root \.about\.jw-about-experience \.jw-about-message \.jw-about-bilateral-word \{([^}]+)\}/)?.[1];
+ const block=css.match(/#root \.about\.jw-about-experience \.jw-about-message \.jw-hover-word\.jw-about-bilateral-word \{([^}]+)\}/)?.[1];
  assert.ok(block,'measured ink must override the standard WordHighlight CSS');
  assert.match(block,/position: absolute;/);
  assert.match(block,/display: inline-block;/);

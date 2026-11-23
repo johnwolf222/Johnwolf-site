@@ -287,7 +287,7 @@
     pointer-events: none;
     overflow: visible;
   }
-  #root .about.jw-about-experience .jw-about-message .jw-about-bilateral-word {
+  #root .about.jw-about-experience .jw-about-message .jw-hover-word.jw-about-bilateral-word {
     position: absolute;
     display: inline-block;
     left: 0;
