@@ -160,7 +160,7 @@ test('mobile About chapters use content-driven flow rather than fixed viewport p
   assert.match(mobile, /\.jw-about-story-messages \{[\s\S]*?position: relative;/);
   assert.match(mobile, /display: flex;\s*flex-direction: column;/);
   assert.match(mobile, /gap: clamp\(48px, 7svh, 80px\)/);
-  assert.match(mobile, /padding: max\(0px, calc\(100svh - 110px\)\) 24px 0;/);
+  assert.match(mobile, /padding: max\(0px, calc\(100svh - 110px\)\) clamp\(46px, 12vw, 62px\) 0;/);
   assert.match(mobile, /\.jw-about-message\[data-story\] \{ top: auto !important; \}/);
   assert.doesNotMatch(mobile, /\.jw-about-message\[data-story="[1-4]"\] \{ top:/);
   assert.match(about, /lastChapter\.getBoundingClientRect\(\)\.bottom - top/);
@@ -374,4 +374,24 @@ test('paper GPU redraws stop in About and Tools but preserve Home/Projects and r
   const head = read('../src/HomepageHead.jsx');
   assert.match(head, /lastStoryChapter\.getBoundingClientRect\(\)\.bottom > -80/);
   assert.match(head, /const motion = controller\.update\(dt\)/);
+});
+
+test('Upgrade 3 centers mobile About copy between matching safe gutters, away from vertical ABOUT', () => {
+  const css = read('../src/AboutExperience.css');
+  const mobile = css.split('@media (max-width: 800px) {').at(-1);
+  assert.match(css, /#root \.about\.jw-about-experience > \.jw-about-heading/);
+  assert.match(mobile, /\.jw-about-story-messages \{[\s\S]*?padding: max\(0px, calc\(100svh - 110px\)\) clamp\(46px, 12vw, 62px\) 0;/);
+  assert.match(mobile, /\.jw-about-message, \.jw-about-message\.story-left, \.jw-about-message\.story-right \{[\s\S]*?width: 100%;[\s\S]*?margin-inline: auto;/);
+  for (const width of [320, 375, 390, 430, 700, 800]) {
+    const gutter = Math.max(46, Math.min(width * .12, 62));
+    assert.ok(gutter >= 46, 'the text must clear the sticky vertical ABOUT letters');
+    assert.ok(width - 2 * gutter >= 220, 'readable mobile paragraph width remains');
+    assert.equal((width - 2 * gutter) / 2 + gutter, width / 2,
+      'left and right insets must remain equal');
+  }
+  // Keep the approved 3D-head text flow and all original story blocks.
+  const about = read('../src/AboutExperience.jsx');
+  assert.equal((about.match(/<article[^>]*data-story="/g) || []).length, 4);
+  assert.match(about, /installMobileStoryFlow\(section\)/);
+  assert.match(mobile, /\.jw-about-head-exclusion \{/);
 });

@@ -232,7 +232,11 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    padding: max(0px, calc(100svh - 110px)) 24px 0;
+    /* Equal horizontal gutters center every chapter and keep the first
+       letters clear of the sticky vertical ABOUT title at the left.
+       Only the story inset changes: head-driven CSS Shapes still use the
+       article's real measured width and keep wrapping sentences naturally. */
+    padding: max(0px, calc(100svh - 110px)) clamp(46px, 12vw, 62px) 0;
     gap: clamp(48px, 7svh, 80px);
   }
   .jw-about-footer { bottom: calc(max(100svh, 510px) + 100svh + 7px); }
