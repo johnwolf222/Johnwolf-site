@@ -86,8 +86,12 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
       ? [...aboutSection.querySelectorAll('.jw-about-line')] : [];
     // Both effects live in this exact existing renderer, not a second head.
     // The text-planes remain hidden until Section 3 is actually onscreen.
+    // The original 3D text planes remain available as a fallback, but
+    // MUST NOT draw on top of the user-approved two-sided desktop DOM ink.
+    // This never changes the single GLB/head canvas or its choreography.
     const floatingStory = aboutSection && !reducedRef.current &&
-      window.innerWidth > 800
+      window.innerWidth > 800 &&
+      aboutSection.dataset.desktopFlow !== 'bilateral'
       ? installFloatingStory(scene, camera, host, aboutSection) : null;
     floatingStory?.setVisible(false);
     const opticalRipple = aboutSection && !reducedRef.current
@@ -215,7 +219,10 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
     // Project each visible mesh's eight local bounding-box corners through
     // the actual head camera: no GPU readback, guesswork or canvas midpoint.
     const publishVisibleHeadOrbit = () => {
-      if (!geometry || window.innerWidth > 800) return;
+      // Publish the true projected silhouette on desktop as well as mobile.
+      // This enables full-screen sentence lanes to follow head movement
+      // without a second renderer or guessed screen-center geometry.
+      if (!geometry) return;
       const layer = host.closest('.jw-continuous-head');
       if (!layer) return;
       geometry.updateWorldMatrix(true, true);
@@ -254,6 +261,10 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
           }));
         }
       }
+      // Mobile-only paper-ring offsets are unchanged. Desktop consumes
+      // the actual head envelope dispatched above, and does not touch
+      // the homepage's mobile orbit/paper CSS variables.
+      if (window.innerWidth > 800) return;
       // Store the face's LOCAL offset from its own GLB canvas center.
       // Unlike the old window.innerHeight-based subtraction this remains
       // invariant if Safari grows its visual viewport, or Projects scales
@@ -363,7 +374,8 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
       // Re-measure the actual moving beanie/face every fourth frame while
       // About is visible. The rest of the website keeps its existing fast
       // one-time orbit and typography anchor measurements.
-      if (aboutActive && window.innerWidth <= 800 &&
+      if (aboutActive &&
+          // Both desktop and mobile need live head projected bounds.
           // Once the final paragraph has passed, no wrapping text needs
           // new 3D mesh projections. The head's gaze and scroll pose still
           // update every frame through Capabilities, Tools and Contact.

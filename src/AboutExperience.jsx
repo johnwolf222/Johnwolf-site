@@ -51,8 +51,9 @@ export default function AboutExperience() {
     chapters.forEach(chapter => chapterVisibility.observe(chapter));
     section.classList.add('jw-about-mobile-reveal-ready');
     // The original DOM paragraphs remain both visual and accessible.
-    // Mobile text now has two measured, nonoverlapping line segments
-    // around the head. Desktop retains its approved 3D typography.
+    // Both mobile and the wider desktop now share measured two-sided
+    // sentences around the ONE persistent GLB head. The source DOM text
+    // remains accessible, and reduced-motion readers see native copy.
     const disposeMobileStory = installMobileStoryFlow(section);
 
     // A finger tap reproduces the existing single-word hover effect.
@@ -183,6 +184,7 @@ export default function AboutExperience() {
       id="about"
       ref={sectionRef}
       className="about jw-about-experience"
+      data-desktop-flow="bilateral"
       aria-label="About John Wolf — Design Is Life"
     >
       <h2 id="jw-about-heading" className="jw-about-heading">ABOUT</h2>
