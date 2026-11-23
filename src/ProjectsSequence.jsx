@@ -339,6 +339,15 @@ export default function ProjectsSequence() {
         capturedClock = null;
       }
       const scrollY = window.scrollY;
+      // On phones the original About paragraphs now flow around the real
+      // projected 3D head. Reflow can change the story height AFTER the
+      // gallery was measured. Read the live About/Tools geometry here,
+      // without refreshing the pinned ScrollTrigger or shifting scrollY.
+      if (aboutSection && scrollY >= aboutTop - height) {
+        const bounds = aboutSection.getBoundingClientRect();
+        aboutBottom = scrollY + bounds.bottom;
+        toolsTop = toolsPanel ? docTop(toolsPanel) : Infinity;
+      }
       const galleryFocus = loopEnabled && travel.progress >= TRAIN_END
         ? loopFocus : scrollFocus();
       const galleryActive = scrollY >= sectionTop - height * .25;
