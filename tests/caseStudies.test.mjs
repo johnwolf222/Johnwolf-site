@@ -119,3 +119,32 @@ test('Projects case-study actions have no shared backdrop and are both independe
  assert.ok(gallery.includes('onClick={() => setOpenedProject(project)}'));
  assert.ok(gallery.includes("onClick={() => setOpenedProject({name:'All case studies'})}"));
 });
+
+test('case-study viewer uses minimalist black floating controls with purple interaction only',()=>{
+ assert.doesNotMatch(reader, /<aside className="jw-case-meta"/,
+  'the top-left metadata block is gone, as approved');
+ assert.match(reader, /className="jw-case-details-icon" aria-hidden="true"/,
+  'details keep their own plus/minus affordance');
+ assert.match(reader, /className="jw-case-library-toggle"/);
+ assert.match(reader, /className="jw-case-bottom-nav"/);
+ assert.match(reader, /className="jw-case-progress"/);
+ assert.match(reader, /className="jw-case-exit"/);
+ assert.match(viewerStyles, /\.jw-case-sheet\{[^}]*background:#fff;/,
+  'the case-study sheet keeps a clean white background');
+ const controls=viewerStyles.slice(
+  viewerStyles.indexOf('/* The top-left case-study metadata sidebar has been removed. */'),
+  viewerStyles.indexOf('/* Brewty: preserve all three original panels')
+ );
+ assert.ok(controls, 'the floating control styles exist');
+ assert.doesNotMatch(controls, /rgba\(153,0,255|color:#fff/,
+  'old purple-filled buttons and white icons must be removed');
+ for(const name of ['jw-case-details-toggle','jw-case-library-toggle','jw-case-bottom-nav','jw-case-progress,.jw-case-exit']){
+  assert.ok(controls.includes('.'+name), 'missing control '+name);
+ }
+ assert.match(controls, /\.jw-case-library-toggle::after\{/);
+ assert.match(controls, /transform:scaleX\(0\)/,
+  'purple underline stays hidden until interaction');
+ assert.match(controls, /\.jw-case-library-toggle:hover::after\{transform:scaleX\(1\)\}/);
+ assert.match(controls, /@media\(max-width:720px\)\{/,
+  'small screen control layout remains supported');
+});
