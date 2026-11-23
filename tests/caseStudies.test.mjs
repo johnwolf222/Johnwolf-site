@@ -20,7 +20,7 @@ test('the original seven approved case studies remain intact and Suggested Solut
 });
 test('no source images in the live reader point at missing repository assets',()=>{
  for(const study of data.studies){
-  const paths=[study.cover,...study.sections.flatMap(s=>[s.src,s.before,s.after,...(s.srcs||[])])].filter(Boolean);
+  const paths=[study.cover,study.tileCover,...study.sections.flatMap(s=>[s.src,s.before,s.after,...(s.srcs||[])])].filter(Boolean);
   for(const path of paths) assert.ok(existsSync(resolve(root,'public'+path)),study.id+' missing '+path);
  }
 });
@@ -45,7 +45,7 @@ test('brand-specific approved layouts and effects remain captured',()=>{
  assert.ok(!byId.brewty.sections.some(s=>s.type==='grid'));
  assert.ok(!byId.brewty.sections.some(s=>s.src==='/brands/brewty/colored-character.webp'));
  assert.ok(byId.brewty.layoutToPreserve.includes('combined Brewty.png'));
- assert.equal(byId.brewty.coverInGrid,true);
+ assert.equal(byId.brewty.coverInGrid,false);
  assert.ok(byId.inkzilla.layoutToPreserve.includes('comparison'));
  assert.ok(byId['chit-chat'].layoutToPreserve.includes('clock-it'));
 });
@@ -206,4 +206,31 @@ test('original user-supplied case-study covers are byte-exact and shown without 
    'show the full cover, no cropped edges');
  assert.ok(gallery.includes("id === 9 ? '/brands/riches-approved-vertical.png'"),
    'approved Riches gallery card stays unchanged');
+});
+
+test('new Brewty and Inkzilla case-study covers are byte-exact and visible in index and reader',async()=>{
+ const {createHash}=await import('node:crypto');
+ const replacements=[
+  ['brewty','/brands/brewty/case-study-cover-2026.png',1376,768,'12f66c27fe5a519c40ff117e4b11225d2347f234b564c8d2c2a5afec9e077e9b'],
+  ['inkzilla','/brands/inkzilla/case-study-cover-2026.png',1920,1080,'d7c5e2a770003c9adecd029d857fccc8fa0d8fd3ebcf74dd72ffc3975a501a30']
+ ];
+ for(const [id,path,width,height,hash] of replacements){
+  const study=byId[id],file=resolve(root,'public'+path);
+  assert.equal(study.cover,path,id+' individual reader cover');
+  assert.equal(study.tileCover,path,id+' case-study index tile');
+  assert.ok(existsSync(file),'uploaded replacement must exist');
+  const bytes=readFileSync(file);
+  assert.equal(bytes.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
+  assert.equal(bytes.readUInt32BE(16),width);
+  assert.equal(bytes.readUInt32BE(20),height);
+  assert.equal(createHash('sha256').update(bytes).digest('hex'),hash,
+    'the complete original user image must be preserved');
+ }
+ assert.equal(byId.brewty.coverInGrid,false,'Brewty new cover must be visible inside case study');
+ assert.equal(byId.brewty.sections.length,3,'approved Brewty artwork and two videos preserved');
+ assert.equal(byId.inkzilla.sections.length,6,'existing Inkzilla interior media preserved');
+ assert.ok(read('package.json').includes('restore-case-study-covers.mjs'));
+ assert.ok(reader.includes('item.tileCover||item.cover'),'the index prefers the replacement cover');
+ assert.match(viewerStyles,/\.jw-case-tile--custom-cover img\{object-fit:contain;/,
+  'show full wide covers without crop');
 });

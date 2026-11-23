@@ -205,7 +205,7 @@
         "old-school grain",
         "a signature they could proudly leave behind"
       ],
-      "cover": "/brands/inkzilla/tattoo-session.webp",
+      "cover": "/brands/inkzilla/case-study-cover-2026.png",
       "sections": [
         {
           "type": "image",
@@ -261,7 +261,7 @@
         "loop": true,
         "playsInline": true
       },
-      "tileCover": "/brands/inkzilla/tattoo-session.webp"
+      "tileCover": "/brands/inkzilla/case-study-cover-2026.png"
     },
     {
       "id": "brewty",
@@ -277,7 +277,7 @@
         "cream",
         "steam rising"
       ],
-      "cover": "/brands/brewty/packaging.webp",
+      "cover": "/brands/brewty/case-study-cover-2026.png",
       "sections": [
         {
           "type": "image",
@@ -308,7 +308,8 @@
       "layoutToPreserve": "Display the user-supplied combined Brewty.png image once, full-width and uncropped. Replace the first Brewty animated-pattern film with the supplied Brewty vid(1).mp4, autoplay muted, inline and looping. Preserve the newer 5-second Brewty brand film unchanged.",
       "source": "approved case-study specification and provided artwork",
       "assetState": "User-supplied combined Brewty artwork and brand film preserved; animated pattern video replaced with uploaded Brewty vid(1).mp4, verified by SHA-256 during build",
-      "coverInGrid": true
+      "coverInGrid": false,
+      "tileCover": "/brands/brewty/case-study-cover-2026.png"
     },
     {
       "id": "chit-chat",
