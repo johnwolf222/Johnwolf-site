@@ -211,8 +211,8 @@ export default function CaseStudyReader({selectedProject,onClose}){
    </aside>
    <button type="button" className="jw-case-details-toggle" onClick={()=>setDetails(x=>!x)} aria-expanded={details}>{details?'Close details':'View details'}</button>
    {details&&<aside className="jw-case-details"><h3>{study?.name||'Case studies'}</h3><p>{study?.intro||'Eight case studies by John Wolf.'}</p><p>Scroll or drag vertically. The gallery repeats continuously.</p></aside>}
-   {!study?<div className="jw-case-library" aria-label="Choose a case study">
-     <div className="jw-case-library__intro"><span>JOHN WOLF · SELECTED WORK</span><h2>Stories behind the work.</h2><p>Eight case studies and the thinking behind each one.</p></div>
+   {!study?<div className="jw-case-library" aria-label="All case studies">
+     <div className="jw-case-library__intro"><span>JOHN WOLF · CASE STUDIES</span><h2>All case studies</h2><p>Explore all {entries.length} case studies, each focused on the creative decisions and finished work.</p></div>
      <div className="jw-case-library__grid">{entries.map(item=><button type="button" className={'jw-case-tile'+(item.tileCover?' jw-case-tile--custom-cover':'')} key={item.id} onClick={()=>{setActive(item.id);setDetails(false);}} style={{'--jw-case-color':item.highlight}}>
        {(item.tileCover||item.cover)?<img src={item.tileCover||item.cover} alt="" loading="lazy"/>:<div className="jw-case-tile__type">{item.name}</div>}
        <span>{item.name}<b>↗</b></span>
