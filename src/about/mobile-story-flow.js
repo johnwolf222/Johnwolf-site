@@ -1,157 +1,135 @@
 /**
- * The four original paragraphs form their OWN readable mobile lines.
- * Do not manufacture 80px-wide copies: they split whole words into
- * hundreds of rows and make the About page needlessly long.
- *
- * Each original word remains in normal document flow. When its native
- * position approaches the actual projected 3D face, its paint moves
- * outside the face's ellipse without changing the paragraph's layout.
- * Original source, hover targets and screen-reader reading order survive.
+ * Browser-native sentence wrapping around the SAME projected 3D head.
+ * One invisible CSS shape changes the line widths for each paragraph.
+ * No independent word transforms, cloned text, or overlap-prone positions.
  */
-const safe = value => Number.isFinite(value);
+const finite = n => Number.isFinite(n);
+const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
-export function mobileWordAvoidance(word, head, viewportWidth) {
-  if (!head || !word || ![word.left,word.top,word.width,word.height,
-      head.left,head.right,head.top,head.bottom,viewportWidth].every(safe) ||
-      viewportWidth <= 0 || word.width <= 0 || word.height <= 0 ||
-      head.right <= head.left || head.bottom <= head.top)
-    return { x: 0, y: 0 };
-
-  const cx = word.left + word.width / 2;
-  const cy = word.top + word.height / 2;
-  const hx = (head.left + head.right) / 2;
-  const hy = (head.top + head.bottom) / 2;
-  // Include the full word's painted extent and a small safety margin.
-  const rx = (head.right - head.left) / 2 + word.width / 2 + 15;
-  const ry = (head.bottom - head.top) / 2 + word.height / 2 + 17;
-  const dx = cx - hx;
-  const dy = cy - hy;
-  const nx = dx / rx;
-  const ny = dy / ry;
-  if (nx * nx + ny * ny >= 1) return { x: 0, y: 0 };
-
-  // Prefer a lateral route: words visually flow around the face instead
-  // of stacking up in a narrow 1-word column. Don't leave the viewport.
-  const edge = 12;
-  const crossX = rx * Math.sqrt(Math.max(0, 1 - ny * ny));
-  const leftStep = Math.max(0, dx + crossX + 3);
-  const rightStep = Math.max(0, crossX - dx + 3);
-  const leftRoom = Math.max(0, word.left - edge);
-  const rightRoom = Math.max(0, viewportWidth - edge -
-    (word.left + word.width));
-  const lateral = [];
-  if (leftStep <= leftRoom) lateral.push({ x: -leftStep, y: 0 });
-  if (rightStep <= rightRoom) lateral.push({ x: rightStep, y: 0 });
-  if (lateral.length) {
-    // Keep words on their original side when both routes are possible.
-    const preferredSign = dx < 0 ? -1 : 1;
-    lateral.sort((a, b) =>
-      (Math.sign(a.x) === preferredSign ? 0 : 1) -
-      (Math.sign(b.x) === preferredSign ? 0 : 1));
-    return lateral[0];
-  }
-
-  // Near a screen edge there may be no room beside the head. The same
-  // elliptical clearance can then be taken above or below it, without
-  // narrowing, chopping or rebuilding the paragraph.
-  const crossY = ry * Math.sqrt(Math.max(0, 1 - nx * nx));
-  const upStep = Math.max(0, dy + crossY + 3);
-  const downStep = Math.max(0, crossY - dy + 3);
-  return { x: 0, y: dy < 0 ? -upStep : downStep };
+export function mobileStoryExclusion(article, head, side='right', gap=14) {
+  if (!article || !head || ![
+      article.left, article.right, article.top, article.bottom,
+      head.left, head.right, head.top, head.bottom, gap,
+    ].every(finite) || article.right <= article.left ||
+      head.right <= head.left || head.bottom <= head.top || gap < 0)
+    return null;
+  if (head.right + gap <= article.left ||
+      head.left - gap >= article.right) return null;
+  const widthTotal = article.right - article.left;
+  const width = clamp(side === 'right'
+    ? article.right - head.left + gap
+    : head.right - article.left + gap, 1, widthTotal);
+  const floatLeft = side === 'right' ? article.right - width : article.left;
+  return {
+    width, side,
+    cx: (head.left + head.right) / 2 - floatLeft,
+    cy: (head.top + head.bottom) / 2 - article.top,
+    rx: (head.right - head.left) / 2 + gap,
+    ry: (head.bottom - head.top) / 2 + gap + 2,
+  };
 }
 
 export function installMobileStoryFlow(section) {
   if (typeof window === 'undefined' || !section) return () => {};
   const articles = [...section.querySelectorAll('.jw-about-message')];
-  if (!articles.length) return () => {};
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const wordsByArticle = articles.map(article => ({
-    article,
-    words: [...article.querySelectorAll('.jw-hover-word')],
-  }));
-  let head = null;
-  let frame = 0;
-  let disposed = false;
-  const positions = new Map();
-  // Plain paragraphs are always visible and readable even if the model
-  // fails, arrives late, or reduced-motion is enabled.
-  articles.forEach(article => article.classList.add('jw-about-flow-active'));
+  const enabled = () => window.innerWidth <= 800 && !reduced.matches;
+  const entries = [];
+  let lastWidth = window.innerWidth, head = null, frame = 0, disposed = false;
 
-  const schedule = () => {
+  function build() {
+    for (const e of entries) e.float.remove();
+    entries.length = 0;
+    for (const article of articles) {
+      article.classList.remove('jw-about-flow-active');
+      article.style.minHeight = '';
+    }
+    if (!enabled()) return;
+    for (const article of articles) {
+      // Reserve once, BEFORE inserting the float. Safari cannot use
+      // animated text height to control the About -> Tools boundary.
+      const natural = Math.max(
+        article.getBoundingClientRect().height, article.scrollHeight);
+      const height = Math.ceil(natural + Math.max(
+        206, Math.min(285, window.innerHeight * .3)));
+      const side = article.classList.contains('story-left') ? 'right' : 'left';
+      const float = document.createElement('span');
+      float.className = 'jw-about-head-exclusion jw-about-head-exclusion--' + side;
+      float.setAttribute('aria-hidden', 'true');
+      float.style.width = '1px';
+      float.style.height = height + 'px';
+      float.style.shapeOutside = 'ellipse(0px 0px at 0px 0px)';
+      article.insertBefore(float, article.firstChild);
+      article.style.minHeight = height + 'px';
+      article.classList.add('jw-about-flow-active');
+      entries.push({ article, float, side, shape: '', width: '' });
+    }
+  }
+  function schedule() {
     if (!disposed && !frame) frame = requestAnimationFrame(position);
-  };
+  }
+  const px = n => (Math.round(n / 3) * 3) + 'px';
+
   function position() {
     frame = 0;
-    if (disposed || window.innerWidth > 800) return;
-    const changes = [];
-    for (const { article, words } of wordsByArticle) {
-      const bounds = article.getBoundingClientRect();
-      const canAvoid = Boolean(head && !reduced.matches &&
-        bounds.bottom > head.top - 100 &&
-        bounds.top < head.bottom + 100);
-      if (!canAvoid && !words.some(word => positions.has(word))) continue;
-      // All reads happen before ANY style writes. Offset positions are
-      // unaffected by paint-only transforms and cannot feed back into wrap.
-      for (const word of words) {
-        let next = { x: 0, y: 0 };
-        if (canAvoid) {
-          const width = word.offsetWidth;
-          const height = word.offsetHeight;
-          const localLeft = word.offsetLeft;
-          const localTop = word.offsetTop;
-          const top = bounds.top + localTop;
-          if (top + height >= head.top - 20 &&
-              top <= head.bottom + 20) {
-            next = mobileWordAvoidance({
-              left: bounds.left + localLeft,
-              top, width, height,
-            }, head, window.innerWidth);
-          }
-        }
-        const previous = positions.get(word);
-        if (next.x === 0 && next.y === 0 && !previous) continue;
-        if (next.x === 0 && next.y === 0) {
-          positions.delete(word);
-          changes.push([word, '']);
-        } else {
-          const transform = 'translate3d(' +
-            next.x.toFixed(1) + 'px,' + next.y.toFixed(1) + 'px,0)';
-          if (previous !== transform) {
-            positions.set(word, transform);
-            changes.push([word, transform]);
-          }
-        }
+    if (disposed || !enabled()) return;
+    // Read all box geometry first, then update all invisible float shapes.
+    const candidates = entries.map(entry => {
+      const rect = entry.article.getBoundingClientRect();
+      return {
+        entry,
+        bounds: head ? mobileStoryExclusion(rect, head, entry.side) : null,
+      };
+    });
+    for (const { entry, bounds } of candidates) {
+      const outside = !bounds ||
+        bounds.cy + bounds.ry < -24 ||
+        bounds.cy - bounds.ry > entry.float.offsetHeight + 24;
+      const width = outside ? '1px' : px(bounds.width);
+      const shape = outside ? 'ellipse(0px 0px at 0px 0px)' :
+        'ellipse(' + px(bounds.rx) + ' ' + px(bounds.ry) +
+        ' at ' + px(bounds.cx) + ' ' + px(bounds.cy) + ')';
+      if (width !== entry.width) {
+        entry.float.style.width = width;
+        entry.width = width;
+      }
+      if (shape !== entry.shape) {
+        entry.float.style.shapeOutside = shape;
+        entry.shape = shape;
       }
     }
-    for (const [word, transform] of changes)
-      word.style.transform = transform;
   }
-
   function onHead(event) {
     const next = event.detail;
-    if (!next || ![next.left,next.right,next.top,next.bottom].every(safe) ||
+    if (!next || ![next.left,next.right,next.top,next.bottom].every(finite) ||
         next.right <= next.left || next.bottom <= next.top) return;
     head = next;
     schedule();
   }
-  const onResize = () => schedule();
+  function onResize() {
+    if (window.innerWidth !== lastWidth) {
+      lastWidth = window.innerWidth;
+      build();
+    }
+    schedule();
+  }
+  build();
   section.addEventListener('jw-about-head-envelope', onHead);
   window.addEventListener('scroll', schedule, { passive: true });
   window.addEventListener('resize', onResize, { passive: true });
-  reduced.addEventListener?.('change', schedule);
-  document.fonts?.ready.then(() => {
-    if (!disposed) schedule();
-  });
+  reduced.addEventListener?.('change', onResize);
+  document.fonts?.ready.then(() => { if (!disposed) schedule(); });
   return () => {
     disposed = true;
     if (frame) cancelAnimationFrame(frame);
     section.removeEventListener('jw-about-head-envelope', onHead);
     window.removeEventListener('scroll', schedule);
     window.removeEventListener('resize', onResize);
-    reduced.removeEventListener?.('change', schedule);
-    for (const word of positions.keys()) word.style.transform = '';
-    positions.clear();
-    articles.forEach(article => article.classList.remove(
-      'jw-about-flow-active'));
+    reduced.removeEventListener?.('change', onResize);
+    for (const e of entries) e.float.remove();
+    for (const article of articles) {
+      article.classList.remove('jw-about-flow-active');
+      article.style.minHeight = '';
+    }
   };
 }

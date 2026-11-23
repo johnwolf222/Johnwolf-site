@@ -253,23 +253,22 @@
     box-shadow: 0 6px 30px rgba(40, 24, 60, .05);
     scroll-margin-top: clamp(82px, 12svh, 120px);
   }
-  /* Full-width, native paragraphs restore normal reading. The former
-     head-side corridor was only 48–146px wide and cut entire words
-     (e.g. "fortu / nate") into dozens of rows. Preserve text, paragraph
-     spacing, and stable About/Tools document height. */
+  /* Invisible CSS Shapes float. Browser layout—not moving individual
+     words—shortens and lengthens actual sentence lines by the 3D head. */
   .jw-about-message.jw-about-flow-active {
     padding: 0;
     background: transparent;
     box-shadow: none;
     border-radius: 0;
     pointer-events: auto;
+    overflow-anchor: none;
   }
   .jw-about-message.jw-about-flow-active > p {
     position: static;
     width: auto;
     height: auto;
-    overflow: visible;
     opacity: 1;
+    overflow: visible;
     clip-path: none;
     pointer-events: auto;
     margin-bottom: .85em;
@@ -277,15 +276,20 @@
     word-break: normal;
     hyphens: none;
   }
-  /* Only the paint of words near the actual head may bend away; inline
-     word geometry stays in native paragraph flow. No per-scroll rewrap. */
+  .jw-about-head-exclusion {
+    display: block;
+    float: right;
+    width: 1px;
+    pointer-events: none;
+    background: transparent;
+    shape-margin: 0;
+  }
+  .jw-about-head-exclusion--left { float: left; }
   #root .about.jw-about-experience .jw-about-message .jw-hover-word {
-    display: inline-block;
-    white-space: nowrap;
-    transform: translate3d(0,0,0);
-    transition: transform .16s cubic-bezier(.22,.78,.2,1),
-      background-color .15s ease, box-shadow .15s ease;
-    will-change: auto;
+    display: inline;
+    white-space: normal;
+    transform: none;
+    transition: background-color .15s ease, box-shadow .15s ease;
   }
   /* The original purple ink recoil composes through translate and scale
      independently of JS head-clearance transform, leaving black ink. */

@@ -51,8 +51,8 @@ export default function AboutExperience() {
     chapters.forEach(chapter => chapterVisibility.observe(chapter));
     section.classList.add('jw-about-mobile-reveal-ready');
     // The original DOM paragraphs remain both visual and accessible.
-    // Mobile words bend away from the projected head without being
-    // copied into narrow columns. Desktop keeps its 3D text planes.
+    // Mobile sentences wrap around an invisible projected-head shape.
+    // Nothing moves words independently. Desktop retains 3D text planes.
     const disposeMobileStory = installMobileStoryFlow(section);
 
     // A finger tap reproduces the existing single-word hover effect.

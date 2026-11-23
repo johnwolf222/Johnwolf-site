@@ -5,7 +5,7 @@ import { rollingGlyphs } from '../src/rollingTitleGlyphs.js';
 import { galleryHeadPlacement, galleryCameraProgress, CAMERA_DESCENT, spiralGalleryPose } from '../src/SpiralGalleryMotion.js';
 import { sectionBoundaryDelta, rearmSectionBoundary } from '../src/about/section-boundary-snap.js';
 import { isMobileHeadTap, centeredToolScrollLeft } from '../src/about/mobile-interactions.js';
-import { mobileWordAvoidance } from '../src/about/mobile-story-flow.js';
+import { mobileStoryExclusion } from '../src/about/mobile-story-flow.js';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 const css = read('../src/NewHomepage.css');
@@ -263,77 +263,40 @@ test('the persistent 3D head follows finger coordinates from any section without
 });
 
 
-test('mobile About keeps natural multiword paragraphs and never splits long words', () => {
+
+test('mobile About keeps sentence order and uses native shape wrapping without word collisions', () => {
   const css = read('../src/AboutExperience.css');
-  const flow = read('../src/about/mobile-story-flow.js');
+  const source = read('../src/about/mobile-story-flow.js');
   const about = read('../src/AboutExperience.jsx');
-  const words = read('../src/WordHighlight.jsx');
-  assert.match(css, /\.jw-about-message\.jw-about-flow-active > p \{/);
+  assert.match(css, /\.jw-about-head-exclusion--left \{ float: left; \}/);
+  assert.match(css, /\.jw-about-head-exclusion \{/);
+  assert.match(css, /\.jw-about-message \.jw-hover-word \{[\s\S]*?display: inline;/);
   assert.match(css, /overflow-wrap: normal;/);
   assert.match(css, /word-break: normal;/);
   assert.match(css, /hyphens: none;/);
-  assert.match(css, /\.jw-about-message \.jw-hover-word \{/);
-  assert.match(css, /display: inline-block;/);
-  assert.match(css, /white-space: nowrap;/);
-  assert.match(flow, /words: \[\.\.\.article\.querySelectorAll\('\.jw-hover-word'\)\]/);
-  assert.match(flow, /word\.offsetLeft/);
-  assert.match(flow, /word\.offsetTop/);
-  assert.match(flow, /word\.style\.transform = transform/);
-  assert.doesNotMatch(flow, /measureText|createTextNode|createElement\('span'\)|continued|jw-about-flow-lines/);
+  assert.match(source, /float\.style\.shapeOutside =/);
+  assert.match(source, /article\.insertBefore\(float, article\.firstChild\)/);
+  assert.match(source, /entry\.float\.style\.shapeOutside = shape/);
+  assert.match(source, /article\.style\.minHeight = height \+ 'px'/);
+  assert.doesNotMatch(source, /word\.style\.transform|createTextNode|measureText|cloneNode/);
   assert.match(about, /installMobileStoryFlow\(section\)/);
-  assert.match(words, /split\(\/\(\\s\+\)\/u\)/);
-  assert.match(css, /\.jw-about-mobile-reveal-ready \.jw-about-message\.is-in-view/);
 });
 
-test('mobile head clearance moves words outside the face without shrinking lines', () => {
-  const head = {left:120,right:270,top:300,bottom:520};
-  const rects = [
-    {left:164,top:390,width:64,height:23},
-    {left:135,top:300,width:78,height:24},
-    {left:200,top:450,width:55,height:22},
-    {left:20,top:390,width:65,height:22},
-  ];
-  for (const word of rects) {
-    const displacement = mobileWordAvoidance(word, head, 390);
-    const cx = word.left + word.width/2 + displacement.x;
-    const cy = word.top + word.height/2 + displacement.y;
-    const hx = (head.left+head.right)/2;
-    const hy = (head.top+head.bottom)/2;
-    const rx = (head.right-head.left)/2 + word.width/2 + 15;
-    const ry = (head.bottom-head.top)/2 + word.height/2 + 17;
-    const distance = ((cx-hx)/rx)**2 + ((cy-hy)/ry)**2;
-    assert.ok(distance >= .999, 'each ink segment clears the head ellipse');
-    assert.ok(word.left+displacement.x >= 0,
-      'no horizontal movement may push a word off the left side');
-    assert.ok(word.left+word.width+displacement.x <= 390,
-      'no horizontal movement may push a word off the right side');
+test('an ellipse follows the same projected head in either text direction', () => {
+  const article = { left: 24, right: 366, top: 200, bottom: 650 };
+  const head = { left: 150, right: 238, top: 320, bottom: 530 };
+  for (const side of ['left','right']) {
+    const shape = mobileStoryExclusion(article,head,side);
+    assert.equal(shape.side,side);
+    assert.ok(shape.width > 0 && shape.width <= 342);
+    const anchor = side==='right' ? article.right-shape.width : article.left;
+    assert.equal(anchor+shape.cx,194);
+    assert.equal(shape.cy,225);
+    assert.ok(shape.rx > 44 && shape.ry > 105);
   }
-  assert.deepEqual(mobileWordAvoidance(
-    {left:18,top:70,width:80,height:20},head,390),
-    {x:0,y:0}, 'words away from the head retain their original layout');
-  assert.deepEqual(mobileWordAvoidance(null,head,390),{x:0,y:0});
-  assert.deepEqual(mobileWordAvoidance(
-    {left:100,top:390,width:80,height:20},null,390),{x:0,y:0});
-});
-
-test('About mobile text keeps one stable layout across scroll, touch and head turns', () => {
-  const flow = read('../src/about/mobile-story-flow.js');
-  const css = read('../src/AboutExperience.css');
-  const page = read('../src/AboutExperience.jsx');
-  const head = read('../src/HomepageHead.jsx');
-  assert.match(flow, /const wordsByArticle = articles\.map\(article =>/);
-  assert.match(flow, /const changes = \[\]/);
-  assert.match(flow, /for \(const \[word, transform\] of changes\)/);
-  assert.match(flow, /window\.addEventListener\('scroll', schedule, \{ passive: true \}\)/);
-  assert.match(flow, /section\.addEventListener\('jw-about-head-envelope', onHead\)/);
-  assert.match(flow, /return \(\) => \{/);
-  assert.match(head, /'jw-about-head-envelope'/);
-  assert.match(head, /aboutProjectionFrames % 4 === 0/);
-  assert.match(page, /disposeMobileStory\(\)/);
-  assert.match(page, /\.jw-about-message \.jw-hover-word'/);
-  assert.match(css, /@keyframes jw-about-mobile-ink-impact/);
-  assert.match(css, /0%, 100% \{ filter: none; translate: 0 0; scale: 1; \}/);
-  assert.doesNotMatch(css, /\.jw-about-flow-active > p \{\s*position: absolute/);
+  assert.equal(mobileStoryExclusion(article,
+    {left:401,right:500,top:320,bottom:530},'left'),null);
+  assert.equal(mobileStoryExclusion(article,null,'left'),null);
 });
 
 test('head tap optical shader preserves dark About ink rather than painting white fog', () => {
@@ -362,25 +325,23 @@ test('head tap optical shader preserves dark About ink rather than painting whit
   assert.match(about, /impactCleanup = window\.setTimeout\(clearImpact, 1550\)/);
   assert.match(css, /@keyframes jw-about-mobile-ink-impact/);
   assert.match(css, /translate: 4px -4px/);
-  assert.match(css, /\.jw-about-message \.jw-hover-word \{[\s\S]*?transform: translate3d\(0,0,0\)/);
+  assert.match(css, /\.jw-about-message \.jw-hover-word \{[\s\S]*?transform: none;/);
   assert.match(css, /0%, 100% \{ filter: none; translate: 0 0; scale: 1; \}/);
 });
 
 
-test('no cloned mobile story is rebuilt when turning or scrolling the head', () => {
-  const flow = read('../src/about/mobile-story-flow.js');
-  const head = read('../src/HomepageHead.jsx');
-  const page = read('../src/AboutExperience.jsx');
-  assert.doesNotMatch(flow, /lastCorridor|rebuild\(|splitLongWord|\.appendChild\(/);
-  assert.match(flow, /const wordsByArticle = articles\.map\(article =>/);
-  assert.match(flow, /const positions = new Map\(\)/);
-  assert.match(flow, /const changes = \[\]/);
-  assert.match(flow, /for \(const \[word, transform\] of changes\)/);
-  assert.match(page, /lastFittedHeight = required/);
-  assert.match(head, /const projectedMeshBoxes = \[\]/);
-  assert.match(head, /for \(const \{ node, corners \} of projectedMeshBoxes\)/);
-});
 
+test('head rotation never rewrites original word positions or creates cloned lines', () => {
+  const source = read('../src/about/mobile-story-flow.js');
+  const about = read('../src/AboutExperience.jsx');
+  assert.match(source, /const candidates = entries\.map\(entry =>/);
+  assert.match(source, /section\.addEventListener\('jw-about-head-envelope', onHead\)/);
+  assert.match(source, /window\.addEventListener\('scroll', schedule, \{ passive: true \}\)/);
+  assert.match(source, /const height = Math\.ceil\(natural \+ Math\.max\(/);
+  assert.match(source, /const px = n =>/);
+  assert.doesNotMatch(source, /lastCorridor|rebuild\(|word\.offsetLeft|word\.offsetTop/);
+  assert.match(about, /disposeMobileStory\(\)/);
+});
 test('mobile Tools crossing has a single native scroll owner and never bounces between controllers', () => {
   const toolsSnap = read('../src/about/tools-soft-snap.js');
   const boundaries = read('../src/about/section-boundary-snap.js');
