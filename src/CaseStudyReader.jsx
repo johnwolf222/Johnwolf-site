@@ -204,12 +204,8 @@ export default function CaseStudyReader({selectedProject,onClose}){
  };
  return createPortal(<div className="jw-case-reader" role="dialog" aria-modal="true" aria-label={study?study.name+' case study':'John Wolf case studies'}>
   <div className="jw-case-sheet" ref={sheetRef}>
-   <aside className="jw-case-meta" aria-label="Case study information">
-    <span>{study?.eyebrow||'SELECTED WORK'}</span>
-    <span>{study?'Identity & creative direction':'Case studies & visual identity'}</span>
-    <span>Designer: John Wolf</span>
-   </aside>
-   <button type="button" className="jw-case-details-toggle" onClick={()=>setDetails(x=>!x)} aria-expanded={details}>{details?'Close details':'View details'}</button>
+
+   <button type="button" className="jw-case-details-toggle" onClick={()=>setDetails(x=>!x)} aria-expanded={details}>{details?'Close details':'View details'}<span className="jw-case-details-icon" aria-hidden="true">{details?'−':'+'}</span></button>
    {details&&<aside className="jw-case-details"><h3>{study?.name||'Case studies'}</h3><p>{study?.intro||'Eight case studies by John Wolf.'}</p><p>Scroll or drag vertically. The gallery repeats continuously.</p></aside>}
    {!study?<div className="jw-case-library" aria-label="All case studies">
      <div className="jw-case-library__intro"><span>JOHN WOLF · CASE STUDIES</span><h2>All case studies</h2><p>Explore all {entries.length} case studies, each focused on the creative decisions and finished work.</p></div>
