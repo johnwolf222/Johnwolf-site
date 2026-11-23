@@ -1440,8 +1440,12 @@ test('tools settle only near full-frame alignment and can scroll out normally', 
     const close=height*.22;
     assert.equal(toolSnapDelta(close,height),close,
       'approach from story aligns the tool panel to top after scrolling rests');
-    assert.equal(toolSnapDelta(-height*.08,height),-height*.08,
+    assert.equal(toolSnapDelta(-height*.08,height,false,-1),-height*.08,
       'reverse scrolling from Contact can align the same tools panel');
+    assert.equal(toolSnapDelta(-height*.08,height,false,1),null,
+      'a forward swipe into Contact cannot snap back to Tools');
+    assert.equal(toolSnapDelta(height*.22,height,false,-1),null,
+      'a reverse swipe must not jump forward into Tools');
     assert.equal(toolSnapDelta(height*.75,height),null,
       'do not jump from far away while reading the final story chapter');
     assert.equal(toolSnapDelta(-height*.55,height),null,

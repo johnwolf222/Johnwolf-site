@@ -3,11 +3,16 @@
  * native wheel, keyboard and touch scrolling: this is not a pinned section.
  * Pure geometry is shared between implementation and regression tests.
  */
-export function toolSnapDelta(panelTop, viewportHeight, consumed = false) {
+export function toolSnapDelta(panelTop, viewportHeight, consumed = false,
+  direction = 0) {
   if (!Number.isFinite(panelTop) || !Number.isFinite(viewportHeight) ||
       viewportHeight <= 0 || consumed) return null;
   // Land only when most of the full-screen tools section is already visible.
   // Don't pull the user back after they have started scrolling onward.
+  // Once the user has crossed the panel, a forward scroll must not
+  // yank them back. The symmetric rule preserves a deliberate reverse.
+  if ((panelTop < 0 && direction >= 0) ||
+      (panelTop > 0 && direction < 0)) return null;
   const ahead = Math.min(viewportHeight * .62, 560);
   const behind = Math.min(viewportHeight * .36, 320);
   if (panelTop > ahead || panelTop < -behind ||
@@ -37,6 +42,8 @@ export function installToolsSoftSnap(section, toolsPanel) {
   let lastInput = 0;
   let priorScrollBehavior = null;
   let disposed = false;
+  let lastScrollY = window.scrollY;
+  let scrollDirection = 0;
 
   function restoreScrollBehavior() {
     if (priorScrollBehavior !== null) {
@@ -79,7 +86,7 @@ export function installToolsSoftSnap(section, toolsPanel) {
       return;
     }
     const delta = toolSnapDelta(toolsPanel.getBoundingClientRect().top,
-      window.innerHeight, consumed);
+      window.innerHeight, consumed, scrollDirection);
     if (delta === null) return;
     consumed = true;
     const start = window.scrollY;
@@ -101,6 +108,10 @@ export function installToolsSoftSnap(section, toolsPanel) {
     frame = requestAnimationFrame(tick);
   }
   function onScroll() {
+    const y = window.scrollY;
+    if (Math.abs(y - lastScrollY) > .5 && !frame)
+      scrollDirection = Math.sign(y - lastScrollY);
+    lastScrollY = y;
     const top = toolsPanel.getBoundingClientRect().top;
     if (rearmToolSnap(top, window.innerHeight)) consumed = false;
     if (!frame && !consumed && !reduced.matches) queue();

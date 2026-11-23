@@ -205,7 +205,8 @@ test('mobile About story reveals each chapter and a tapped word highlights indep
   const css = read('../src/AboutExperience.css');
   const ink = read('../src/WordHighlight.css');
   assert.match(page, /const chapterVisibility = new IntersectionObserver/);
-  assert.match(page, /'is-in-view', entry\.isIntersecting/);
+  assert.match(page, /entry\.target\.classList\.add\('is-in-view'\)/);
+  assert.match(page, /chapterVisibility\.unobserve\(entry\.target\)/);
   assert.match(page, /section\.classList\.add\('jw-about-mobile-reveal-ready'\)/);
   assert.match(page, /window\.addEventListener\('scroll', clearTouchedWord, \{ passive: true \}\)/);
   assert.match(page, /section\.addEventListener\('pointerdown', onWordTouch, \{ passive: true \}\)/);
@@ -324,6 +325,12 @@ test('head tap optical shader preserves dark About ink rather than painting whit
   assert.match(source, /float lightAlpha = min\(\.58, opticalLight \* \.32\)/);
   assert.match(source, /float headCoverage = texture2D\(uHeadMask, vUv\)\.a/);
   assert.match(source, /const keepMobileHeadline = window\.innerWidth <= 800/);
+  assert.match(source, /uniform float uMobileDOM;/);
+  assert.match(source, /if \(uMobileDOM > 0\.5\) \{/);
+  assert.match(source, /min\(refractedBase, vec3\(\.30\)\)/);
+  assert.match(source, /glassAlpha = max\(refractedInk \* \.76, lightAlpha \* \.72\)/);
+  assert.match(source, /uniforms\.uMobileDOM\.value = window\.innerWidth <= 800 \? 1 : 0/);
+  assert.match(source, /if \(!rendered\)\s+for \(const line of headlineLines\) line\.style\.visibility = ''/);
   assert.match(source, /if \(!keepMobileHeadline\)\s+for\(const line of headlineLines\)line\.style\.visibility='hidden'/);
   assert.match(source, /if \(!keepMobileHeadline\) renderer\.render\(headlineScene,overlayCamera\)/);
   // The original wave remains; its separate mobile DOM copy is not wiped
@@ -334,4 +341,20 @@ test('head tap optical shader preserves dark About ink rather than painting whit
   assert.match(css, /translate: 4px -4px/);
   assert.match(css, /\.jw-about-flow-line \{[\s\S]*?transform: translate3d\(0, 0, 0\)/);
   assert.match(css, /0%, 100% \{ filter: none; translate: 0 0; scale: 1; \}/);
+});
+
+test('About never rebuilds its story lines for rotating head or Safari viewport height', () => {
+  const flow = read('../src/about/mobile-story-flow.js');
+  const about = read('../src/AboutExperience.jsx');
+  const head = read('../src/HomepageHead.jsx');
+  assert.doesNotMatch(flow, /Math\.abs\(width - lastCorridor\) > 12/);
+  assert.match(flow, /if \(window\.innerWidth !== lastViewport \|\| !allLines\.length\)/);
+  assert.match(flow, /if \(window\.innerWidth !== lastViewport\) rebuild\(\);\s+else schedule\(\)/);
+  assert.match(flow, /const rects = new Map\(articles\.map\(article =>/);
+  assert.match(flow, /const transforms = \[\]/);
+  assert.match(flow, /for \(const \[node, transform\] of transforms\)/);
+  assert.match(about, /lastFittedHeight = required/);
+  assert.match(about, /chapterVisibility\.unobserve\(entry\.target\)/);
+  assert.match(head, /const projectedMeshBoxes = \[\]/);
+  assert.match(head, /for \(const \{ node, corners \} of projectedMeshBoxes\)/);
 });

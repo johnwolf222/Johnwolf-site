@@ -40,8 +40,13 @@ export default function AboutExperience() {
     // flow. Only their mobile entrance opacity/position is animated.
     const chapters = [...section.querySelectorAll('.jw-about-message')];
     const chapterVisibility = new IntersectionObserver(entries => {
-      entries.forEach(entry => entry.target.classList.toggle(
-        'is-in-view', entry.isIntersecting));
+      entries.forEach(entry => {
+        // A revealed chapter remains readable while scrolling backward.
+        // Repeated threshold crossings previously flickered opacity.
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('is-in-view');
+        chapterVisibility.unobserve(entry.target);
+      });
     }, { threshold: .02, rootMargin: '0px 0px -8% 0px' });
     chapters.forEach(chapter => chapterVisibility.observe(chapter));
     section.classList.add('jw-about-mobile-reveal-ready');
@@ -75,6 +80,7 @@ export default function AboutExperience() {
     const lastChapter = section.querySelector('[data-story="4"]');
     const toolsPanel = section.querySelector('#about-tools');
     const capabilitiesPanel = section.querySelector('#about-capabilities');
+    let lastFittedHeight = 0;
     const fitFallbackStory = () => {
       if (section.dataset.storyHeightSource === 'three' || !lastChapter)
         return;
@@ -85,8 +91,14 @@ export default function AboutExperience() {
       const capabilityHeight = capabilitiesPanel?.getBoundingClientRect().height ||
         window.innerHeight;
       const breathing = Math.max(24, Math.min(30, window.innerHeight * .048));
-      section.style.minHeight =
-        Math.ceil(lastLine + breathing + capabilityHeight + panelHeight) + 'px';
+      const required = Math.ceil(
+        lastLine + breathing + capabilityHeight + panelHeight);
+      // Do not invalidate the entire page for unchanged ResizeObserver
+      // measurements; changes of one pixel are visual no-ops.
+      if (Math.abs(required - lastFittedHeight) > 1) {
+        lastFittedHeight = required;
+        section.style.minHeight = required + 'px';
+      }
     };
     fitFallbackStory();
     const chapterObserver = new ResizeObserver(fitFallbackStory);

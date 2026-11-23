@@ -120,6 +120,8 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
     let frameId = 0;
     let lastFrame = 0;
     let geometry = null;
+    const projectedMeshBoxes = [];
+    let lastAboutEnvelope = null;
     let scale = 1;
     let headHalfHeight = 0.49;
     let visualAnchorFrames = 0;
@@ -219,23 +221,16 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
       camera.updateMatrixWorld();
       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
       const corner = new THREE.Vector3();
-      geometry.traverse(node => {
-        if (!node.isMesh || !node.visible || !node.geometry) return;
-        if (!node.geometry.boundingBox) node.geometry.computeBoundingBox();
-        const box = node.geometry.boundingBox;
-        if (!box || box.isEmpty()) return;
-        for (const x of [box.min.x, box.max.x]) {
-          for (const y of [box.min.y, box.max.y]) {
-            for (const z of [box.min.z, box.max.z]) {
-              corner.set(x, y, z).applyMatrix4(node.matrixWorld).project(camera);
-              minX = Math.min(minX, corner.x);
-              maxX = Math.max(maxX, corner.x);
-              minY = Math.min(minY, corner.y);
-              maxY = Math.max(maxY, corner.y);
-            }
-          }
+      for (const { node, corners } of projectedMeshBoxes) {
+        if (!node.visible) continue;
+        for (const point of corners) {
+          corner.copy(point).applyMatrix4(node.matrixWorld).project(camera);
+          minX = Math.min(minX, corner.x);
+          maxX = Math.max(maxX, corner.x);
+          minY = Math.min(minY, corner.y);
+          maxY = Math.max(maxY, corner.y);
         }
-      });
+      }
       if (![minX, maxX, minY, maxY].every(Number.isFinite)) return;
       const rect = surface.getBoundingClientRect();
       const cx = rect.left + rect.width * (.5 + (minX + maxX) * .25);
@@ -244,14 +239,19 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
       // mobile paper ring. Native About text lines then steer around
       // its changing ellipse rather than passing under the head.
       if (aboutSection && aboutIsVisible()) {
-        aboutSection.dispatchEvent(new CustomEvent('jw-about-head-envelope', {
-          detail: {
-            left: rect.left + (minX * .5 + .5) * rect.width,
-            right: rect.left + (maxX * .5 + .5) * rect.width,
-            top: rect.top + (.5 - maxY * .5) * rect.height,
-            bottom: rect.top + (.5 - minY * .5) * rect.height,
-          },
-        }));
+        const envelope = {
+          left: rect.left + (minX * .5 + .5) * rect.width,
+          right: rect.left + (maxX * .5 + .5) * rect.width,
+          top: rect.top + (.5 - maxY * .5) * rect.height,
+          bottom: rect.top + (.5 - minY * .5) * rect.height,
+        };
+        if (!lastAboutEnvelope || Object.keys(envelope).some(
+            key => Math.abs(envelope[key] - lastAboutEnvelope[key]) > .6)) {
+          lastAboutEnvelope = envelope;
+          aboutSection.dispatchEvent(new CustomEvent('jw-about-head-envelope', {
+            detail: envelope,
+          }));
+        }
       }
       // Store the face's LOCAL offset from its own GLB canvas center.
       // Unlike the old window.innerHeight-based subtraction this remains
@@ -464,6 +464,20 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
       geometry.traverse(node => {
         if (!node.isMesh) return;
         node.frustumCulled = false;
+        if (node.geometry) {
+          if (!node.geometry.boundingBox) node.geometry.computeBoundingBox();
+          const box = node.geometry.boundingBox;
+          if (box && !box.isEmpty())
+            projectedMeshBoxes.push({
+              node,
+              corners: [
+                ...[box.min.x, box.max.x].flatMap(x =>
+                  [box.min.y, box.max.y].flatMap(y =>
+                    [box.min.z, box.max.z].map(z =>
+                      new THREE.Vector3(x, y, z)))),
+              ],
+            });
+        }
         targets.push(node);
         rippleSurfaces.set(node, installSurfaceRipple(node));
         Object.entries(node.morphTargetDictionary || {}).forEach(([name, index]) => {

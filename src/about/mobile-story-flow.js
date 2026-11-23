@@ -41,7 +41,7 @@ export function installMobileStoryFlow(section) {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   const allLines = [];
   let head = null, frame = 0, disposed = false;
-  let lastViewport = 0, lastCorridor = 0;
+  let lastViewport = 0;
   const measure = document.createElement('canvas').getContext('2d');
   if (!measure) return () => {};
 
@@ -60,18 +60,25 @@ export function installMobileStoryFlow(section) {
     if (disposed || !head || window.innerWidth > 800) return;
     const viewport = window.innerWidth;
     const height = window.innerHeight;
+    // Read each article's geometry just once. Interleaving a bounding
+    // read after every line transform forced repeated Safari layouts.
+    const rects = new Map(articles.map(article =>
+      [article, article.getBoundingClientRect()]));
+    const transforms = [];
     for (const line of allLines) {
-      const rect = line.article.getBoundingClientRect();
-      if (rect.bottom < -80 || rect.top > height + 80) continue;
+      const rect = rects.get(line.article);
+      if (!rect || rect.bottom < -80 || rect.top > height + 80) continue;
       const cy = rect.top + line.y + line.height * .5;
       if (cy < -65 || cy > height + 65) continue;
       const x = mobileStoryLineX(
         line.side, line.width, cy, head, viewport);
       const localX = x - rect.left;
-      const next = 'translate3d(' + localX.toFixed(2) + 'px,0,0)';
-      if (line.node.style.transform !== next)
-        line.node.style.transform = next;
+      transforms.push([line.node,
+        'translate3d(' + localX.toFixed(2) + 'px,0,0)']);
     }
+    for (const [node, transform] of transforms)
+      if (node.style.transform !== transform)
+        node.style.transform = transform;
   }
   function rebuild() {
     if (disposed) return;
@@ -81,7 +88,6 @@ export function installMobileStoryFlow(section) {
     if (!corridor) return;
     clear();
     lastViewport = vw;
-    lastCorridor = corridor;
 
     articles.forEach(article => {
       const sourceParagraphs = [...article.querySelectorAll(':scope > p')];
@@ -187,13 +193,20 @@ export function installMobileStoryFlow(section) {
       .every(Number.isFinite) || next.right <= next.left ||
       next.bottom <= next.top) return;
     head = next;
-    const width = mobileStoryCorridorWidth(head, window.innerWidth);
-    if (window.innerWidth !== lastViewport ||
-        Math.abs(width - lastCorridor) > 12 || !allLines.length)
+    // A turning head changes its projected width many times per second.
+    // Rebuilding all DOM lines for those changes changed the About height,
+    // reset word highlights, and caused unwanted scroll jumps. Construct
+    // lines only on first load or a TRUE change of screen width.
+    if (window.innerWidth !== lastViewport || !allLines.length)
       rebuild();
     else schedule();
   }
-  const onResize = () => { if (head) rebuild(); };
+  const onResize = () => {
+    if (!head) return;
+    // Safari address-bar height changes are NOT new screen layouts.
+    if (window.innerWidth !== lastViewport) rebuild();
+    else schedule();
+  };
   section.addEventListener('jw-about-head-envelope', onHead);
   window.addEventListener('scroll', schedule, { passive: true });
   window.addEventListener('resize', onResize, { passive: true });

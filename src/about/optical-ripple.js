@@ -63,7 +63,8 @@ export function installOpticalRipple(renderer, scene, camera, headRoot, headline
     uEdgeRingIntensity: { value: 1.053 },
     uEdgeRingWidth: { value: .06 },
     uEdgeRingSoftness: { value: 1 },
-    uPurple: { value: new THREE.Color('#7740d1') }
+    uPurple: { value: new THREE.Color('#7740d1') },
+    uMobileDOM: { value: 0 }
   };
   const fragmentShader = `
     uniform sampler2D uBg;
@@ -90,6 +91,7 @@ export function installOpticalRipple(renderer, scene, camera, headRoot, headline
     uniform float uEdgeRingWidth;
     uniform float uEdgeRingSoftness;
     uniform vec3 uPurple;
+    uniform float uMobileDOM;
     varying vec2 vUv;
 
     float gauss(float v, float width) {
@@ -181,6 +183,16 @@ export function installOpticalRipple(renderer, scene, camera, headRoot, headline
       // pixels. Applying disc alone made the fully white offscreen source
       // nearly opaque over ALL About text on a mobile head tap.
       float glassAlpha = max(textCoverage * .96, lightAlpha);
+      // Mobile About uses native DOM ink, not offscreen Three.js story
+      // planes. Refracted white render-target pixels must never replace
+      // the live black lettering. Keep sampled dark ink plus purple rim;
+      // the DOM receives its original staggered wave independently.
+      if (uMobileDOM > 0.5) {
+        float darkSample = smoothstep(.18, .72, refractedInk);
+        col = mix(uPurple * (.45 + kGlow * .14),
+                  min(refractedBase, vec3(.30)), darkSample);
+        glassAlpha = max(refractedInk * .76, lightAlpha * .72);
+      }
       glassAlpha *= 1.0 - smoothstep(.8, 1.0, uDissolve);
       // The actual head silhouette must remain a protected foreground.
       float headCoverage = texture2D(uHeadMask, vUv).a;
@@ -266,6 +278,7 @@ export function installOpticalRipple(renderer, scene, camera, headRoot, headline
       return;
     }
     const stageRect=renderer.domElement.getBoundingClientRect();
+    uniforms.uMobileDOM.value = window.innerWidth <= 800 ? 1 : 0;
     drawHeadline(stageRect);
     // Desktop replaces the DOM headline with its complete shader mirror.
     // On phones the 16:9 head canvas does NOT contain every About line:
@@ -281,6 +294,7 @@ export function installOpticalRipple(renderer, scene, camera, headRoot, headline
     const originalBackground = scene.background;
     const children = scene.children.map(node => [node, node.visible]);
     const oldHeadVisible = headRoot.visible;
+    let rendered = false;
     try {
       // Render visible story text and scenery WITHOUT the head as refraction source.
       headRoot.visible = false;
@@ -320,7 +334,12 @@ export function installOpticalRipple(renderer, scene, camera, headRoot, headline
       uniforms.uTime.value = age;
       renderer.autoClear = false;
       renderer.render(overlayScene, overlayCamera);
+      rendered = true;
     } finally {
+      // If WebGL fails while a tap is active, restore the original DOM
+      // headline rather than leaving its text invisible indefinitely.
+      if (!rendered)
+        for (const line of headlineLines) line.style.visibility = '';
       scene.overrideMaterial = oldOverride;
       scene.background = originalBackground;
       for(const [child, visible] of children)child.visible = visible;
