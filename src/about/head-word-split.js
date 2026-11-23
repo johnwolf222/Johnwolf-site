@@ -3,7 +3,7 @@ export function centeredHeadWordParts(token) {
   if(typeof token!=='string')return null;
   const characters=Array.from(token);
   const letters=characters.filter(c=>/\p{L}/u.test(c));
-  if(letters.length<6)return null;
+  if(letters.length<5)return null;
   const half=Math.floor(letters.length/2);
   let seen=0,cut=0;
   for(const c of characters) {

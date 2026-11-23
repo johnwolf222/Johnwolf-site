@@ -39,165 +39,173 @@ export function installMobileStoryFlow(section) {
   let lastWidth = window.innerWidth, wasEnabled = false;
   let head = null, frame = 0, splitFrame = 0, disposed = false;
 
+  // Word halves are decorative screen-space ink, not replacement DOM
+  // paragraphs. The ORIGINAL inline text never leaves natural layout.
+  // A single aria-hidden layer is enough for the whole About experience.
+  const partingLayer = document.createElement('div');
+  partingLayer.className = 'jw-about-word-parting-layer';
+  partingLayer.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(partingLayer);
   const activeSplits = new Map();
   const returning = new Map();
-  const firstPart = word => word.querySelector('.jw-head-word-first');
-  const lastPart = word => word.querySelector('.jw-head-word-last');
-  const formatPx = value => (Math.round(value * 10) / 10) + 'px';
-  const moveTo = (word, state, slots, rect) => {
-    // The absolute children are inside a dedicated, natural-flow line.
-    // Both sides follow the changing head curve using compositor transforms.
-    const left = slots.leftX - rect.left;
-    const right = slots.rightX - rect.left;
-    if (!Number.isFinite(state.left) ||
-        Math.abs(left - state.left) >= .8) {
-      state.left = left;
-      word.style.setProperty('--jw-head-first-x', formatPx(left));
-    }
-    if (!Number.isFinite(state.right) ||
-        Math.abs(right - state.right) >= .8) {
-      state.right = right;
-      word.style.setProperty('--jw-head-last-x', formatPx(right));
-    }
-  };
-  const resetWord = word => {
-    word.classList.remove('is-head-splitting', 'is-head-positioned');
-    word.style.removeProperty('--jw-head-first-x');
-    word.style.removeProperty('--jw-head-last-x');
+  const formatPx = n => (Math.round(n * 10) / 10) + 'px';
+  const translate = (x, y) =>
+    'translate3d(' + formatPx(x) + ',' + formatPx(y) + ',0)';
+
+  const clearParting = (word, state) => {
+    if (state.startFrame) cancelAnimationFrame(state.startFrame);
+    if (state.closingTimer) clearTimeout(state.closingTimer);
+    state.first.remove();
+    state.last.remove();
+    word.classList.remove('is-head-splitting');
   };
   const clearSplits = () => {
-    for (const [word,state] of activeSplits) {
-      for (const animation of state.animations) animation.cancel();
-      resetWord(word);
-    }
+    for (const [word, state] of activeSplits) clearParting(word, state);
+    for (const [word, state] of returning) clearParting(word, state);
     activeSplits.clear();
-    for (const [word,state] of returning) {
-      for (const animation of state.animations) animation.cancel();
-      resetWord(word);
-    }
     returning.clear();
+  };
+  const piece = (text, computed) => {
+    const node = document.createElement('span');
+    node.className = 'jw-about-parted-fragment';
+    node.textContent = text;
+    node.style.font = computed.font;
+    node.style.letterSpacing = computed.letterSpacing;
+    node.style.color = computed.color;
+    node.style.textTransform = computed.textTransform;
+    node.style.fontKerning = computed.fontKerning;
+    partingLayer.appendChild(node);
+    return node;
+  };
+  const moveTo = (state, slots, rect) => {
+    if (state.startFrame) {
+      state.pending = {slots, rect};
+      return;
+    }
+    const top = rect.top + state.inkOffsetY;
+    const fx = slots.leftX, lx = slots.rightX;
+    if (!state.target ||
+        Math.abs(fx - state.target.fx) > .6 ||
+        Math.abs(top - state.target.top) > .6)
+      state.first.style.transform = translate(fx, top);
+    if (!state.target ||
+        Math.abs(lx - state.target.lx) > .6 ||
+        Math.abs(top - state.target.top) > .6)
+      state.last.style.transform = translate(lx, top);
+    state.target = {fx, lx, top};
   };
   const rejoin = word => {
     const state = activeSplits.get(word);
     if (!state) return;
     activeSplits.delete(word);
-    for (const animation of state.animations) animation.cancel();
-    const rect = word.getBoundingClientRect();
-    // The two pieces visibly travel inward as a single original word
-    // before the dedicated row returns to the surrounding sentence.
-    const pairWidth = state.firstWidth + state.lastWidth;
-    const joinX = Math.max(0, (rect.width - pairWidth) / 2);
-    const duration = 260;
-    const options = {
-      duration, easing:'cubic-bezier(.3,.0,.25,1)', fill:'forwards',
-    };
-    const anim1 = state.first.animate([
-      {transform:'translate3d('+formatPx(state.left)+',0,0)',opacity:1},
-      {transform:'translate3d('+formatPx(joinX)+',0,0)',opacity:.05},
-    ],options);
-    const anim2 = state.last.animate([
-      {transform:'translate3d('+formatPx(state.right)+',0,0)',opacity:1},
-      {transform:'translate3d('+
-        formatPx(joinX+state.firstWidth)+',0,0)',opacity:.05},
-    ],options);
-    const closing = {animations:[anim1,anim2]};
-    returning.set(word,closing);
-    Promise.allSettled(closing.animations.map(a=>a.finished)).then(()=>{
-      if (returning.get(word) !== closing) return;
-      returning.delete(word);
-      for (const animation of closing.animations) animation.cancel();
-      resetWord(word);
-    });
-  };
-  const splitWord = (word,entry,part) => {
-    if (returning.has(word) || activeSplits.has(word)) return;
-    const first = firstPart(word), last = lastPart(word);
-    if (!first || !last) return;
-    // Capture ORIGINAL text positions before making one reserved row.
-    const firstOrigin = first.getBoundingClientRect();
-    const lastOrigin = last.getBoundingClientRect();
-    const firstWidth = firstOrigin.width;
-    const lastWidth = lastOrigin.width;
-    if (!firstWidth || !lastWidth) return;
-    word.classList.add('is-head-splitting');
-    const rect = word.getBoundingClientRect();
-    const article = entry.article.getBoundingClientRect();
-    const slots = headPartingSlots(article,head,
-      (rect.top+rect.bottom)/2,firstWidth,lastWidth);
-    if (!slots) {
-      resetWord(word);
-      return;
+    returning.set(word, state);
+    if (state.startFrame) {
+      cancelAnimationFrame(state.startFrame);
+      state.startFrame = 0;
     }
-    const state = {first,last,firstWidth,lastWidth,
-      left:NaN,right:NaN,animations:[]};
-    // Set target compositor coordinates, then animate *from the exact
-    // source glyph positions* to opposite edges of the moving face.
-    moveTo(word,state,slots,rect);
-    word.classList.add('is-head-positioned');
-    const animationOptions = {
-      duration:430,easing:'cubic-bezier(.22,.75,.2,1)',
+    // No opacity trick or layout collapse: the two visible pieces travel
+    // back to the original inline letters, then the original ink returns.
+    const a = state.sourceFirst.getBoundingClientRect();
+    const b = state.sourceLast.getBoundingClientRect();
+    state.first.style.transform = translate(a.left, a.top);
+    state.last.style.transform = translate(b.left, b.top);
+    state.closingTimer = setTimeout(() => {
+      if (returning.get(word) !== state) return;
+      returning.delete(word);
+      clearParting(word, state);
+    }, 345);
+  };
+  const splitWord = (word, slots, rect) => {
+    if (activeSplits.has(word) || returning.has(word)) return;
+    const sourceFirst = word.querySelector('.jw-head-word-first');
+    const sourceLast = word.querySelector('.jw-head-word-last');
+    if (!sourceFirst || !sourceLast) return;
+    const a = sourceFirst.getBoundingClientRect();
+    const b = sourceLast.getBoundingClientRect();
+    if (!a.width || !b.width) return;
+    const computed = getComputedStyle(word);
+    const first = piece(sourceFirst.textContent, computed);
+    const last = piece(sourceLast.textContent, computed);
+    first.style.transform = translate(a.left, a.top);
+    last.style.transform = translate(b.left, b.top);
+    const state = {
+      first, last, sourceFirst, sourceLast,
+      inkOffsetY: a.top - rect.top,
+      firstWidth: a.width, lastWidth: b.width,
+      startFrame: 0, closingTimer: 0, pending: null, target: null,
     };
-    const firstAnimation = first.animate([
-      {transform:'translate3d('+
-        formatPx(firstOrigin.left-rect.left)+','+
-        formatPx(firstOrigin.top-rect.top)+',0)',opacity:1},
-      {transform:'translate3d('+formatPx(state.left)+',0,0)',opacity:1},
-    ],animationOptions);
-    const lastAnimation = last.animate([
-      {transform:'translate3d('+
-        formatPx(lastOrigin.left-rect.left)+','+
-        formatPx(lastOrigin.top-rect.top)+',0)',opacity:1},
-      {transform:'translate3d('+formatPx(state.right)+',0,0)',opacity:1},
-    ],animationOptions);
-    state.animations=[firstAnimation,lastAnimation];
-    activeSplits.set(word,state);
+    activeSplits.set(word, state);
+    // Keep the source word's exact width, baseline and line wrapping.
+    // Only the ink is hidden; no full-width row is inserted.
+    word.classList.add('is-head-splitting');
+    state.startFrame = requestAnimationFrame(() => {
+      state.startFrame = 0;
+      const chosen = state.pending || {slots, rect};
+      state.pending = null;
+      moveTo(state, chosen.slots, chosen.rect);
+    });
   };
   const scheduleSplits = () => {
     if (!disposed && !splitFrame)
       splitFrame = requestAnimationFrame(updateSplits);
   };
+  const overlapsPeer = (entry, word, slots, y, height, a, b) => {
+    // The head's far side is normally empty because CSS Shapes wraps
+    // around it. Reject any split if either landing would cover real ink.
+    const left = slots.leftX, right = slots.rightX;
+    for (const other of entry.allWords) {
+      if (other === word) continue;
+      const r = other.getBoundingClientRect();
+      if (r.bottom <= y + 2 || r.top >= y + height - 2) continue;
+      const collisionLeft = r.left < left + a - 2 && r.right > left + 2;
+      const collisionRight = r.left < right + b - 2 && r.right > right + 2;
+      if (collisionLeft || collisionRight) return true;
+    }
+    return false;
+  };
   function updateSplits() {
-    splitFrame=0;
-    if(disposed || !enabled() || !head){
+    splitFrame = 0;
+    if (disposed || !enabled() || !head) {
       clearSplits();
       return;
     }
-    const candidates=[];
-    // Read geometry for the original word boxes and ONLY ONE active row.
-    for(const entry of entries){
-      const region=entry.article.getBoundingClientRect();
-      if(region.bottom < head.top-65 ||
-         region.top > head.bottom+65) continue;
-      for(const word of entry.words){
-        if(returning.has(word))continue;
-        const rect=word.getBoundingClientRect();
-        if(rect.bottom < head.top-40 ||
-           rect.top > head.bottom+40) continue;
-        const state=activeSplits.get(word);
-        const first=firstPart(word),last=lastPart(word);
-        if(!first || !last)continue;
-        const a=state?.firstWidth || first.getBoundingClientRect().width;
-        const b=state?.lastWidth || last.getBoundingClientRect().width;
-        const slots=headPartingSlots(region,head,
-          (rect.top+rect.bottom)/2,a,b);
-        if(!slots)continue;
-        const distance=headWordEdgeDistance(rect,head);
-        if(distance>(state ? 95 : 54))continue;
-        candidates.push({word,entry,rect,slots,distance:
-          distance-(state?22:0)});
+    const candidates = [];
+    for (const entry of entries) {
+      const area = entry.article.getBoundingClientRect();
+      if (area.bottom < head.top || area.top > head.bottom) continue;
+      for (const word of entry.words) {
+        if (returning.has(word)) continue;
+        const rect = word.getBoundingClientRect();
+        const midY = (rect.top + rect.bottom) / 2;
+        // The previous version pulled "creation" apart ABOVE the face.
+        // Require the actual word baseline to cross the visible head.
+        if (midY < head.top + 6 || midY > head.bottom - 6) continue;
+        const state = activeSplits.get(word);
+        const first = word.querySelector('.jw-head-word-first');
+        const last = word.querySelector('.jw-head-word-last');
+        if (!first || !last) continue;
+        const a = state?.firstWidth || first.getBoundingClientRect().width;
+        const b = state?.lastWidth || last.getBoundingClientRect().width;
+        const slots = headPartingSlots(area, head, midY, a, b);
+        if (!slots) continue;
+        const distance = headWordEdgeDistance(rect, head);
+        if (distance > (state ? 68 : 39)) continue;
+        if (overlapsPeer(entry, word, slots, rect.top, rect.height, a, b))
+          continue;
+        candidates.push({
+          word, rect, slots, distance: distance - (state ? 16 : 0),
+        });
       }
     }
-    candidates.sort((a,b)=>a.distance-b.distance);
-    // Keep one well-formed sentence row: unlimited scattered word halves
-    // caused the old overlap bug, especially on the 390px iPhone viewport.
-    const chosen=candidates[0];
-    for(const word of activeSplits.keys())
-      if(word !== chosen?.word)rejoin(word);
-    if(!chosen)return;
-    const current=activeSplits.get(chosen.word);
-    if(current)moveTo(chosen.word,current,
-      chosen.slots,chosen.rect);
-    else splitWord(chosen.word,chosen.entry,chosen.slots);
+    candidates.sort((a,b) => a.distance - b.distance);
+    // One legible split at a time; other sentences keep their normal flow.
+    const chosen = candidates[0];
+    for (const word of activeSplits.keys())
+      if (word !== chosen?.word) rejoin(word);
+    if (!chosen) return;
+    const existing = activeSplits.get(chosen.word);
+    if (existing) moveTo(existing, chosen.slots, chosen.rect);
+    else splitWord(chosen.word, chosen.slots, chosen.rect);
   }
 
   function build() {
@@ -230,6 +238,7 @@ export function installMobileStoryFlow(section) {
       entries.push({
         article, float, side, height, shape: '', width: '',
         words: [...article.querySelectorAll('.jw-head-splittable')],
+        allWords: [...article.querySelectorAll('.jw-hover-word')],
       });
     }
   }
@@ -295,6 +304,7 @@ export function installMobileStoryFlow(section) {
     if (frame) cancelAnimationFrame(frame);
     if (splitFrame) cancelAnimationFrame(splitFrame);
     clearSplits();
+    partingLayer.remove();
     section.removeEventListener('jw-about-head-envelope', onHead);
     window.removeEventListener('scroll', schedule);
     window.removeEventListener('resize', onResize);

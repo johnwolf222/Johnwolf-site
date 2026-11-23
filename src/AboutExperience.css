@@ -288,44 +288,26 @@
     transform: none;
     transition: background-color .15s ease, box-shadow .15s ease;
   }
-  /* A split word reserves ONE full sentence line. Its first half travels
-     to the LEFT of the projected face and its last half to the RIGHT.
-     Neighboring words cannot occupy that row: no text collisions.
-     Before and after the split, the unchanged inline word restores its
-     exact original text, punctuation, spacing and desktop appearance. */
+  /* Leave every original word INLINE throughout the split. The original
+     ink becomes clear only while its two aria-hidden paint fragments move
+     to the physical left and right rims of the 3D head. No new row,
+     detached letters or changed sentence line lengths. */
   #root .about.jw-about-experience .jw-about-message .jw-head-splittable {
-    white-space: nowrap;
-  }
-  #root .about.jw-about-experience .jw-about-message .jw-head-word-first,
-  #root .about.jw-about-experience .jw-about-message .jw-head-word-last {
     display: inline;
+    white-space: nowrap;
   }
   #root .about.jw-about-experience .jw-about-message .jw-head-splittable.is-head-splitting {
-    position: relative;
-    display: block;
-    width: 100%;
-    height: 1.55em;
-    white-space: nowrap;
-    isolation: isolate;
+    color: transparent;
   }
-  #root .about.jw-about-experience .jw-about-message .is-head-splitting .jw-head-word-first,
-  #root .about.jw-about-experience .jw-about-message .is-head-splitting .jw-head-word-last {
-    position: absolute;
+  .jw-about-parted-fragment {
     display: block;
+    position: absolute;
     top: 0;
     left: 0;
-    white-space: nowrap;
+    white-space: pre;
+    pointer-events: none;
     will-change: transform;
-    transition: transform .18s cubic-bezier(.24,.68,.2,1);
-    opacity: 0;
-  }
-  #root .about.jw-about-experience .jw-about-message .is-head-splitting.is-head-positioned .jw-head-word-first {
-    opacity: 1;
-    transform: translate3d(var(--jw-head-first-x, 0px),0,0);
-  }
-  #root .about.jw-about-experience .jw-about-message .is-head-splitting.is-head-positioned .jw-head-word-last {
-    opacity: 1;
-    transform: translate3d(var(--jw-head-last-x, 0px),0,0);
+    transition: transform .31s cubic-bezier(.22,.75,.2,1);
   }
   /* The original purple ink recoil composes through translate and scale
      independently of JS head-clearance transform, leaving black ink. */
@@ -379,4 +361,18 @@
   .jw-about-experience *,
   .jw-about-experience *::before,
   .jw-about-experience *::after { transition: none !important; animation: none !important; }
+}
+
+/* Mobile-only decorative split ink. Appended outside the transformed
+   paragraphs to use viewport-space coordinates matching the 3D projection. */
+.jw-about-word-parting-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  overflow: visible;
+  contain: layout style;
+}
+@media (prefers-reduced-motion: reduce) {
+  .jw-about-parted-fragment { transition: none !important; }
 }
