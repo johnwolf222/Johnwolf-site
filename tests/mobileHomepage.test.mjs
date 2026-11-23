@@ -513,7 +513,10 @@ test('head-word parting cannot steal scroll, change desktop, or leave loose frag
   assert.match(flow,/window\.innerWidth <= 800 && !reduced\.matches/);
   assert.match(flow,/window\.addEventListener\('scroll', schedule, \{ passive: true \}\)/);
   assert.match(flow,/if \(splitFrame\) cancelAnimationFrame\(splitFrame\)/);
-  assert.match(flow,/resetWord\(word\)/);
+  assert.match(flow,/const clearParting = \(word, state\) =>/);
+  assert.match(flow,/word\.classList\.remove\('is-head-splitting'\)/);
+  assert.match(flow,/state\.first\.remove\(\)/);
+  assert.match(flow,/state\.last\.remove\(\)/);
   assert.match(flow,/for \(const e of entries\) e\.float\.remove\(\)/);
   assert.doesNotMatch(flow,/window\.scrollTo\(|preventDefault|ScrollTrigger\.refresh/);
   assert.match(css,/@media \(max-width: 800px\)/);
