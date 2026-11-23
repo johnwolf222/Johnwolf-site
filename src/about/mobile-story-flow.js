@@ -35,7 +35,8 @@ export function installMobileStoryFlow(section) {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   const enabled = () => window.innerWidth <= 800 && !reduced.matches;
   const entries = [];
-  let lastWidth = window.innerWidth, head = null, frame = 0, disposed = false;
+  let lastWidth = window.innerWidth, wasEnabled = false;
+  let head = null, frame = 0, disposed = false;
 
   function build() {
     for (const e of entries) e.float.remove();
@@ -44,7 +45,8 @@ export function installMobileStoryFlow(section) {
       article.classList.remove('jw-about-flow-active');
       article.style.minHeight = '';
     }
-    if (!enabled()) return;
+    wasEnabled = enabled();
+    if (!wasEnabled) return;
     for (const article of articles) {
       // Reserve once, BEFORE inserting the float. Safari cannot use
       // animated text height to control the About -> Tools boundary.
@@ -62,7 +64,7 @@ export function installMobileStoryFlow(section) {
       article.insertBefore(float, article.firstChild);
       article.style.minHeight = height + 'px';
       article.classList.add('jw-about-flow-active');
-      entries.push({ article, float, side, shape: '', width: '' });
+      entries.push({ article, float, side, height, shape: '', width: '' });
     }
   }
   function schedule() {
@@ -84,7 +86,7 @@ export function installMobileStoryFlow(section) {
     for (const { entry, bounds } of candidates) {
       const outside = !bounds ||
         bounds.cy + bounds.ry < -24 ||
-        bounds.cy - bounds.ry > entry.float.offsetHeight + 24;
+        bounds.cy - bounds.ry > entry.height + 24;
       const width = outside ? '1px' : px(bounds.width);
       const shape = outside ? 'ellipse(0px 0px at 0px 0px)' :
         'ellipse(' + px(bounds.rx) + ' ' + px(bounds.ry) +
@@ -107,7 +109,7 @@ export function installMobileStoryFlow(section) {
     schedule();
   }
   function onResize() {
-    if (window.innerWidth !== lastWidth) {
+    if (window.innerWidth !== lastWidth || enabled() !== wasEnabled) {
       lastWidth = window.innerWidth;
       build();
     }
