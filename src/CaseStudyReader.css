@@ -52,10 +52,11 @@
 .jw-case-library__intro p{font-size:clamp(15px,2vw,23px);color:#756d7b}
 .jw-case-library__grid{max-width:1250px;margin:0 auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
 .jw-case-tile{padding:0;border:1px solid #eee;background:#fff;color:#18151a;cursor:pointer;display:flex;flex-direction:column;min-width:0;overflow:hidden;text-align:left}
-.jw-case-tile img,.jw-case-tile__type{height:clamp(160px,20vw,270px);width:100%;object-fit:cover}
+.jw-case-tile img{display:block;width:100%;height:auto;aspect-ratio:auto;object-fit:contain}
+.jw-case-tile__type{height:clamp(160px,20vw,270px);width:100%}
 .jw-case-tile__type{display:grid;place-items:center;background:var(--jw-case-color);font-size:clamp(30px,4vw,48px);font-weight:900;letter-spacing:-.05em;padding:18px;text-align:center}
-.jw-case-tile span{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:17px 18px;font-size:18px;font-weight:800}
-.jw-case-tile b{color:#8750f1}
+.jw-case-tile span{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;font-size:clamp(14px,1.4vw,17px);font-weight:700;line-height:1.25}
+.jw-case-tile b{color:#171717;font-family:'DM Sans',Arial,sans-serif;font-size:20px;font-weight:400;line-height:1;flex:none}
 .jw-case-tile:hover{transform:translateY(-3px);box-shadow:0 16px 30px rgba(19,12,20,.09)}
 @media(max-width:800px){.jw-case-toolbar{padding:8px 10px;gap:0}.jw-case-toolbar__name{font-size:12px}.jw-case-index-link{font-size:11px!important}.jw-case-arrow-nav{padding-left:4px}.jw-case-library__grid{grid-template-columns:repeat(2,minmax(0,1fr))}.jw-case-hero{min-height:55vh}.jw-case-hero__art{height:auto}.jw-case-hero__label{max-width:85%;padding:10px 16px}.jw-case-beats,.jw-case-narrative{padding-left:6vw;padding-right:6vw}}
 @media(max-width:520px){.jw-case-toolbar__name{display:none}.jw-case-library__grid{grid-template-columns:1fr}.jw-case-grid--3{gap:5px}.jw-case-grid--2{gap:7px}.jw-case-hero__label h2{font-size:34px}.jw-case-narrative p,.jw-case-beats p,.jw-case-interlude p{font-size:20px}.jw-case-comparison__head span:last-child{font-size:9px}}
@@ -136,8 +137,8 @@
 .jw-case-exit,.jw-case-bottom-nav button,.jw-case-library-toggle,.jw-case-details-toggle{transition:color .18s ease,background-color .18s ease,border-color .18s ease,box-shadow .18s ease}
 .jw-case-reader button:focus-visible{outline:2px solid #8750f1;outline-offset:4px}
 .jw-case-library{position:absolute;inset:0;overflow:auto;padding:100px 16.6vw 96px;background:#fff}
-.jw-case-library__grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:25px}
-.jw-case-tile img,.jw-case-tile__type{height:clamp(140px,19vw,245px)}
+.jw-case-library__grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:25px;align-items:start}
+.jw-case-tile__type{height:clamp(140px,19vw,245px)}
 @media(max-width:720px){
  .jw-case-details-toggle{right:18px;top:10px;font-size:12px;gap:6px}
  .jw-case-library-toggle{top:10px;font-size:12px}
@@ -169,10 +170,24 @@
 @media(max-width:520px){.jw-case-grid--brewty{gap:6px}}
 
 /* Preserve complete supplied cover compositions in the case-study index. */
-.jw-case-tile--custom-cover img{object-fit:contain;background:#f5f4f2}
+.jw-case-tile--custom-cover img{object-fit:contain;background:transparent}
 .jw-case-tile--upcoming{cursor:default}
 .jw-case-tile--upcoming:hover{transform:none;box-shadow:none}
 .jw-case-tile--upcoming b{font-size:13px;letter-spacing:.02em;white-space:nowrap}
+
+/* Artwork defines the card height; the title sits directly below its image.
+   Grid rows remain aligned, but the cards themselves do not stretch. */
+.jw-case-library__grid .jw-case-tile{align-self:start;height:auto}
+.jw-case-library__grid .jw-case-tile img{height:auto;max-height:none;aspect-ratio:auto;object-fit:contain}
+.jw-case-library__grid .jw-case-tile > span{min-height:0}
+@media(max-width:720px){
+ .jw-case-library__grid .jw-case-tile > span{padding:10px 12px 12px;font-size:clamp(13px,3.8vw,16px);line-height:1.22}
+ .jw-case-library__grid{row-gap:20px;column-gap:clamp(12px,3vw,20px)}
+}
+@media(hover:hover) and (pointer:fine){
+ .jw-case-library__grid .jw-case-tile:hover b{color:#8750f1}
+}
+.jw-case-library__grid .jw-case-tile:focus-visible b{color:#8750f1}
 
 /* Thin signature-purple hover outline on case-study artwork only.
    An inset shadow avoids changing image dimensions or gallery layout. */
