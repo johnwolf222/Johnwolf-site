@@ -505,10 +505,11 @@ test('measured two-sided rows allocate left and right words without overlap',asy
  assert.equal(divided[0].token,divided[1].token);
  assert.ok(divided[0].x<divided[1].x);
 });
-test('bilateral text cannot hijack scrolling, alter desktop or leave clone layers behind',()=>{
+test('bilateral text cannot hijack scrolling or leave visual-only ink layers behind',()=>{
  const source=read('../src/about/bilateral-story-flow.js');
  const about=read('../src/AboutExperience.jsx');
- assert.match(source,/window\.innerWidth<=800&&!reduced\.matches/);
+ assert.match(source,/window\.innerWidth<=800\|\|section\.dataset\.desktopFlow==='bilateral'/);
+ assert.match(source,/!reduced\.matches/);
  assert.match(source,/window\.addEventListener\('scroll',schedule,\{passive:true\}\)/);
  assert.match(source,/if\(raf\)cancelAnimationFrame\(raf\)/);
  assert.match(source,/layer\.setAttribute\('aria-hidden','true'\)/);
