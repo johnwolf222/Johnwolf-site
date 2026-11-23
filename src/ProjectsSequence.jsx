@@ -20,6 +20,7 @@ import {
   initialGalleryWheelState, galleryWheelGesture,
   initialGalleryVerticalState, galleryVerticalExitGesture,
   gallerySnapDuration, gallerySwipeDirection,
+  homeGalleryTransitionDuration,
 } from './GalleryLoopMotion.js';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -583,18 +584,27 @@ export default function ProjectsSequence() {
       snapState = 'landing';
       const viewports = Math.abs(galleryAnchor() - window.scrollY) /
         Math.max(1, height);
-      // The native scroll position remains the only head/card motion clock.
-      // One mobile gesture now plays the full approved path and settles.
-      const duration = width <= 700
-        ? Math.min(1.55, 1.18 + viewports * .075)
-        : Math.min(2, 1.2 + viewports * .15);
-      animatePageTo(galleryAnchor(), duration, markGallerySettled);
+      // One scroll clock controls ALL approved head/cards/text poses.
+      // The original ~1.5s phone landing was too brief to appreciate
+      // 21 coordinated paper sheets. Travel time now scales with
+      // remaining viewport distance (~4.2s for a complete phone trip),
+      // with gentle acceleration/deceleration rather than a sharp whip.
+      const duration = homeGalleryTransitionDuration(
+        viewports, width <= 700);
+      animatePageTo(galleryAnchor(), duration,
+        markGallerySettled, 'sine.inOut');
     };
     const leaveForHome = () => {
       if (snapState !== 'settled') return;
       snapState = 'leaving';
-      // Reverse the precise existing scroll-to-head/card choreography.
-      animatePageTo(pinned.start, 1.28, () => {
+      // Match the longer forward movie on rewind. Seeking the exact
+      // same ScrollTrigger clock backwards keeps all 21 cards and the
+      // head in the original phase and never introduces a second tween.
+      const returnViewports = Math.abs(window.scrollY - pinned.start) /
+        Math.max(1, height);
+      const duration = homeGalleryTransitionDuration(
+        returnViewports, width <= 700);
+      animatePageTo(pinned.start, duration, () => {
         snapState = 'idle';
       }, 'sine.inOut');
     };

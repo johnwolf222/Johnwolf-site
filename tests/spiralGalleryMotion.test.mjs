@@ -27,6 +27,7 @@ import {
   initialGalleryWheelState, galleryWheelGesture,
   initialGalleryVerticalState, galleryVerticalExitGesture,
   gallerySnapDuration, gallerySwipeDirection,
+  homeGalleryTransitionDuration,
 } from '../src/GalleryLoopMotion.js';
 
 const FEATURED = [9, 7, 5, 11, 2, 1, 10];
@@ -1671,4 +1672,38 @@ test('entering About does not re-arm the Home-to-Projects landing', () => {
   assert.equal(mayAutoLandFromHome(galleryRest,
     aboutTop - height * .15, pinEnd, aboutTop + 120, height), false,
     'layout resizing cannot rearm a previously completed gallery exit');
+});
+
+test('Home to Projects gives the 21-paper choreography time to be appreciated', () => {
+  // Full native scroll length is ~5.3svh at the first mobile gesture.
+  const mobileFull = homeGalleryTransitionDuration(5.3, true);
+  const desktopFull = homeGalleryTransitionDuration(5.3, false);
+  assert.ok(mobileFull >= 4 && mobileFull <= 4.2,
+    'complete iPhone animation should be visible for about four seconds');
+  assert.ok(desktopFull >= 3 && desktopFull <= 3.3,
+    'desktop must also avoid the former fast transition');
+  assert.ok(homeGalleryTransitionDuration(1, true) <
+    homeGalleryTransitionDuration(5, true),
+    'a partially completed transition must not crawl for four seconds');
+  for (const mobile of [false, true]) {
+    let previous = homeGalleryTransitionDuration(0, mobile);
+    for (let distance = .25; distance <= 9; distance += .25) {
+      const duration = homeGalleryTransitionDuration(distance, mobile);
+      assert.ok(duration >= previous - 1e-9,
+        'time must be nondecreasing as the remaining travel grows');
+      assert.ok(duration <= (mobile ? 4.2 : 3.3) + 1e-9,
+        'landing time is bounded for accessibility and responsiveness');
+      previous = duration;
+    }
+    assert.ok(Number.isFinite(homeGalleryTransitionDuration(NaN, mobile)));
+  }
+  const seq = readFileSync(new URL('../src/ProjectsSequence.jsx',
+    import.meta.url), 'utf8');
+  assert.match(seq, /animatePageTo\(galleryAnchor\(\), duration,\s*markGallerySettled, 'sine\.inOut'\)/);
+  assert.match(seq, /animatePageTo\(pinned\.start, duration, \(\) =>/);
+  assert.match(seq, /homeGalleryTransitionDuration\(\s*returnViewports, width <= 700\)/);
+  // No scene path or ScrollTrigger distances are changed by this timing.
+  assert.match(seq, /pinSpacing: true/);
+  assert.match(seq, /homeMotion = createHomePaperMotion\(width, height\)/);
+  assert.match(seq, /spiralGalleryPose\(phase, index, rank,/);
 });

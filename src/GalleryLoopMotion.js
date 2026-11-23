@@ -43,6 +43,23 @@ export function gallerySeamOpacity(distance, count = PROJECT_LOOP_COUNT) {
   return t * t * (3 - 2 * t);
 }
 
+/**
+ * Physical-time budget for Home <-> Projects. The same seekable GSAP
+ * scroll clock drives the approved 21 cards, head, and typography, so
+ * increasing time changes SPEED only, never pose/coordinates. Scaling by
+ * actual viewport distance keeps a partial landing from crawling.
+ *
+ * A full iPhone trip (~5.3 viewports) plays in ~4.2 seconds; desktop in
+ * ~3.3 seconds. Both directions use the same profile.
+ */
+export function homeGalleryTransitionDuration(distanceViewports, mobile = false) {
+  const distance = Math.max(0,
+    Number.isFinite(distanceViewports) ? distanceViewports : 0);
+  return mobile
+    ? Math.max(.85, Math.min(4.2, .90 + distance * .63))
+    : Math.max(.70, Math.min(3.3, .80 + distance * .49));
+}
+
 /** Section 2 is one resting viewport; landing is a finite scroll snap. */
 export const GALLERY_LANDING_VH = .10;
 

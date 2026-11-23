@@ -141,11 +141,14 @@ test('new boundaries settle About, capabilities and Contact only near their entr
 test('a first mobile swipe starts the complete 21-card transition, reverse is preserved', () => {
   const seq = read('../src/ProjectsSequence.jsx');
   assert.match(seq, /width <= 700 \? \.018 : TRAIN_START/);
-  assert.match(seq, /const duration = width <= 700/);
+  assert.match(seq, /const duration = homeGalleryTransitionDuration\(/);
+  assert.match(seq, /markGallerySettled, 'sine\.inOut'/);
+  assert.match(seq, /const returnViewports = Math\.abs\(window\.scrollY - pinned\.start\)/);
   assert.match(seq, /queuedGalleryDeparture = origin\.direction/);
   assert.match(seq, /next === 'about'\) leaveForAbout\(\)/);
   assert.match(seq, /next === 'home'\) leaveForHome\(\)/);
-  assert.match(seq, /animatePageTo\(pinned\.start, 1\.28,/);
+  assert.match(seq, /animatePageTo\(pinned\.start, duration,/);
+  assert.match(seq, /returnViewports, width <= 700/);
   assert.match(seq, /pinSpacing: true/);
 });
 
