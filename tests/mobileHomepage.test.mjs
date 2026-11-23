@@ -505,11 +505,10 @@ test('measured two-sided rows allocate left and right words without overlap',asy
  assert.equal(divided[0].token,divided[1].token);
  assert.ok(divided[0].x<divided[1].x);
 });
-test('bilateral text cannot hijack scrolling or leave visual-only ink layers behind',()=>{
+test('bilateral text cannot hijack scrolling, alter desktop or leave clone layers behind',()=>{
  const source=read('../src/about/bilateral-story-flow.js');
  const about=read('../src/AboutExperience.jsx');
- assert.match(source,/window\.innerWidth<=800\|\|section\.dataset\.desktopFlow==='bilateral'/);
- assert.match(source,/!reduced\.matches/);
+ assert.match(source,/window\.innerWidth<=800&&!reduced\.matches/);
  assert.match(source,/window\.addEventListener\('scroll',schedule,\{passive:true\}\)/);
  assert.match(source,/if\(raf\)cancelAnimationFrame\(raf\)/);
  assert.match(source,/layer\.setAttribute\('aria-hidden','true'\)/);
@@ -562,53 +561,4 @@ test('newly split word fragments never animate across neighboring words',()=>{
  const visual=css.match(/#root \.about\.jw-about-experience \.jw-about-message \.jw-hover-word\.jw-about-bilateral-word \{([^}]+)\}/)?.[1];
  assert.ok(visual);
  assert.doesNotMatch(visual,/transition:[^;]*opacity/);
-});
-
-test('desktop About uses true full-width sentences with mobile-identical two-sided geometry', async()=>{
-  const css=read('../src/AboutExperience.css');
-  const component=read('../src/AboutExperience.jsx');
-  const head=read('../src/HomepageHead.jsx');
-  const flow=read('../src/about/bilateral-story-flow.js');
-  assert.match(component,/data-desktop-flow="bilateral"/);
-  assert.match(css,/@media \(min-width: 801px\) \{[\s\S]*?data-desktop-flow="bilateral"/);
-  assert.match(css,/padding: max\(0px, calc\(100svh - 140px\)\) clamp\(88px, 7\.4vw, 150px\) 0/);
-  assert.match(css,/width: 100%;\s*max-width: none;/);
-  assert.match(css,/\.jw-about-message\[data-story\] \{\s*top: auto !important;/);
-  assert.match(css,/font: 400 clamp\(22px, 2\.08vw, 31px\)\/1\.53/);
-  assert.match(css,/\.jw-about-message\.jw-about-bilateral-active > p \{\s*opacity: 0;/);
-  assert.match(css,/\.jw-hover-word\.jw-about-bilateral-word \{\s*position: absolute;/);
-  assert.match(flow,/window\.innerWidth<=800\|\|section\.dataset\.desktopFlow==='bilateral'/);
-  assert.match(flow,/const safety=window\.innerWidth>800/);
-  assert.match(flow,/Math\.max\(20,Math\.min\(30,window\.innerWidth\*\.015\)\) : 12/);
-  assert.match(head,/aboutSection\.dataset\.desktopFlow !== 'bilateral'/,
-    'old WebGL word planes must not render on top of desktop bilateral ink');
-  assert.doesNotMatch(head,/if \(!geometry \|\| window\.innerWidth > 800\) return;/);
-  assert.match(head,/if \(window\.innerWidth > 800\) return;/,
-    'only mobile paper-ring offset is gated, not the head projection event');
-  assert.match(head,/aboutSection\.dispatchEvent\(new CustomEvent\('jw-about-head-envelope'/);
-  assert.doesNotMatch(flow,/window\.scrollTo|preventDefault/);
-});
-
-test('a 1440px desktop paragraph forms coherent left/right lines with measured gaps', async()=>{
-  const {layoutBilateralStory}=await import('../src/about/bilateral-story-flow.js');
-  const width=1180;
-  const text='The designer brings ideas to life through imagination and form';
-  const tokens=text.split(' ').map(w=>({
-    text:w,width:w.length*14,firstWidth:w.length>=6?Math.floor(w.length/2)*14:0,
-    lastWidth:w.length>=6?Math.ceil(w.length/2)*14:0,spaceWidth:12,
-  }));
-  const layout=layoutBilateralStory([tokens],width,
-    {left:475,right:705,top:-45,bottom:195},45,24,24);
-  assert.ok(layout.bilateralRows>=2,
-    'desktop head should split multiple rows into two independently filled sides');
-  const seen=new Set();
-  for(const item of layout.placements)seen.add(item.token);
-  assert.deepEqual([...seen].map(t=>t.text),tokens.map(t=>t.text));
-  for(const row of layout.rows) {
-    const words=layout.placements.slice(row.start,row.end).sort((a,b)=>a.x-b.x);
-    for(let i=1;i<words.length;i++)
-      assert.ok(words[i-1].x+words[i-1].width<=words[i].x+.1);
-    for(const word of words)
-      assert.ok(word.x>=0 && word.x+word.width<=width+.1);
-  }
 });

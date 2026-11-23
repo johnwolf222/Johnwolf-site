@@ -84,10 +84,7 @@ export function installMobileStoryFlow(section){
  if(typeof window==='undefined'||!section)return()=>{};
  const articles=[...section.querySelectorAll('.jw-about-message')];
  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
- // The same tested layout is used at both sizes; desktop opt-in is scoped
- // to About only. Reduced motion retains full-width native DOM paragraphs.
- const enabled=()=>!reduced.matches&&
-   (window.innerWidth<=800||section.dataset.desktopFlow==='bilateral');
+ const enabled=()=>window.innerWidth<=800&&!reduced.matches;
  const entries=[];
  let head=null,raf=0,disposed=false,lastWidth=window.innerWidth,wasEnabled=enabled();
  const measureCanvas=document.createElement('canvas');
@@ -103,10 +100,7 @@ export function installMobileStoryFlow(section){
   if(!wasEnabled)return;
   for(const article of articles){
    const natural=Math.max(article.getBoundingClientRect().height,article.scrollHeight);
-   const desktop=window.innerWidth>800;
-   const reserve=Math.ceil(natural+(desktop
-     ? Math.max(100,Math.min(180,window.innerHeight*.18))
-     : Math.max(220,Math.min(290,innerHeight*.32))));
+   const reserve=Math.ceil(natural+Math.max(220,Math.min(290,innerHeight*.32)));
    const layer=document.createElement('div');
    layer.className='jw-about-bilateral-layer';
    layer.setAttribute('aria-hidden','true');
@@ -197,10 +191,8 @@ export function installMobileStoryFlow(section){
    if(r.bottom<head.top-16||r.top>head.bottom+16){hide(e);continue;}
    const relative={left:head.left-r.left,right:head.right-r.left,
     top:head.top-r.top,bottom:head.bottom-r.top};
-   const safety=window.innerWidth>800
-     ? Math.max(20,Math.min(30,window.innerWidth*.015)) : 12;
    const laid=layoutBilateralStory(e.paragraphs,Math.max(1,r.width),
-    relative,e.lineHeight,e.paragraphGap,safety);
+    relative,e.lineHeight,e.paragraphGap,12);
    if(!laid.bilateralRows){hide(e);continue;}
    const targets=new Map();
    for(const position of laid.placements){
