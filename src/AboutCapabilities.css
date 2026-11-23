@@ -66,7 +66,8 @@
 }
 @media (max-width: 600px) {
   #root .about.jw-about-experience .jw-about-capabilities {
-    bottom: max(100svh, 510px);
+    /* No gap between the capabilities panel and compact Tools. */
+    bottom: clamp(510px, 83svh, 710px);
   }
   .jw-about-capabilities__rows { padding: 12svh 0; }
   .jw-about-capabilities__segment {

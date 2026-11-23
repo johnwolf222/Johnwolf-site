@@ -232,7 +232,9 @@
     padding: max(0px, calc(100svh - 110px)) clamp(46px, 12vw, 62px) 0;
     gap: clamp(48px, 7svh, 80px);
   }
-  .jw-about-footer { bottom: calc(max(100svh, 510px) + 100svh + 7px); }
+  .jw-about-footer {
+    bottom: calc(clamp(510px, 83svh, 710px) + 100svh + 7px);
+  }
   .jw-about-message, .jw-about-message.story-left, .jw-about-message.story-right {
     position: relative;
     left: auto;
