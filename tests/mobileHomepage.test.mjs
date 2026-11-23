@@ -156,7 +156,8 @@ test('mobile About chapters use content-driven flow rather than fixed viewport p
   const mobile = css.split('@media (max-width: 800px) {').at(-1);
   assert.match(mobile, /\.jw-about-story-messages \{[\s\S]*?position: relative;/);
   assert.match(mobile, /display: flex;\s*flex-direction: column;/);
-  assert.match(mobile, /gap: clamp\(60px, 10svh, 100px\)/);
+  assert.match(mobile, /gap: clamp\(48px, 7svh, 80px\)/);
+  assert.match(mobile, /padding: max\(0px, calc\(100svh - 110px\)\) 24px 0;/);
   assert.match(mobile, /\.jw-about-message\[data-story\] \{ top: auto !important; \}/);
   assert.doesNotMatch(mobile, /\.jw-about-message\[data-story="[1-4]"\] \{ top:/);
   assert.match(about, /lastChapter\.getBoundingClientRect\(\)\.bottom - top/);
