@@ -37,7 +37,7 @@
         "personality people could remember"
       ],
       "cover": "/brands/chick-muy-caliente/case-study-cover-2026.png",
-    "tileCover": "/brands/chick-muy-caliente/case-study-cover-2026.png",
+      "tileCover": "/brands/chick-muy-caliente/case-study-cover-2026.png",
       "sections": [
         {
           "type": "image",
@@ -89,7 +89,7 @@
         "reminder of that confidence"
       ],
       "cover": "/brands/riches/case-study-cover-2026.png",
-    "tileCover": "/brands/riches/case-study-cover-2026.png",
+      "tileCover": "/brands/riches/case-study-cover-2026.png",
       "sections": [
         {
           "type": "image",
@@ -205,7 +205,7 @@
         "old-school grain",
         "a signature they could proudly leave behind"
       ],
-      "cover": "/brands/inkzilla/primary-wordmark.webp",
+      "cover": "/brands/inkzilla/tattoo-session.webp",
       "sections": [
         {
           "type": "image",
@@ -260,7 +260,8 @@
         "muted": true,
         "loop": true,
         "playsInline": true
-      }
+      },
+      "tileCover": "/brands/inkzilla/tattoo-session.webp"
     },
     {
       "id": "brewty",
