@@ -113,14 +113,27 @@
  content:'';position:absolute;bottom:4px;left:0;right:0;height:2px;
  background:#8750f1;transform:scaleX(0);transform-origin:center;transition:transform .18s ease
 }
+/* Individual, translucent glass capsules; never a shared toolbar. */
+.jw-case-details-toggle,.jw-case-library-toggle,.jw-case-bottom-nav button,.jw-case-exit{
+ background:rgba(255,255,255,.62);
+ border:1px solid rgba(57,39,73,.13);
+ border-radius:999px;
+ box-shadow:0 5px 20px rgba(28,18,37,.075),inset 0 1px 0 rgba(255,255,255,.74);
+ -webkit-backdrop-filter:blur(16px) saturate(130%);
+ backdrop-filter:blur(16px) saturate(130%)
+}
+.jw-case-details-toggle{padding:10px 17px}
+.jw-case-library-toggle{padding:10px 18px}
+.jw-case-bottom-nav{background:transparent;border:0;box-shadow:none;backdrop-filter:none}
+.jw-case-bottom-nav button,.jw-case-exit{border-radius:50%}
 /* Black controls at rest, signature purple only when interacted with. */
 @media (hover:hover) and (pointer:fine){
- .jw-case-exit:hover,.jw-case-bottom-nav button:hover,.jw-case-library-toggle:hover,.jw-case-details-toggle:hover{color:#8750f1;background:transparent}
+ .jw-case-exit:hover,.jw-case-bottom-nav button:hover,.jw-case-library-toggle:hover,.jw-case-details-toggle:hover{color:#8750f1;background:rgba(255,255,255,.78);border-color:rgba(135,80,241,.42)}
  .jw-case-library-toggle:hover::after{transform:scaleX(1)}
 }
-.jw-case-exit:focus-visible,.jw-case-bottom-nav button:focus-visible,.jw-case-library-toggle:focus-visible,.jw-case-details-toggle:focus-visible{color:#8750f1}
+.jw-case-exit:focus-visible,.jw-case-bottom-nav button:focus-visible,.jw-case-library-toggle:focus-visible,.jw-case-details-toggle:focus-visible{color:#8750f1;border-color:rgba(135,80,241,.42)}
 .jw-case-library-toggle:focus-visible::after{transform:scaleX(1)}
-.jw-case-exit,.jw-case-bottom-nav button,.jw-case-library-toggle,.jw-case-details-toggle{transition:color .18s ease}
+.jw-case-exit,.jw-case-bottom-nav button,.jw-case-library-toggle,.jw-case-details-toggle{transition:color .18s ease,background-color .18s ease,border-color .18s ease,box-shadow .18s ease}
 .jw-case-reader button:focus-visible{outline:2px solid #8750f1;outline-offset:4px}
 .jw-case-library{position:absolute;inset:0;overflow:auto;padding:100px 16.6vw 96px;background:#fff}
 .jw-case-library__grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:25px}
@@ -136,6 +149,18 @@
  .jw-case-bottom-nav{bottom:16px;min-width:0;max-width:calc(100% - 120px);min-height:40px;gap:clamp(4px,2vw,12px)}
  .jw-case-bottom-nav span{font-size:12px;white-space:normal;line-height:1.2;max-width:32vw}
  .jw-case-bottom-nav button{font-size:23px;min-height:40px;min-width:40px}
+}
+
+/* On narrow phones, keep the centered index clear of the right-hand details pill. */
+@media(max-width:440px){
+ .jw-case-details-toggle{font-size:0;min-width:44px;justify-content:center;padding:8px}
+ .jw-case-details-toggle .jw-case-details-icon{font-size:22px}
+ .jw-case-library-toggle{font-size:11px;padding:10px 13px}
+ .jw-case-bottom-nav{gap:3px;max-width:calc(100% - 114px)}
+ .jw-case-bottom-nav span{font-size:11px;max-width:29vw}
+}
+@media(prefers-reduced-motion:reduce){
+ .jw-case-exit,.jw-case-bottom-nav button,.jw-case-library-toggle,.jw-case-details-toggle{transition:none}
 }
 
 /* Brewty: preserve all three original panels without cropping and keep them equal-sized. */
