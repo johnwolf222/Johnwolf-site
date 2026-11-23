@@ -104,17 +104,30 @@ test('every case-study close restores section two and the gallery button reads A
  assert.ok(gallery.includes("{name:'All case studies'}"));
 });
 
-test('Projects case-study actions have no shared backdrop and are both independent modern touch targets',()=>{
+test('Projects case-study actions sit beneath the body copy and use individual glass buttons',()=>{
  const row=stylesheet.match(/@media \(max-width: 700px\) \{\s*\.jw-projects-stage__case-actions \{([^}]+)\}/)?.[1];
- assert.ok(row,'mobile case-study actions row must exist');
+ assert.ok(row,'mobile case-study actions stay inside the copy column');
+ assert.match(row,/position: static;/);
  assert.match(row,/background: transparent;/);
  assert.match(row,/box-shadow: none;/);
- assert.doesNotMatch(row,/linear-gradient|rgba\(233,210,255/);
- assert.match(stylesheet,/\.jw-projects-stage__case-actions \.jw-case-open-button \{[\s\S]*?min-height: 44px/);
- assert.match(stylesheet,/\.jw-projects-stage__case-actions \.jw-case-open-button \{[\s\S]*?color: #fff;/);
- assert.match(stylesheet,/\.jw-projects-stage__case-actions \.jw-case-open-all \{[\s\S]*?border: 1\.5px solid/);
- assert.match(stylesheet,/\.jw-projects-stage__case-actions \.jw-case-open-button:focus-visible/);
- assert.match(stylesheet,/\.jw-projects-stage__case-actions \.jw-case-open-button:active/);
+ assert.doesNotMatch(row,/top: 39%|left: 0|justify-content: space-between/);
+ assert.match(gallery,/<p>\{project\.description\}<\/p>\s*<div className="jw-projects-stage__case-actions">/,
+   'buttons must flow immediately after the project description');
+ const actionStyles=stylesheet.slice(
+   stylesheet.indexOf('/* Anchor the two case-study actions directly below'),
+   stylesheet.indexOf('/* The active pointer target is whichever')
+ );
+ assert.match(actionStyles,/\.jw-projects-stage__case-actions \{\s*position: static;/,
+   'buttons are not positioned by a hard-coded viewport offset');
+ assert.doesNotMatch(actionStyles,/position: absolute;|top: clamp\(305px|top: 39%/);
+ assert.match(actionStyles,/\.jw-projects-stage__case-actions \.jw-case-open-button \{[\s\S]*?min-height: 44px/);
+ assert.match(actionStyles,/background: rgba\(255, 255, 255, \.62\)/);
+ assert.match(actionStyles,/backdrop-filter: blur\(16px\) saturate\(130%\)/);
+ assert.match(actionStyles,/color: #171717;/);
+ assert.match(actionStyles,/\.jw-projects-stage__case-actions \.jw-case-open-all \{[\s\S]*?background: rgba\(255, 255, 255, \.62\)/);
+ assert.doesNotMatch(actionStyles,/linear-gradient\(135deg, #9453ee|color: #fff;/);
+ assert.match(actionStyles,/\.jw-projects-stage__case-actions \.jw-case-open-button:focus-visible/);
+ assert.match(actionStyles,/\.jw-projects-stage__case-actions \.jw-case-open-button:active/);
  assert.match(gallery,/jw-case-open-button__icon" aria-hidden="true">↗︎/);
  assert.ok(gallery.includes('onClick={() => setOpenedProject(project)}'));
  assert.ok(gallery.includes("onClick={() => setOpenedProject({name:'All case studies'})}"));
