@@ -190,7 +190,11 @@ test('mobile head reacts to a deliberate tap and follows touch without blocking 
   assert.match(source, /window\.addEventListener\('pointerup', onPointerUp\)/);
   assert.match(source, /window\.addEventListener\('pointercancel', onPointerUp\)/);
   assert.match(source, /window\.removeEventListener\('pointercancel', onPointerUp\)/);
-  assert.doesNotMatch(source, /event\.preventDefault\(\)/);
+  const touchHandlers = source.slice(
+    source.indexOf('const onPointerMove = event =>'),
+    source.indexOf('const stop = () =>'));
+  assert.doesNotMatch(touchHandlers, /event\.preventDefault\(\)/,
+    'touch movement must not hijack vertical page scrolling');
 });
 
 test('mobile About story reveals each chapter and a tapped word highlights independently', () => {
