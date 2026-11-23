@@ -1,7 +1,7 @@
 /** Original motion controller, isolated from Three.js for deterministic tests. */
 export const SETTINGS={yawMax:.69,pitchMax:.66,follow:7.6,translateFollow:6.7,
- floatAmplitude:.025,floatSpeed:1.5,boredAfter:30,hitCooldown:1.35,impact:.36,
- returnEnd:.96,shakeStart:1.04,recover:1.54,blinkDuration:.16,blinkMin:3,blinkJitter:2};
+ floatAmplitude:.025,floatSpeed:1.5,boredAfter:30,hitCooldown:1.04,impact:.16,
+ returnEnd:.60,shakeStart:.64,recover:.99,blinkDuration:.16,blinkMin:3,blinkJitter:2};
 export const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export const damp=(a,b,k,dt)=>a+(b-a)*(1-Math.exp(-k*dt));
 const smooth=x=>{x=clamp(x,0,1);return x*x*(3-2*x)};
@@ -42,10 +42,12 @@ export class HeadController{
   if(sinceHit>=0&&sinceHit<s.impact){
    state='impact';const p=sinceHit/s.impact;
    // Reach the text at the deepest point of the backward recoil.
-   lean=.5-.5*Math.cos(Math.PI*p);impact=Math.sin(Math.PI*p)*this.sign;
+   // A quick, ease-out flinch retreats immediately without snapping at the end.
+    lean=1-Math.pow(1-p,3);impact=Math.sin(Math.PI*p)*this.sign;
    blink=Math.max(blink,Math.sin(Math.PI*clamp(p*1.15,0,1)));
   }else if(sinceHit>=s.impact&&sinceHit<s.returnEnd){
    state='return';const p=(sinceHit-s.impact)/(s.returnEnd-s.impact);
+    // Give the forward recovery room to breathe after the quick recoil.
    lean=.5+.5*Math.cos(Math.PI*p);
   }else if(sinceHit>=s.returnEnd&&sinceHit<s.shakeStart){
    state='settle'; // regain full size and position before shaking
