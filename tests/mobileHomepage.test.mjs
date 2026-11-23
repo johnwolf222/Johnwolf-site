@@ -7,7 +7,7 @@ import { sectionBoundaryDelta, rearmSectionBoundary } from '../src/about/section
 import { sharedGlowReveal } from '../src/visual-continuity-motion.js';
 import { isMobileHeadTap, centeredToolScrollLeft } from '../src/about/mobile-interactions.js';
 import { mobileStoryExclusion } from '../src/about/mobile-story-flow.js';
-import {centeredHeadWordParts, headWordEdgeDistance} from '../src/about/head-word-split.js';
+import {centeredHeadWordParts, headWordEdgeDistance, headPartingSlots} from '../src/about/head-word-split.js';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 const css = read('../src/NewHomepage.css');
