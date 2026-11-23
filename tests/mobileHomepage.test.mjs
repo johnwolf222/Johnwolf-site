@@ -512,7 +512,7 @@ test('head-word parting cannot steal scroll, change desktop, or leave loose frag
   assert.match(flow,/window\.addEventListener\('scroll', schedule, \{ passive: true \}\)/);
   assert.match(flow,/if \(splitFrame\) cancelAnimationFrame\(splitFrame\)/);
   assert.match(flow,/resetWord\(word\)/);
-  assert.match(flow,/for \(const entry of entries\) entry\.float\.remove\(\)/);
+  assert.match(flow,/for \(const e of entries\) e\.float\.remove\(\)/);
   assert.doesNotMatch(flow,/window\.scrollTo\(|preventDefault|ScrollTrigger\.refresh/);
   assert.match(css,/@media \(max-width: 800px\)/);
   assert.match(page,/<WordHighlight headSplit>Photoshop, Illustrator, Procreate/);
