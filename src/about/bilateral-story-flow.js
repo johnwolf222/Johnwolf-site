@@ -167,10 +167,14 @@ export function installMobileStoryFlow(section){
   const old=token.previous.get(node);
   if(old!==key){
    if(old){
-    const previousY=Number(old.split(',')[1]);
-    node.style.transitionDuration=Math.abs(y-previousY)>lineHeight*.8?
-     '0ms':'.18s';
-   }
+    const [previousX,previousY]=old.split(',').map(Number);
+    const entering=node.style.opacity!=='1';
+    // Reposition newly exposed split halves instantly; NEVER sweep ink
+    // through other words. Only small stable movements interpolate.
+    node.style.transitionDuration=entering||
+     Math.abs(y-previousY)>lineHeight*.8||
+     Math.abs(x-previousX)>26?'0ms':'.18s';
+   }else node.style.transitionDuration='0ms';
    node.style.transform='translate3d('+px(x)+','+px(y)+',0)';
    token.previous.set(node,key);
   }

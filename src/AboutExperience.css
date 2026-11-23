@@ -295,7 +295,7 @@
     white-space: nowrap;
     pointer-events: auto;
     transform: translate3d(0,0,0);
-    transition: transform .18s cubic-bezier(.22,.75,.2,1), opacity .13s ease;
+    transition: transform .18s cubic-bezier(.22,.75,.2,1);
     opacity: 0;
     will-change: transform;
   }

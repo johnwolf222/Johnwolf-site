@@ -551,3 +551,14 @@ test('bilateral glyphs override original inline word styles without resurrecting
  assert.match(block,/transform: translate3d\(0,0,0\);/);
  assert.match(css,/\.jw-about-message\.jw-about-flow-active \{[\s\S]*?background: transparent;/);
 });
+
+test('newly split word fragments never animate across neighboring words',()=>{
+ const code=read('../src/about/bilateral-story-flow.js');
+ const css=read('../src/AboutExperience.css');
+ assert.match(code,/const entering=node\.style\.opacity!=='1'/);
+ assert.match(code,/Math\.abs\(x-previousX\)>26\?'0ms':'.18s'/);
+ assert.match(code,/else node\.style\.transitionDuration='0ms'/);
+ const visual=css.match(/#root \.about\.jw-about-experience \.jw-about-message \.jw-hover-word\.jw-about-bilateral-word \{([^}]+)\}/)?.[1];
+ assert.ok(visual);
+ assert.doesNotMatch(visual,/transition:[^;]*opacity/);
+});
