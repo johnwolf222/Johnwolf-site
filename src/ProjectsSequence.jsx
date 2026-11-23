@@ -1218,7 +1218,7 @@ export default function ProjectsSequence() {
             <p>{project.description}</p>
           </div>
           <div className="jw-projects-stage__case-actions">
-            <button className="jw-case-open-button" type="button" onClick={() => setOpenedProject(project)} aria-label={'Open case study for ' + project.name}>View case study ↗</button>
+            <button className="jw-case-open-button" type="button" onClick={() => setOpenedProject(project)} aria-label={'Open case study for ' + project.name}><span>View case study</span><span className="jw-case-open-button__icon" aria-hidden="true">↗︎</span></button>
             <button className="jw-case-open-button jw-case-open-all" type="button" onClick={() => setOpenedProject({name:'All case studies'})}>All case studies</button>
           </div>
           <div className="jw-projects-stage__controls" aria-label="Featured projects">

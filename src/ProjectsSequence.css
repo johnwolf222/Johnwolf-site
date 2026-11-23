@@ -212,21 +212,81 @@
   .jw-projects-stage__dots button { transition: none; }
 }
 
-/* Case-study controls belong above the gesture plane and remain independently clickable. */
-.jw-projects-stage__details{pointer-events:auto;}
-.jw-projects-stage__case-actions .jw-case-open-button{
- display:inline-flex;align-items:center;justify-content:center;
- cursor:pointer;pointer-events:auto;
- margin:18px 9px 0 0;padding:10px 14px;
- background:rgba(126,63,208,.10);color:#6835a4;
- border:1px solid rgba(126,63,208,.26);border-radius:999px;
- font:700 clamp(12px,1vw,14px) 'DM Sans',Arial,sans-serif;
- transition:background .2s ease,transform .2s ease;
+/* Independent, high-contrast case-study buttons. No shared action-row
+   backdrop: the gallery glow, paper sheets, and head remain untouched. */
+.jw-projects-stage__details { pointer-events: auto; }
+.jw-projects-stage__case-actions .jw-case-open-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  box-sizing: border-box;
+  cursor: pointer;
+  pointer-events: auto;
+  white-space: nowrap;
+  margin: 18px 9px 0 0;
+  padding: 11px 17px;
+  border-radius: 999px;
+  color: #fff;
+  background: linear-gradient(135deg, #9453ee 0%, #7434d7 100%);
+  border: 1px solid rgba(102, 43, 182, .72);
+  box-shadow: 0 7px 18px rgba(91, 42, 166, .20),
+    inset 0 1px 0 rgba(255, 255, 255, .26);
+  font: 700 clamp(12px, 1vw, 14px)/1.15 'DM Sans', Arial, sans-serif;
+  letter-spacing: -.01em;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .22s cubic-bezier(.2,.8,.2,1),
+    box-shadow .22s ease, background .22s ease,
+    border-color .22s ease;
 }
-.jw-projects-stage__case-actions .jw-case-open-button:hover{background:rgba(126,63,208,.18);transform:translateY(-1px)}
-.jw-projects-stage__case-actions .jw-case-open-button:focus-visible{outline:3px solid #8750f1;outline-offset:2px}
-.jw-projects-stage__case-actions .jw-case-open-all{background:transparent;border-color:transparent}
-@media(max-width:800px){.jw-projects-stage__case-actions .jw-case-open-button{margin-top:8px;padding:7px 9px;font-size:10px}}
+.jw-projects-stage__case-actions .jw-case-open-button__icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .20);
+  font: 600 16px/1 'DM Sans', Arial, sans-serif;
+}
+.jw-projects-stage__case-actions .jw-case-open-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(91,42,166,.26),
+    inset 0 1px 0 rgba(255,255,255,.32);
+}
+.jw-projects-stage__case-actions .jw-case-open-button:active {
+  transform: translateY(0) scale(.98);
+}
+.jw-projects-stage__case-actions .jw-case-open-button:focus-visible {
+  outline: 3px solid #8750f1;
+  outline-offset: 3px;
+}
+/* A real outlined button, not bare text floating on a purple panel. */
+.jw-projects-stage__case-actions .jw-case-open-all {
+  background: rgba(255,255,255,.95);
+  color: #6937b5;
+  border: 1.5px solid rgba(119,60,210,.55);
+  box-shadow: 0 5px 16px rgba(91,42,166,.10);
+}
+.jw-projects-stage__case-actions .jw-case-open-all:hover {
+  background: #f5edff;
+  border-color: #874ae6;
+  box-shadow: 0 7px 18px rgba(91,42,166,.17);
+}
+@media(max-width:800px) {
+  .jw-projects-stage__case-actions .jw-case-open-button {
+    margin-top: 8px;
+    padding: 10px 12px;
+    font-size: clamp(11px, 2.8vw, 13px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jw-projects-stage__case-actions .jw-case-open-button {
+    transition: none;
+  }
+}
 
 
 /* The active pointer target is whichever perspective-correct gallery sheet
@@ -286,10 +346,16 @@ body:not(.jw-live-paper-ready)
   .jw-projects-stage__case-actions .jw-case-open-button {
     position: relative;
     top: 0;
-    margin: 16px 6px 0 0;
-    padding: 9px 11px;
-    font-size: clamp(10px, 2.6vw, 13px);
+    margin: 0;
+    padding: 10px 12px;
+    min-height: 44px;
+    font-size: clamp(11px, 2.8vw, 13px);
     white-space: nowrap;
+  }
+  .jw-projects-stage__case-actions .jw-case-open-button__icon {
+    width: 18px;
+    height: 18px;
+    font-size: 14px;
   }
   .jw-projects-stage__case-actions .jw-case-open-all {
     margin-right: 0;
@@ -325,8 +391,10 @@ body:not(.jw-live-paper-ready)
     padding: 0 8%;
     box-sizing: border-box;
     justify-content: space-between;
-    gap: 4px;
-    background: linear-gradient(90deg, rgba(233,210,255,.48), rgba(255,255,255,0));
+    gap: 8px;
+    background: transparent;
+    box-shadow: none;
+    border: 0;
   }
   .jw-projects-stage__case-actions .jw-case-open-button {
     margin: 0;
