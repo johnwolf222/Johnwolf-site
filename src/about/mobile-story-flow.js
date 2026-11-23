@@ -49,11 +49,13 @@ export function installMobileStoryFlow(section) {
     // Both sides follow the changing head curve using compositor transforms.
     const left = slots.leftX - rect.left;
     const right = slots.rightX - rect.left;
-    if (Math.abs(left - state.left) >= .8) {
+    if (!Number.isFinite(state.left) ||
+        Math.abs(left - state.left) >= .8) {
       state.left = left;
       word.style.setProperty('--jw-head-first-x', formatPx(left));
     }
-    if (Math.abs(right - state.right) >= .8) {
+    if (!Number.isFinite(state.right) ||
+        Math.abs(right - state.right) >= .8) {
       state.right = right;
       word.style.setProperty('--jw-head-last-x', formatPx(right));
     }
