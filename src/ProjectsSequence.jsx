@@ -1216,10 +1216,10 @@ export default function ProjectsSequence() {
           <div className="jw-projects-stage__details" aria-live="polite" aria-atomic="true">
             <h3>{project.name}</h3>
             <p>{project.description}</p>
-          </div>
-          <div className="jw-projects-stage__case-actions">
-            <button className="jw-case-open-button" type="button" onClick={() => setOpenedProject(project)} aria-label={'Open case study for ' + project.name}><span>View case study</span><span className="jw-case-open-button__icon" aria-hidden="true">↗︎</span></button>
-            <button className="jw-case-open-button jw-case-open-all" type="button" onClick={() => setOpenedProject({name:'All case studies'})}>All case studies</button>
+            <div className="jw-projects-stage__case-actions">
+              <button className="jw-case-open-button" type="button" onClick={() => setOpenedProject(project)} aria-label={'Open case study for ' + project.name}><span>View case study</span><span className="jw-case-open-button__icon" aria-hidden="true">↗︎</span></button>
+              <button className="jw-case-open-button jw-case-open-all" type="button" onClick={() => setOpenedProject({name:'All case studies'})}>All case studies</button>
+            </div>
           </div>
           <div className="jw-projects-stage__controls" aria-label="Featured projects">
             <button type="button" onClick={previous} aria-label="Previous project">←</button>
