@@ -148,3 +148,20 @@ test('case-study viewer uses minimalist black floating controls with purple inte
  assert.match(controls, /@media\(max-width:720px\)\{/,
   'small screen control layout remains supported');
 });
+
+test('each floating case-study button has its own white glass capsule, without a shared pill',()=>{
+ const controls=viewerStyles.slice(
+  viewerStyles.indexOf('/* The top-left case-study metadata sidebar has been removed. */'),
+  viewerStyles.indexOf('/* Brewty: preserve all three original panels')
+ );
+ assert.match(controls,/\/\* Individual, translucent glass capsules; never a shared toolbar\. \*\//);
+ assert.match(controls,/\.jw-case-details-toggle,\.jw-case-library-toggle,\.jw-case-bottom-nav button,\.jw-case-exit\{/);
+ assert.match(controls,/background:rgba\(255,255,255,\.62\)/);
+ assert.match(controls,/border-radius:999px/);
+ assert.match(controls,/backdrop-filter:blur\(16px\) saturate\(130%\)/);
+ assert.match(controls,/\.jw-case-bottom-nav\{background:transparent;border:0;box-shadow:none;backdrop-filter:none\}/);
+ assert.match(controls,/\.jw-case-bottom-nav button,\.jw-case-exit\{border-radius:50%\}/);
+ assert.match(controls,/border-color:rgba\(135,80,241,\.42\)/);
+ assert.match(controls,/@media\(max-width:440px\)/);
+ assert.doesNotMatch(reader,/<aside className="jw-case-meta"/);
+});
