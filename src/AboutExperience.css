@@ -288,9 +288,11 @@
     transform: none;
     transition: background-color .15s ease, box-shadow .15s ease;
   }
-  /* The original words contain two adjoining inline halves, with no
-     visible split until the real head nears their projected position.
-     The gap participates in native line layout, so words never overlap. */
+  /* A split word reserves ONE full sentence line. Its first half travels
+     to the LEFT of the projected face and its last half to the RIGHT.
+     Neighboring words cannot occupy that row: no text collisions.
+     Before and after the split, the unchanged inline word restores its
+     exact original text, punctuation, spacing and desktop appearance. */
   #root .about.jw-about-experience .jw-about-message .jw-head-splittable {
     white-space: nowrap;
   }
@@ -298,19 +300,32 @@
   #root .about.jw-about-experience .jw-about-message .jw-head-word-last {
     display: inline;
   }
-  #root .about.jw-about-experience .jw-about-message .jw-head-word-first {
-    margin-inline-end: 0;
-    transition: margin-inline-end .23s cubic-bezier(.22,.78,.2,1);
-  }
   #root .about.jw-about-experience .jw-about-message .jw-head-splittable.is-head-splitting {
-    white-space: normal;
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 1.55em;
+    white-space: nowrap;
+    isolation: isolate;
   }
   #root .about.jw-about-experience .jw-about-message .is-head-splitting .jw-head-word-first,
   #root .about.jw-about-experience .jw-about-message .is-head-splitting .jw-head-word-last {
-    display: inline-block;
+    position: absolute;
+    display: block;
+    top: 0;
+    left: 0;
+    white-space: nowrap;
+    will-change: transform;
+    transition: transform .18s cubic-bezier(.24,.68,.2,1);
+    opacity: 0;
   }
-  #root .about.jw-about-experience .jw-about-message .is-head-splitting .jw-head-word-first {
-    margin-inline-end: var(--jw-head-word-gap, 10px);
+  #root .about.jw-about-experience .jw-about-message .is-head-splitting.is-head-positioned .jw-head-word-first {
+    opacity: 1;
+    transform: translate3d(var(--jw-head-first-x, 0px),0,0);
+  }
+  #root .about.jw-about-experience .jw-about-message .is-head-splitting.is-head-positioned .jw-head-word-last {
+    opacity: 1;
+    transform: translate3d(var(--jw-head-last-x, 0px),0,0);
   }
   /* The original purple ink recoil composes through translate and scale
      independently of JS head-clearance transform, leaving black ink. */

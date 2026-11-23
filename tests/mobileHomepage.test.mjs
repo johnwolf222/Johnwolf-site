@@ -454,29 +454,66 @@ test('split fragments preserve every original letter, punctuation and word order
     'the original Home/About intro is still intact');
 });
 
-test('only head-adjacent words split and native wrapping keeps characters from overlapping',()=>{
-  const head={left:160,right:240,top:300,bottom:500};
-  assert.ok(headWordEdgeDistance(
-    {left:88,right:145,top:360,bottom:388},head)<43);
-  assert.ok(headWordEdgeDistance(
-    {left:8,right:46,top:360,bottom:388},head)>43);
-  assert.equal(headWordEdgeDistance(
-    {left:100,right:150,top:50,bottom:80},head),Infinity);
-  assert.equal(headWordEdgeDistance(null,head),Infinity);
+test('word halves land on opposite sides of the projected head at the same line height',()=>{
+  const article={left:46,right:344,top:200,bottom:640};
+  const head={left:157,right:233,top:290,bottom:490};
+  const center=headPartingSlots(article,head,390,34,43);
+  assert.ok(center,'middle-height word has two safe outside positions');
+  assert.ok(center.leftX+34 < head.left,
+    'first half must be entirely to the LEFT of the silhouette');
+  assert.ok(center.rightX > head.right,
+    'second half must start to the RIGHT of the silhouette');
+  assert.ok(center.rightX-center.leftX>90,
+    'the travel must be across the head, not a tiny letter gap');
+  assert.ok(center.leftX >= article.left);
+  assert.ok(center.rightX+43 <= article.right);
+  const shoulder=headPartingSlots(article,head,306,34,43);
+  assert.ok(shoulder,'curved head shoulder remains available');
+  assert.ok(shoulder.opening<center.opening,
+    'word halves follow the actual narrowing head outline by height');
+  assert.equal(headPartingSlots(article,head,390,100,130),null,
+    'if both halves cannot fit, keep the original word intact');
+  assert.equal(headPartingSlots(article,head,100,34,43),null);
+  assert.equal(headPartingSlots(article,null,390,34,43),null);
+});
+
+test('mobile head parts ONE word with two compositor-animated pieces, preserves native sentence flow',()=>{
   const flow=read('../src/about/mobile-story-flow.js');
   const css=read('../src/AboutExperience.css');
-  assert.match(flow,/const activeSplits = new Set\(\)/);
-  assert.match(flow,/splitFrame = requestAnimationFrame\(updateSplits\)/);
-  assert.match(flow,/if \(next.size>=2\) break/);
-  assert.match(flow,/Math.abs\(other.top-candidate.top\)<16/);
-  assert.match(flow,/word.classList.add\('is-head-splitting'\)/);
+  const words=read('../src/WordHighlight.jsx');
+  assert.match(flow,/const activeSplits = new Map\(\)/);
+  assert.match(flow,/const returning = new Map\(\)/);
+  assert.match(flow,/const slots=headPartingSlots\(region,head,/);
+  assert.match(flow,/if\(word !== chosen\?\.word\)rejoin\(word\)/);
+  assert.match(flow,/const chosen=candidates\[0\]/);
+  assert.match(flow,/firstOrigin\.left-rect\.left/);
+  assert.match(flow,/lastOrigin\.left-rect\.left/);
+  assert.match(flow,/duration:430/);
+  assert.match(flow,/duration = 260/);
+  assert.match(flow,/Promise\.allSettled\(closing\.animations\.map\(a=>a\.finished\)\)/);
   assert.match(flow,/clearSplits\(\)/);
+  assert.match(css,/\.jw-head-splittable\.is-head-splitting \{/);
+  assert.match(css,/display: block;/);
+  assert.match(css,/width: 100%;/);
+  assert.match(css,/--jw-head-first-x/);
+  assert.match(css,/--jw-head-last-x/);
+  assert.match(css,/will-change: transform/);
+  assert.match(words,/headSplit = false/);
+  assert.match(flow,/entry\.float\.style\.shapeOutside = shape/);
+  assert.doesNotMatch(flow,/word\.style\.transform|cloneNode|measureText/);
+});
+
+
+test('head-word parting cannot steal scroll, change desktop, or leave loose fragments behind',()=>{
+  const flow=read('../src/about/mobile-story-flow.js');
+  const css=read('../src/AboutExperience.css');
+  const page=read('../src/AboutExperience.jsx');
+  assert.match(flow,/window\.innerWidth <= 800 && !reduced\.matches/);
+  assert.match(flow,/window\.addEventListener\('scroll', schedule, \{ passive: true \}\)/);
   assert.match(flow,/if \(splitFrame\) cancelAnimationFrame\(splitFrame\)/);
-  assert.match(css,/\.jw-head-splittable.is-head-splitting/);
-  assert.match(css,/margin-inline-end: var\(--jw-head-word-gap, 10px\)/);
-  assert.match(css,/display: inline-block;/);
-  assert.match(css,/white-space: nowrap;/);
-  assert.match(css,/white-space: normal;/);
-  assert.doesNotMatch(flow,/word.style.transform|cloneNode|measureText/);
-  assert.match(flow,/entry.float.style.shapeOutside = shape/);
+  assert.match(flow,/resetWord\(word\)/);
+  assert.match(flow,/for \(const entry of entries\) entry\.float\.remove\(\)/);
+  assert.doesNotMatch(flow,/window\.scrollTo\(|preventDefault|ScrollTrigger\.refresh/);
+  assert.match(css,/@media \(max-width: 800px\)/);
+  assert.match(page,/<WordHighlight headSplit>Photoshop, Illustrator, Procreate/);
 });

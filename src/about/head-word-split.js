@@ -31,3 +31,40 @@ export function headWordEdgeDistance(word,head) {
   if(word.left>hx+half)return word.left-hx-half;
   return 0;
 }
+
+/**
+ * Compute actual LEFT and RIGHT landing positions for the two original
+ * word fragments, hugging the elliptical profile of the PROJECTED head
+ * at the word's current line height. All coordinates are in screen pixels.
+ * Return null rather than drawing fragments on top of nearby sentences
+ * when a phone has insufficient room on either side.
+ */
+export function headPartingSlots(article, head, y, firstWidth, lastWidth,
+  clearance = 9) {
+  const values = [
+    article?.left, article?.right, head?.left, head?.right,
+    head?.top, head?.bottom, y, firstWidth, lastWidth, clearance,
+  ];
+  if (!values.every(Number.isFinite) || article.right <= article.left ||
+      head.right <= head.left || head.bottom <= head.top ||
+      firstWidth <= 0 || lastWidth <= 0 || clearance < 0) return null;
+  const cy = (head.top + head.bottom) / 2;
+  const ry = (head.bottom - head.top) / 2 + 18;
+  const vertical = (y - cy) / ry;
+  if (Math.abs(vertical) >= 1) return null;
+  const cx = (head.left + head.right) / 2;
+  const rx = (head.right - head.left) / 2 + 13;
+  const profile = rx * Math.sqrt(1 - vertical * vertical);
+  const leftEdge = cx - profile - clearance;
+  const rightEdge = cx + profile + clearance;
+  const leftX = leftEdge - firstWidth;
+  const rightX = rightEdge;
+  // A dedicated in-flow row reserves the entire width: no neighboring
+  // word shares the line and neither fragment can leave the side gutters.
+  if (leftX < article.left + 4 ||
+      rightX + lastWidth > article.right - 4) return null;
+  return {
+    leftX, rightX, leftEdge, rightEdge,
+    opening: rightX - (leftX + firstWidth),
+  };
+}
