@@ -28,6 +28,42 @@ export default function AboutExperience() {
       }
     }, { rootMargin: '80px 0px 80px 0px' });
     visibility.observe(section);
+    const toolsRegion = section.querySelector('#about-tools');
+    // Keep the color control out of the way of the mobile tool carousel.
+    const toolsVisibility = new IntersectionObserver(entries => {
+      section.dataset.toolsInView = entries[0]?.isIntersecting ? 'true' : 'false';
+    }, { threshold: .02 });
+    if (toolsRegion) toolsVisibility.observe(toolsRegion);
+
+    // The source paragraphs stay accessible and follow natural document
+    // flow. Only their mobile entrance opacity/position is animated.
+    const chapters = [...section.querySelectorAll('.jw-about-message')];
+    const chapterVisibility = new IntersectionObserver(entries => {
+      entries.forEach(entry => entry.target.classList.toggle(
+        'is-in-view', entry.isIntersecting));
+    }, { threshold: .02, rootMargin: '0px 0px -8% 0px' });
+    chapters.forEach(chapter => chapterVisibility.observe(chapter));
+    section.classList.add('jw-about-mobile-reveal-ready');
+
+    // A finger tap reproduces the existing single-word hover effect.
+    // It never prevents native scroll, and a scroll clears the ink.
+    let touchedWord = null;
+    const clearTouchedWord = () => {
+      touchedWord?.classList.remove('is-touched');
+      touchedWord = null;
+    };
+    const onWordTouch = event => {
+      if (event.pointerType !== 'touch') return;
+      const word = event.target.closest?.('.jw-hover-word');
+      if (word === touchedWord) return;
+      clearTouchedWord();
+      if (word && section.contains(word)) {
+        touchedWord = word;
+        word.classList.add('is-touched');
+      }
+    };
+    section.addEventListener('pointerdown', onWordTouch, { passive: true });
+    window.addEventListener('scroll', clearTouchedWord, { passive: true });
     // On phones, reduced-motion devices, or when WebGL is unavailable,
     // the four readable DOM chapters determine the true About height.
     // The tools panel follows directly after the final visible paragraph.
@@ -75,6 +111,14 @@ export default function AboutExperience() {
     window.addEventListener('jw-about-impact', impact);
     return () => {
       visibility.disconnect();
+      toolsVisibility.disconnect();
+      chapterVisibility.disconnect();
+      clearTouchedWord();
+      section.removeEventListener('pointerdown', onWordTouch);
+      window.removeEventListener('scroll', clearTouchedWord);
+      chapters.forEach(chapter => chapter.classList.remove('is-in-view'));
+      delete section.dataset.toolsInView;
+      section.classList.remove('jw-about-mobile-reveal-ready');
       chapterObserver.disconnect();
       disposeToolsSnap();
       window.removeEventListener('resize', fitFallbackStory);

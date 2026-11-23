@@ -19,10 +19,14 @@ export default function AboutCapabilities() {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     let frame = 0;
     let disposed = false;
+    const segmentWidths = [];
     const positionRows = () => {
       frame = 0;
       if (disposed) return;
       const rect = section.getBoundingClientRect();
+      // Outside the viewport, keep the previous pose rather than forcing
+      // five wide rows to repaint for every unrelated Home/Projects swipe.
+      if (rect.bottom <= 0 || rect.top >= window.innerHeight) return;
       // Seek by native scroll position; reversing scroll reverses every row.
       const scrollDistance = Math.max(0, Math.min(
         rect.height + window.innerHeight, window.innerHeight - rect.top,
@@ -30,7 +34,8 @@ export default function AboutCapabilities() {
       tracks.current.forEach((track, index) => {
         const segment = segments.current[index];
         if (!track || !segment) return;
-        const width = segment.getBoundingClientRect().width;
+        const width = segmentWidths[index] ||
+          segment.getBoundingClientRect().width;
         const x = marqueeOffset(reduced.matches ? 0 : scrollDistance,
           width, CAPABILITY_DIRECTIONS[index]);
         track.style.transform = `translate3d(${x.toFixed(2)}px, 0, 0)`;
@@ -39,7 +44,14 @@ export default function AboutCapabilities() {
     const schedule = () => {
       if (!disposed && !frame) frame = requestAnimationFrame(positionRows);
     };
-    const observer = new ResizeObserver(schedule);
+    const measureSegments = () => {
+      segments.current.forEach((segment, index) => {
+        if (segment)
+          segmentWidths[index] = segment.getBoundingClientRect().width;
+      });
+      schedule();
+    };
+    const observer = new ResizeObserver(measureSegments);
     observer.observe(section);
     segments.current.forEach(segment => {
       if (segment) observer.observe(segment);
@@ -47,7 +59,8 @@ export default function AboutCapabilities() {
     window.addEventListener('scroll', schedule, { passive: true });
     window.addEventListener('resize', schedule, { passive: true });
     reduced.addEventListener?.('change', schedule);
-    document.fonts?.ready.then(schedule);
+    document.fonts?.ready.then(measureSegments);
+    measureSegments();
     positionRows();
     return () => {
       disposed = true;

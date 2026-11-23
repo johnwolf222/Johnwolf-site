@@ -253,11 +253,36 @@
     box-shadow: 0 6px 30px rgba(40, 24, 60, .05);
     scroll-margin-top: clamp(82px, 12svh, 120px);
   }
+  /* Animate only content entering the viewport, never the native scroll.
+     Disable the reveal layer for reduced-motion devices below. */
+  .jw-about-mobile-reveal-ready .jw-about-message {
+    opacity: .24;
+    transform: translate3d(0, 26px, 0);
+    transition: opacity .46s ease, transform .52s cubic-bezier(.22,.78,.2,1);
+  }
+  .jw-about-mobile-reveal-ready .jw-about-message.is-in-view {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  .jw-about-experience[data-tools-in-view="true"] .jw-about-color-switch {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .jw-about-color-switch {
+    width: 44px;
+    height: 44px;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(18px, env(safe-area-inset-bottom));
+  }
   /* Overrides desktop story offsets and any inline top left by a
      desktop-to-phone rotation without replacing or remounting the GLB. */
   .jw-about-message[data-story] { top: auto !important; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .jw-about-mobile-reveal-ready .jw-about-message {
+    opacity: 1 !important;
+    transform: none !important;
+  }
   .jw-about-experience *,
   .jw-about-experience *::before,
   .jw-about-experience *::after { transition: none !important; animation: none !important; }

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { rollingGlyphs } from '../src/rollingTitleGlyphs.js';
 import { galleryHeadPlacement, galleryCameraProgress, CAMERA_DESCENT, spiralGalleryPose } from '../src/SpiralGalleryMotion.js';
 import { sectionBoundaryDelta, rearmSectionBoundary } from '../src/about/section-boundary-snap.js';
+import { isMobileHeadTap, centeredToolScrollLeft } from '../src/about/mobile-interactions.js';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 const css = read('../src/NewHomepage.css');
@@ -167,8 +168,69 @@ test('mobile About chapters use content-driven flow rather than fixed viewport p
 
 test('mobile tool selection can toggle off after touch focus without losing keyboard preview', () => {
   const source = read('../src/ChoiceOfTools.jsx');
-  assert.match(source, /onClick=\{\(\) => setPicked\(previous => previous === tool\.id \? null : tool\.id\)\}/);
+  assert.match(source, /setPicked\(previous => previous === id \? null : id\)/);
+  assert.match(source, /onClick=\{event => onPick\(event, tool\.id\)\}/);
   assert.match(source, /event\.currentTarget\.matches\(':focus-visible'\)/);
   assert.match(source, /setHovered\(tool\.id\)/);
   assert.match(source, /onPointerEnter=\{event => onEnter\(event, tool\.id\)\}/);
+});
+
+test('mobile head reacts to a deliberate tap and follows touch without blocking scrolling', () => {
+  assert.equal(isMobileHeadTap(100, 100, 110, 104), true);
+  assert.equal(isMobileHeadTap(100, 100, 100, 116), true);
+  assert.equal(isMobileHeadTap(100, 100, 100, 117), false);
+  assert.equal(isMobileHeadTap(100, 100, 100, 250), false);
+  assert.equal(isMobileHeadTap(NaN, 100, 100, 100), false);
+  const source = read('../src/HomepageHead.jsx');
+  assert.match(source, /let headTouch = null;/);
+  assert.match(source, /headTouch\.id !== event\.pointerId/);
+  assert.match(source, /window\.innerWidth > 800 \|\| !aboutIsVisible\(\)/);
+  assert.match(source, /isMobileHeadTap\(initial\.x, initial\.y,/);
+  assert.match(source, /reactToHeadContact\(initial\.contact\)/);
+  assert.match(source, /window\.addEventListener\('pointerup', onPointerUp\)/);
+  assert.match(source, /window\.addEventListener\('pointercancel', onPointerUp\)/);
+  assert.match(source, /window\.removeEventListener\('pointercancel', onPointerUp\)/);
+  assert.doesNotMatch(source, /event\.preventDefault\(\)/);
+});
+
+test('mobile About story reveals each chapter and a tapped word highlights independently', () => {
+  const page = read('../src/AboutExperience.jsx');
+  const css = read('../src/AboutExperience.css');
+  const ink = read('../src/WordHighlight.css');
+  assert.match(page, /const chapterVisibility = new IntersectionObserver/);
+  assert.match(page, /'is-in-view', entry\.isIntersecting/);
+  assert.match(page, /section\.classList\.add\('jw-about-mobile-reveal-ready'\)/);
+  assert.match(page, /window\.addEventListener\('scroll', clearTouchedWord, \{ passive: true \}\)/);
+  assert.match(page, /section\.addEventListener\('pointerdown', onWordTouch, \{ passive: true \}\)/);
+  assert.match(page, /chapterVisibility\.disconnect\(\)/);
+  assert.match(css, /\.jw-about-mobile-reveal-ready \.jw-about-message\.is-in-view/);
+  assert.match(css, /\.jw-about-mobile-reveal-ready \.jw-about-message \{\s*opacity: 1 !important/);
+  assert.match(ink, /\.jw-hover-word\.is-touched/);
+  assert.match(css, /data-tools-in-view="true"\] \.jw-about-color-switch/);
+  assert.doesNotMatch(page, /<canvas|<HomepageHead/);
+});
+
+test('mobile tool chooser centers selected icons without moving the page or losing its native swipe row', () => {
+  assert.equal(centeredToolScrollLeft(350, 62, 390, 800), 186);
+  assert.equal(centeredToolScrollLeft(15, 62, 390, 800), 0);
+  assert.equal(centeredToolScrollLeft(700, 62, 390, 400), 400);
+  assert.equal(centeredToolScrollLeft(NaN, 62, 390, 400), 0);
+  const tool = read('../src/ChoiceOfTools.jsx');
+  const css = read('../src/ChoiceOfTools.css');
+  assert.match(tool, /const rowRef = useRef\(null\)/);
+  assert.match(tool, /centeredToolScrollLeft\(/);
+  assert.match(tool, /row\.scrollTo\(\{/);
+  assert.match(tool, /aria-pressed=\{tool\.id === picked\}/);
+  assert.match(css, /overflow-x: auto;/);
+  assert.match(css, /-webkit-overflow-scrolling: touch;/);
+});
+
+test('capability rows preserve reversible scroll motion while avoiding offscreen repaints', () => {
+  const source = read('../src/AboutCapabilities.jsx');
+  assert.match(source, /const segmentWidths = \[\]/);
+  assert.match(source, /if \(rect\.bottom <= 0 \|\| rect\.top >= window\.innerHeight\) return/);
+  assert.match(source, /new ResizeObserver\(measureSegments\)/);
+  assert.match(source, /segmentWidths\[index\]/);
+  assert.match(source, /requestAnimationFrame\(positionRows\)/);
+  assert.match(source, /window\.addEventListener\('scroll', schedule, \{ passive: true \}\)/);
 });

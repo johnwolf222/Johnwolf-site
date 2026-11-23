@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { centeredToolScrollLeft } from './about/mobile-interactions.js';
 import './ChoiceOfTools.css';
 
 // Reference artwork order is preserved. Existing PNG/WebP artwork is reused;
@@ -25,6 +26,7 @@ export const CHOICE_OF_TOOLS = [
 ];
 
 export default function ChoiceOfTools() {
+  const rowRef = useRef(null);
   const [hovered, setHovered] = useState(null);
   const [picked, setPicked] = useState(null);
   const selectedId = hovered ?? picked;
@@ -35,6 +37,22 @@ export default function ChoiceOfTools() {
   const onLeave = (event, id) => {
     if (event.pointerType === 'mouse')
       setHovered(previous => previous === id ? null : previous);
+  };
+  const centerMobileTool = element => {
+    const row = rowRef.current;
+    if (!row || !window.matchMedia('(max-width: 600px)').matches) return;
+    const left = centeredToolScrollLeft(
+      element.offsetLeft, element.offsetWidth, row.clientWidth,
+      row.scrollWidth - row.clientWidth);
+    row.scrollTo({
+      left,
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? 'auto' : 'smooth',
+    });
+  };
+  const onPick = (event, id) => {
+    setPicked(previous => previous === id ? null : id);
+    centerMobileTool(event.currentTarget);
   };
 
   return (
@@ -58,14 +76,14 @@ export default function ChoiceOfTools() {
           <p className="jw-about-tools__prompt">Choose a tool</p>
         )}
       </div>
-      <div className="jw-about-tools__row"
+      <div className="jw-about-tools__row" ref={rowRef}
         role="group" aria-label="Explore my design and development tools">
         {CHOICE_OF_TOOLS.map(tool => (
           <button key={tool.id} type="button"
             className={'jw-about-tools__item' +
               (tool.id === selectedId ? ' is-selected' : '')}
             aria-label={'Show what I use ' + tool.name + ' for'}
-            aria-pressed={tool.id === selectedId}
+            aria-pressed={tool.id === picked}
             onPointerEnter={event => onEnter(event, tool.id)}
             onPointerLeave={event => onLeave(event, tool.id)}
             onFocus={event => {
@@ -75,7 +93,7 @@ export default function ChoiceOfTools() {
                 setHovered(tool.id);
             }}
             onBlur={() => setHovered(null)}
-            onClick={() => setPicked(previous => previous === tool.id ? null : tool.id)}>
+            onClick={event => onPick(event, tool.id)}>
             <img className="jw-about-tools__logo" src={tool.src} alt=""
               loading="lazy" decoding="async" draggable="false" />
           </button>

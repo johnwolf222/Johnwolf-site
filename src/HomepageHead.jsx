@@ -6,6 +6,7 @@ import { HeadController, pointerRelativeToHead } from './about/controller.js';
 import { installSurfaceRipple } from './about/ripple.js';
 import { installFloatingStory } from './about/floating-story.js';
 import { installOpticalRipple } from './about/optical-ripple.js';
+import { isMobileHeadTap } from './about/mobile-interactions.js';
 
 // The exact 20 MB, SHA-verified Candidate F head already used by /about.html.
 // Reuse the model and motion controller, not a generated or approximate portrait.
@@ -136,11 +137,15 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
       opticalRipple?.resize();
       if (loaded) { publishHeadAnchor(); publishVisibleHeadOrbit(); }
     };
+    let headTouch = null;
     const onPointerMove = event => {
-      if (!live || !loaded || event.pointerType === 'touch') return;
+      if (!live || !loaded) return;
+      // Touch only guides the head when the gesture actually began on its
+      // rendered geometry in About. All vertical page swipes stay native.
+      if (event.pointerType === 'touch' &&
+          (!headTouch || headTouch.id !== event.pointerId)) return;
       // This ONE head moves across Home, the gallery, About, and Tools.
-      // Calibrate against its actual projected face center, not the screen
-      // midpoint: a static viewport map cannot follow a translated head.
+      // Follow its projected face center, never a fixed viewport midpoint.
       const center = headScreenCenter();
       const target = pointerRelativeToHead(
         event.clientX, event.clientY, center.x, center.y,
@@ -244,17 +249,43 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
         bottomY: rect.top + (.5 - projectedBottom.y * .5) * rect.height,
       });
     };
-    const onPointerDown = event => {
-      // A click on a navigation/control must never recoil the head.
-      if (event.target.closest?.('button, a, input, textarea, select')) return;
-      const contact = getContact(event);
-      if (!contact) return;
+    const reactToHeadContact = contact => {
       const projected = contact.point.clone().project(camera);
       const side = projected.x < -0.07 ? -1 : projected.x > 0.07 ? 1 : 0;
       if (controller.hit(side)) {
         rippleSurfaces.get(contact.object)?.trigger(contact.point, controller.time, 1);
         fireImpact(headScreenCenter());
       }
+    };
+    const onPointerDown = event => {
+      // A touch meant for words, tools, or another control must not
+      // accidentally hit the head behind it.
+      if (event.target.closest?.(
+        'button, a, input, textarea, select, .jw-about-message, .jw-about-tools'))
+        return;
+      const contact = getContact(event);
+      if (!contact) return;
+      if (event.pointerType === 'touch') {
+        if (window.innerWidth > 800 || !aboutIsVisible()) return;
+        headTouch = {
+          id: event.pointerId, x: event.clientX,
+          y: event.clientY, contact,
+        };
+        // A tap reacts on release; a drag follows the finger without a
+        // recoil or stealing the browser's native vertical scrolling.
+        return;
+      }
+      reactToHeadContact(contact);
+    };
+    const onPointerUp = event => {
+      if (!headTouch || headTouch.id !== event.pointerId) return;
+      const initial = headTouch;
+      headTouch = null;
+      if (event.type !== 'pointercancel' &&
+          isMobileHeadTap(initial.x, initial.y,
+            event.clientX, event.clientY) && aboutIsVisible())
+        reactToHeadContact(initial.contact);
+      controller.movePointer(0, 0);
     };
 
     const stop = () => {
@@ -359,6 +390,8 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
     resizer.observe(host);
     window.addEventListener('pointermove', onPointerMove, { passive: true });
     window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
     window.addEventListener('blur', onBlur);
     document.addEventListener('visibilitychange', onVisibility);
     measure();
@@ -421,6 +454,9 @@ export default function HomepageHead({ reducedMotion = false, onImpact, onAnchor
       surface.removeEventListener('webglcontextrestored', onContextRestored);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+      headTouch = null;
       window.removeEventListener('blur', onBlur);
       document.removeEventListener('visibilitychange', onVisibility);
       geometry?.traverse(node => {

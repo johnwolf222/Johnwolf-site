@@ -12,7 +12,8 @@
   pointer-events: auto;
   transition: background-color .15s ease, box-shadow .15s ease;
 }
-#root .about.jw-about-experience .jw-hover-word:hover {
+#root .about.jw-about-experience .jw-hover-word:hover,
+#root .about.jw-about-experience .jw-hover-word.is-touched {
   background-color: rgba(173, 108, 245, .29);
   box-shadow: 0 0 0 2px rgba(173, 108, 245, .18);
 }
