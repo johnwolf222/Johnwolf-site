@@ -98,21 +98,43 @@ export default function AboutExperience() {
     // Softly settle the final tools viewport on scroll rest. Never pin it:
     // a new swipe/wheel/key immediately cancels, and Contact scrolls normally.
     const disposeToolsSnap = installToolsSoftSnap(section, toolsPanel);
+    let impactCleanup = 0;
+    const clearImpact = () => {
+      section.classList.remove('jw-about-impact');
+      impactCleanup = 0;
+    };
     const impact = event => {
       if (!section.getBoundingClientRect().height) return;
-      section.classList.remove('jw-about-impact');
-      void section.offsetWidth;
-      section.classList.add('jw-about-impact');
       const center = event.detail || {};
+      // Reuse the approved black-ink/purple-shadow recoil on mobile DOM
+      // lines. Their separate transform continues to curve around the
+      // measured head and is never replaced by this ripple.
+      if (window.innerWidth <= 800 &&
+          Number.isFinite(center.x) && Number.isFinite(center.y)) {
+        for (const line of section.querySelectorAll('.jw-about-flow-line')) {
+          const rect = line.getBoundingClientRect();
+          if (rect.bottom < 0 || rect.top > window.innerHeight) continue;
+          const distance = Math.hypot(
+            (rect.left + rect.right) * .5 - center.x,
+            (rect.top + rect.bottom) * .5 - center.y);
+          const delay = Math.min(600, distance / 790 * 1000);
+          line.style.setProperty('--jw-about-wave-delay', delay.toFixed(1) + 'ms');
+        }
+      }
       if (Number.isFinite(center.x) && Number.isFinite(center.y)) {
         const x = center.x / Math.max(1, window.innerWidth) * 100;
         const y = center.y / Math.max(1, window.innerHeight) * 100;
         section.style.setProperty('--about-impact-x', x + '%');
         section.style.setProperty('--about-impact-y', y + '%');
       }
+      section.classList.remove('jw-about-impact');
+      void section.offsetWidth;
+      section.classList.add('jw-about-impact');
+      if (impactCleanup) window.clearTimeout(impactCleanup);
+      // The original headline finishes in 900ms. Mobile body lines can
+      // begin up to 600ms later, so never clear on the first animationend.
+      impactCleanup = window.setTimeout(clearImpact, 1550);
     };
-    const clearImpact = () => section.classList.remove('jw-about-impact');
-    section.addEventListener('animationend', clearImpact);
     window.addEventListener('jw-about-impact', impact);
     return () => {
       visibility.disconnect();
@@ -128,7 +150,7 @@ export default function AboutExperience() {
       chapterObserver.disconnect();
       disposeToolsSnap();
       window.removeEventListener('resize', fitFallbackStory);
-      section.removeEventListener('animationend', clearImpact);
+      if (impactCleanup) window.clearTimeout(impactCleanup);
       window.removeEventListener('jw-about-impact', impact);
       section.classList.remove('jw-about-three-ready', 'jw-about-impact');
     };

@@ -177,13 +177,14 @@ export function installOpticalRipple(renderer, scene, camera, headRoot, headline
                            (uGlow / 17.0) * 1.8 +
                            (edge + edgeHalo) * uEdgeRingIntensity) * kGlow;
       float lightAlpha = min(.58, opticalLight * .32);
-      // The fully composited source replaces the already-drawn baseline headline
-      // inside the lens, avoiding double letters and white fog.
+      // Only refracted dark ink or the luminous purple rim may replace
+      // pixels. Applying disc alone made the fully white offscreen source
+      // nearly opaque over ALL About text on a mobile head tap.
       float glassAlpha = max(textCoverage * .96, lightAlpha);
       glassAlpha *= 1.0 - smoothstep(.8, 1.0, uDissolve);
-      // Head and all of its materials remain an untouched foreground.
+      // The actual head silhouette must remain a protected foreground.
       float headCoverage = texture2D(uHeadMask, vUv).a;
-      float alpha = disc * (1.0 - headCoverage) * (0.98 - 0.02*uDissolve) * (1.0 - smoothstep(.8, 1.0, uDissolve));
+      float alpha = disc * (1.0 - headCoverage) * glassAlpha;
       gl_FragColor = vec4(col, alpha);
     }
   `;
@@ -266,7 +267,12 @@ export function installOpticalRipple(renderer, scene, camera, headRoot, headline
     }
     const stageRect=renderer.domElement.getBoundingClientRect();
     drawHeadline(stageRect);
-    for(const line of headlineLines)line.style.visibility='hidden';
+    // Desktop replaces the DOM headline with its complete shader mirror.
+    // On phones the 16:9 head canvas does NOT contain every About line:
+    // hiding their DOM originals made the headline disappear during a tap.
+    const keepMobileHeadline = window.innerWidth <= 800;
+    if (!keepMobileHeadline)
+      for(const line of headlineLines)line.style.visibility='hidden';
     renderer.getClearColor(clearColor);
     const originalAlpha = renderer.getClearAlpha();
     const previousTarget = renderer.getRenderTarget();
@@ -300,7 +306,7 @@ export function installOpticalRipple(renderer, scene, camera, headRoot, headline
       renderer.setClearColor(clearColor, originalAlpha);
       renderer.render(scene, camera);
       renderer.autoClear=false;
-      renderer.render(headlineScene,overlayCamera);
+      if (!keepMobileHeadline) renderer.render(headlineScene,overlayCamera);
 
       const progress = Math.min(1, age / EXPANSION_DURATION);
       const ease = progress <= 0 ? 0 :

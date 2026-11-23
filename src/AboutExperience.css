@@ -292,6 +292,26 @@
     transition: transform .09s linear;
     will-change: transform;
   }
+  /* The original purple ink recoil is composed through individual
+     translate/scale properties, leaving the JS head-clearance transform
+     untouched and restoring the original black text after the wave. */
+  .jw-about-experience.jw-about-impact .jw-about-flow-line {
+    animation: jw-about-mobile-ink-impact 900ms cubic-bezier(.12, .75, .22, 1) both;
+    animation-delay: var(--jw-about-wave-delay, 0ms);
+  }
+  @keyframes jw-about-mobile-ink-impact {
+    0%, 100% { filter: none; translate: 0 0; scale: 1; }
+    13% {
+      filter: drop-shadow(-8px 0 0 rgba(135,80,241,.5))
+        drop-shadow(7px 0 0 rgba(135,80,241,.20));
+      translate: 4px -4px;
+      scale: 1.012;
+    }
+    34% {
+      filter: drop-shadow(7px 0 0 rgba(135,80,241,.3));
+      translate: -4px 2px;
+    }
+  }
   /* Animate only content entering the viewport, never the native scroll.
      Disable the reveal layer for reduced-motion devices below. */
   .jw-about-mobile-reveal-ready .jw-about-message {

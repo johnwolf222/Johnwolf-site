@@ -312,3 +312,26 @@ test('mobile story preserves original accessible copy and dynamically avoids the
   assert.match(css, /\.jw-about-flow-active > p \{/);
   assert.match(css, /background: transparent;/);
 });
+
+test('head tap optical shader preserves dark About ink rather than painting white fog', () => {
+  const source = read('../src/about/optical-ripple.js');
+  const about = read('../src/AboutExperience.jsx');
+  const css = read('../src/AboutExperience.css');
+  // A white offscreen WebGL source is NOT an opaque replacement image.
+  assert.match(source, /float glassAlpha = max\(textCoverage \* \.96, lightAlpha\)/);
+  assert.match(source, /float alpha = disc \* \(1\.0 - headCoverage\) \* glassAlpha;/);
+  assert.doesNotMatch(source, /float alpha = disc \* \(1\.0 - headCoverage\) \* \(0\.98/);
+  assert.match(source, /float lightAlpha = min\(\.58, opticalLight \* \.32\)/);
+  assert.match(source, /float headCoverage = texture2D\(uHeadMask, vUv\)\.a/);
+  assert.match(source, /const keepMobileHeadline = window\.innerWidth <= 800/);
+  assert.match(source, /if \(!keepMobileHeadline\)\s+for\(const line of headlineLines\)line\.style\.visibility='hidden'/);
+  assert.match(source, /if \(!keepMobileHeadline\) renderer\.render\(headlineScene,overlayCamera\)/);
+  // The original wave remains; its separate mobile DOM copy is not wiped
+  // by an unrelated headline animationend or a conflicting transform.
+  assert.match(about, /--jw-about-wave-delay/);
+  assert.match(about, /impactCleanup = window\.setTimeout\(clearImpact, 1550\)/);
+  assert.match(css, /@keyframes jw-about-mobile-ink-impact/);
+  assert.match(css, /translate: 4px -4px/);
+  assert.match(css, /\.jw-about-flow-line \{[\s\S]*?transform: translate3d\(0, 0, 0\)/);
+  assert.match(css, /0%, 100% \{ filter: none; translate: 0 0; scale: 1; \}/);
+});
