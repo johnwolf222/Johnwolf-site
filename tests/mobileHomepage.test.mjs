@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { rollingGlyphs } from '../src/rollingTitleGlyphs.js';
 import { galleryHeadPlacement, galleryCameraProgress, CAMERA_DESCENT, spiralGalleryPose } from '../src/SpiralGalleryMotion.js';
 import { sectionBoundaryDelta, rearmSectionBoundary } from '../src/about/section-boundary-snap.js';
+import { sharedGlowReveal } from '../src/visual-continuity-motion.js';
 import { isMobileHeadTap, centeredToolScrollLeft } from '../src/about/mobile-interactions.js';
 import { mobileStoryExclusion } from '../src/about/mobile-story-flow.js';
 
@@ -394,4 +395,36 @@ test('Upgrade 3 centers mobile About copy between matching safe gutters, away fr
   assert.equal((about.match(/<article[^>]*data-story="/g) || []).length, 4);
   assert.match(about, /installMobileStoryFlow\(section\)/);
   assert.match(mobile, /\.jw-about-head-exclusion \{/);
+});
+
+test('one moving glow is visible throughout the post-Home site without section seams', () => {
+  assert.equal(sharedGlowReveal(1000,800),0,'the homepage remains white');
+  assert.equal(sharedGlowReveal(720,800),0,'before Work enters, no glow');
+  assert.equal(sharedGlowReveal(120,800),1,'Work has full purple glow');
+  assert.equal(sharedGlowReveal(-350,800),1,'About and Contact share the glow');
+  assert.equal(sharedGlowReveal(NaN,800),0);
+  assert.equal(sharedGlowReveal(0,0),0);
+  let last=0;
+  for(let top=720;top>=120;top-=30){
+    const now=sharedGlowReveal(top,800);
+    assert.ok(now>=last && now<=1,'glow appears smoothly, not in steps');
+    last=now;
+  }
+  const component=read('../src/VisualContinuity.jsx');
+  const css=read('../src/visual-continuity.css');
+  const about=read('../src/AboutExperience.css');
+  assert.match(component,/targetVisibility=sharedGlowReveal\(workTop,height\)/);
+  assert.match(component,/\['#work',64,59\]/);
+  assert.match(component,/\['#about',37,47\]/);
+  assert.match(component,/\['#contact',64,55\]/);
+  assert.match(component,/\['footer',48,46\]/);
+  assert.equal((component.match(/className="site-light-field"/g)||[]).length,1);
+  assert.match(css,/\.site-light-field \{[\s\S]*?position:fixed/);
+  assert.match(css,/#root main \{ position:relative;z-index:1;background:transparent; \}/);
+  assert.match(css,/#root footer \{[\s\S]*?background:transparent;/);
+  assert.match(css,/#root \.contact-section \{ background:transparent; \}/);
+  assert.match(about,/background: transparent;/);
+  assert.doesNotMatch(about,/background-attachment: fixed/);
+  assert.doesNotMatch(css,/filter:blur\(26px\)/);
+  assert.match(component,/mq\.matches\?0:time\/1000/);
 });

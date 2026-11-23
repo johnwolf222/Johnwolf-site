@@ -1,11 +1,37 @@
-/* A shared white canvas: no layer restarts when a section changes. */
-#root{isolation:isolate;background:#fff}
-.site-light-field{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;opacity:0}
-.site-light-field span{position:absolute;inset:-12%;filter:blur(26px);will-change:transform}
-.site-light-field span:first-child{background:radial-gradient(ellipse 36% 42%,#9900ff 0%,#9900ff99 28%,transparent 72%)}
-.site-light-field span:last-child{background:radial-gradient(ellipse 40% 32%,#9900ffbb 0%,#9900ff45 35%,transparent 75%)}
-#root main{position:relative;z-index:1}
-#root .hero-reference,#root .hero-reference .design-tools,#root .hero-reference .design-tools-stage,#root .scroll-gallery,#root .scroll-gallery-sticky,#root .brand-gallery,#root .brand-gallery-dock,#root .about{background:transparent}
+/* One WHITE canvas; the single light field floats behind every page
+   AFTER Home. Section backgrounds stay clear instead of restarting it. */
+#root { isolation:isolate; background:#fff; }
+.site-light-field {
+ position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;opacity:0;
+}
+.site-light-field span {
+ position:absolute;inset:-14%;will-change:transform;
+ /* Soft radial falloff replaces the former expensive animated blur. */
+}
+.site-light-field span:first-child {
+ background:radial-gradient(ellipse 36% 39% at 48% 50%,
+  rgba(153,0,255,.39) 0%,rgba(161,73,255,.24) 30%,
+  rgba(180,122,255,.10) 54%,transparent 77%);
+}
+.site-light-field span:last-child {
+ background:radial-gradient(ellipse 39% 34% at 55% 47%,
+  rgba(137,70,250,.26) 0%,rgba(175,117,255,.16) 34%,
+  rgba(186,150,255,.07) 60%,transparent 80%);
+}
+#root main { position:relative;z-index:1;background:transparent; }
+#root .jw-projects-journey,
+#root .jw-projects-stage,
+#root .about.jw-about-experience,
+#root .about.jw-about-experience .jw-about-tools,
+#root .about.jw-about-experience .jw-about-capabilities,
+#root .contact-section { background:transparent; }
+#root footer {
+ position:relative;z-index:1;background:transparent;color:#24202a;
+}
+#root .hero-reference,#root .hero-reference .design-tools,
+#root .hero-reference .design-tools-stage,#root .scroll-gallery,
+#root .scroll-gallery-sticky,#root .brand-gallery,
+#root .brand-gallery-dock,#root .about { background:transparent; }
 #root .design-tools-stage::before,#root .scroll-gallery-sticky::before{display:none}
 .hero-reference .hero-copy,.hero-reference .hero-visual,.hero-reference .hero-scroll{opacity:clamp(0,calc(1 - var(--tools-progress,0) * 5),1)}
 .brand-gallery-heading,.logo-creations-title,.about h2{transform-origin:0 50%}

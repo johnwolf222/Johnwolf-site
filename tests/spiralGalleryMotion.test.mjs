@@ -1037,8 +1037,8 @@ test('the exact nine-reference tool row lives at the END of About with responsiv
   assert.ok(about.indexOf('<ChoiceOfTools/>') > about.indexOf('data-story="4"'),
     'tool chooser must follow all four original About chapters');
   assert.match(css, /height: 100svh/);
-  assert.match(aboutCss, /background-image:/);
-  assert.match(aboutCss, /background-attachment: fixed, fixed;/);
+  assert.match(aboutCss, /background: transparent;/);
+  assert.doesNotMatch(aboutCss, /background-attachment: fixed, fixed;/);
   assert.match(css, /\.jw-about-tools__glow \{/);
   assert.match(tools, /CHOICE OF TOOLS/);
   assert.match(tools, /MY /);
@@ -1524,9 +1524,9 @@ test('five purple capability rows are reversible and move only with scroll', () 
     'capability rows must not paint their own separate glow');
   const aboutCss = readFileSync(new URL('../src/AboutExperience.css', import.meta.url), 'utf8');
   const toolCss = readFileSync(new URL('../src/ChoiceOfTools.css', import.meta.url), 'utf8');
-  assert.match(aboutCss, /background-color: #fff/);
-  assert.match(aboutCss, /background-image:/);
-  assert.match(aboutCss, /background-attachment: fixed, fixed;/);
+  assert.match(aboutCss, /background: transparent;/);
+  assert.doesNotMatch(aboutCss, /background-image:/);
+  assert.doesNotMatch(aboutCss, /background-attachment: fixed, fixed;/);
   assert.match(toolCss, /background: transparent/);
   assert.match(toolCss, /\.jw-about-tools__glow \{[\s\S]*?display: none;/);
   assert.match(css, /color: #8750f1/);
