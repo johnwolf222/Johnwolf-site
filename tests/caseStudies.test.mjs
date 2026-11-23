@@ -178,3 +178,32 @@ test('each floating case-study button has its own white glass capsule, without a
  assert.match(controls,/@media\(max-width:440px\)/);
  assert.doesNotMatch(reader,/<aside className="jw-case-meta"/);
 });
+
+test('original user-supplied case-study covers are byte-exact and shown without crop', async()=>{
+ const {createHash}=await import('node:crypto');
+ const covers=[
+  ['chick-muy-caliente','/brands/chick-muy-caliente/case-study-cover-2026.png',1376,768,
+   '7e4c4a200b3a9f0e000d04996aaced77e5a6d4b58d51851c42cd626f81b95b9a'],
+  ['riches','/brands/riches/case-study-cover-2026.png',1920,1080,
+   'a211fa47b9c49f6d6bb2e7c2748ce8b1be3d793ab7add6505c84cf45ed14b712']
+ ];
+ for(const [id,path,width,height,sha256] of covers){
+  const study=byId[id];
+  assert.equal(study.cover,path,'the story uses the approved replacement image');
+  assert.equal(study.tileCover,path,'the case-study index uses the same replacement');
+  const full=resolve(root,'public'+path);
+  assert.ok(existsSync(full),'supplied cover asset must exist: '+path);
+  const png=readFileSync(full);
+  assert.equal(png.subarray(0,8).toString('hex'),'89504e470d0a1a0a','PNG format preserved');
+  assert.equal(png.readUInt32BE(16),width,'source width must be unchanged');
+  assert.equal(png.readUInt32BE(20),height,'source height must be unchanged');
+  assert.equal(createHash('sha256').update(png).digest('hex'),sha256,
+   'source artwork must be preserved byte-for-byte');
+ }
+ assert.ok(reader.includes('item.tileCover||item.cover'),
+   'index must prefer the new tile cover');
+ assert.match(viewerStyles,/\.jw-case-tile--custom-cover img\{object-fit:contain;/,
+   'show the full cover, no cropped edges');
+ assert.ok(gallery.includes("id === 9 ? '/brands/riches-approved-vertical.png'"),
+   'approved Riches gallery card stays unchanged');
+});
