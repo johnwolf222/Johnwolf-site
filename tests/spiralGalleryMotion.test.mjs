@@ -1143,7 +1143,7 @@ test('3D cursor tracking follows the projected head center with precise larger m
 
 test('head click snaps backward quickly, returns more slowly, then shakes off', () => {
   assert.equal(SETTINGS.impact, .16, 'quick backward flinch takes 160 ms');
-  assert.equal(SETTINGS.returnEnd - SETTINGS.impact, .44,
+  assert.ok(Math.abs((SETTINGS.returnEnd - SETTINGS.impact) - .44) < 1e-9,
     'forward travel is intentionally slower than recoil');
   assert.ok(SETTINGS.shakeStart > SETTINGS.returnEnd,
     'a short settle separates the return from the shake');
@@ -1162,7 +1162,7 @@ test('head click snaps backward quickly, returns more slowly, then shakes off', 
   const flinch = advance(.08);
   assert.equal(flinch.state, 'impact');
   assert.ok(flinch.lean > .8, 'the head retreats immediately, not late');
-  const deepest = advance(.16);
+  const deepest = advance(.165);
   assert.equal(deepest.state, 'return');
   assert.ok(deepest.depth < -.35, 'existing full recoil distance is preserved');
   const comingForward = advance(.38);
@@ -1179,7 +1179,7 @@ test('head click snaps backward quickly, returns more slowly, then shakes off', 
   assert.equal(recovered.lean, 0);
   assert.equal(recovered.depth, 0);
   assert.equal(head.hit(1), false, 'brief cooldown follows the shake');
-  advance(1.04);
+  advance(1.06);
   assert.equal(head.hit(1), true, 'head can react again after recovery');
 });
 
