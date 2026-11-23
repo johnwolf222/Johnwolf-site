@@ -1226,7 +1226,10 @@ test('About story ends near the tool viewport instead of leaving multi-screen bl
   assert.match(fallback, /const lastChapter = section\.querySelector\('\[data-story="4"\]'\)/);
   assert.match(fallback, /const lastLine = lastChapter\.getBoundingClientRect\(\)\.bottom - top/);
   assert.match(fallback, /section\.style\.minHeight =/);
-  assert.match(fallback, /Math\.ceil\(lastLine \+ breathing \+ capabilityHeight \+ panelHeight\) \+ 'px'/);
+  assert.match(fallback, /const required = Math\.ceil\([\s\S]*?lastLine \+ breathing \+ capabilityHeight \+ panelHeight\)/);
+  assert.match(fallback, /if \(Math\.abs\(required - lastFittedHeight\) > 1\)/,
+    'height changes must not trigger repeated full-layout writes');
+  assert.match(fallback, /section\.style\.minHeight = required \+ 'px'/);
   assert.match(fallback, /section\.dataset\.storyHeightSource === 'three'/,
     'fallback must not fight the prepared 3D layout');
   assert.match(fallback, /chapterObserver\.disconnect\(\)/);
