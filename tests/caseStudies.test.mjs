@@ -234,3 +234,26 @@ test('new Brewty and Inkzilla case-study covers are byte-exact and visible in in
  assert.match(viewerStyles,/\.jw-case-tile--custom-cover img\{object-fit:contain;/,
   'show full wide covers without crop');
 });
+
+test('mobile and desktop index cards fit original artwork without padded image frames',()=>{
+ assert.match(viewerStyles,/\.jw-case-tile img\{display:block;width:100%;height:auto;aspect-ratio:auto;object-fit:contain\}/,
+   'artwork is displayed at intrinsic aspect ratio, without forced image height');
+ assert.doesNotMatch(viewerStyles,/\.jw-case-tile img,\.jw-case-tile__type\{height:/,
+   'the fallback label tile must not impose its fixed height on real photographs');
+ assert.match(viewerStyles,/\.jw-case-library__grid\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\);gap:25px;align-items:start\}/,
+   'both columns stay aligned but shorter card boxes are never stretched');
+ assert.match(viewerStyles,/\.jw-case-library__grid \.jw-case-tile\{align-self:start;height:auto\}/);
+ assert.match(viewerStyles,/\.jw-case-library__grid \.jw-case-tile img\{height:auto;max-height:none;aspect-ratio:auto;object-fit:contain\}/);
+ assert.match(viewerStyles,/\.jw-case-tile--custom-cover img\{object-fit:contain;background:transparent\}/,
+   'new brand covers never inherit gray letterbox backgrounds');
+ assert.match(viewerStyles,/\.jw-case-library__grid \.jw-case-tile > span\{min-height:0\}/,
+   'project titles are not forced into oversized caption panels');
+ assert.match(viewerStyles,/@media\(max-width:720px\)\{\s*\.jw-case-library__grid \.jw-case-tile > span\{padding:10px 12px 12px;font-size:clamp\(13px,3\.8vw,16px\);line-height:1\.22\}/,
+   'phone titles fit directly beneath each natural-height cover');
+ assert.match(reader,/<span>\{item.name\}<b aria-hidden="true">↗︎<\/b><\/span>/,
+   'project arrows render as text, not blue emoji square icons');
+ assert.match(viewerStyles,/\.jw-case-library__grid \.jw-case-tile:hover b\{color:#8750f1\}/,
+   'signature purple remains the hover accent');
+ assert.ok(reader.includes('onClick={()=>{setActive(item.id);setDetails(false);}}'),
+   'the index cards still open the original individual readers');
+});
