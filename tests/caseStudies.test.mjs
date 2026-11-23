@@ -73,7 +73,8 @@ test('existing 21-card choreography remains; gallery case study actions clickabl
  assert.ok(gallery.includes('CaseStudyReader'));
  assert.ok(gallery.includes('All case studies'));
  assert.ok(gallery.includes('onClick={() => setOpenedProject(project)}'));
- assert.ok(stylesheet.includes('.jw-projects-stage__details{pointer-events:auto;}'));
+ assert.match(stylesheet,/\.jw-projects-stage__details\s*\{\s*pointer-events:\s*auto;/,
+   'project details remain clickable regardless of CSS formatting');
 });
 
 test('all visible gallery sheets can be outlined and selected before the reader opens',()=>{
