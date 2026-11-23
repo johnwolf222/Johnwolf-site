@@ -269,24 +269,24 @@ test('the persistent 3D head follows finger coordinates from any section without
 
 
 
-test('mobile About keeps sentence order and uses native shape wrapping without word collisions', () => {
-  const css = read('../src/AboutExperience.css');
-  const source = read('../src/about/mobile-story-flow.js');
-  const about = read('../src/AboutExperience.jsx');
-  assert.match(css, /\.jw-about-head-exclusion--left \{ float: left; \}/);
-  assert.match(css, /\.jw-about-head-exclusion \{/);
-  assert.match(css, /\.jw-about-message \.jw-hover-word \{[\s\S]*?display: inline;/);
-  assert.match(css, /overflow-wrap: normal;/);
-  assert.match(css, /word-break: normal;/);
-  assert.match(css, /hyphens: none;/);
-  assert.match(source, /float\.style\.shapeOutside =/);
-  assert.match(source, /article\.insertBefore\(float, article\.firstChild\)/);
-  assert.match(source, /entry\.float\.style\.shapeOutside = shape/);
-  assert.match(source, /article\.style\.minHeight = height \+ 'px'/);
-  assert.doesNotMatch(source, /word\.style\.transform|createTextNode|measureText|cloneNode/);
-  assert.match(about, /installMobileStoryFlow\(section\)/);
+test('mobile About preserves original paragraphs while rendering two measured nonoverlapping line runs',()=>{
+ const css=read('../src/AboutExperience.css');
+ const source=read('../src/about/bilateral-story-flow.js');
+ const entry=read('../src/about/mobile-story-flow.js');
+ const about=read('../src/AboutExperience.jsx');
+ assert.match(css,/\.jw-about-message\.jw-about-bilateral-active > p \{/);
+ assert.match(css,/\.jw-about-bilateral-layer \{/);
+ assert.match(css,/\.jw-about-bilateral-word \{/);
+ assert.match(css,/overflow-wrap: normal;/);
+ assert.match(css,/word-break: normal;/);
+ assert.match(source,/export function layoutBilateralStory/);
+ assert.match(source,/return \{placements,rows,height:Math\.ceil\(y\),bilateralRows,splitWords\}/);
+ assert.match(source,/layer\.setAttribute\('aria-hidden','true'\)/);
+ assert.match(source,/article\.appendChild\(layer\)/);
+ assert.match(source,/article\.classList\.add\('jw-about-bilateral-active'\)/);
+ assert.match(entry,/export \{installMobileStoryFlow\} from '\.\/bilateral-story-flow\.js'/);
+ assert.match(about,/installMobileStoryFlow\(section\)/);
 });
-
 test('an ellipse follows the same projected head in either text direction', () => {
   const article = { left: 24, right: 366, top: 200, bottom: 650 };
   const head = { left: 150, right: 238, top: 320, bottom: 530 };
@@ -336,16 +336,17 @@ test('head tap optical shader preserves dark About ink rather than painting whit
 
 
 
-test('head rotation never rewrites original word positions or creates cloned lines', () => {
-  const source = read('../src/about/mobile-story-flow.js');
-  const about = read('../src/AboutExperience.jsx');
-  assert.match(source, /const candidates = entries\.map\(entry =>/);
-  assert.match(source, /section\.addEventListener\('jw-about-head-envelope', onHead\)/);
-  assert.match(source, /window\.addEventListener\('scroll', schedule, \{ passive: true \}\)/);
-  assert.match(source, /const height = Math\.ceil\(natural \+ Math\.max\(/);
-  assert.match(source, /const px = n =>/);
-  assert.doesNotMatch(source, /lastCorridor|rebuild\(|word\.offsetLeft|word\.offsetTop/);
-  assert.match(about, /disposeMobileStory\(\)/);
+test('bilateral geometry updates use one head projection and do not reposition original text',()=>{
+ const source=read('../src/about/bilateral-story-flow.js');
+ const about=read('../src/AboutExperience.jsx');
+ assert.match(source,/const laid=layoutBilateralStory\(e\.paragraphs/);
+ assert.match(source,/section\.addEventListener\('jw-about-head-envelope',onHead\)/);
+ assert.match(source,/window\.addEventListener\('scroll',schedule,\{passive:true\}\)/);
+ assert.match(source,/e\.article\.style\.minHeight=required\+'px'/);
+ assert.match(source,/window\.innerWidth<=800/);
+ assert.match(source,/e\.layer\.remove\(\)/);
+ assert.doesNotMatch(source,/preventDefault|word\.style\.transform/);
+ assert.match(about,/disposeMobileStory\(\)/);
 });
 test('mobile Tools crossing has a single native scroll owner and never bounces between controllers', () => {
   const toolsSnap = read('../src/about/tools-soft-snap.js');
@@ -395,7 +396,7 @@ test('Upgrade 3 centers mobile About copy between matching safe gutters, away fr
   const about = read('../src/AboutExperience.jsx');
   assert.equal((about.match(/<article[^>]*data-story="/g) || []).length, 4);
   assert.match(about, /installMobileStoryFlow\(section\)/);
-  assert.match(mobile, /\.jw-about-head-exclusion \{/);
+  assert.match(mobile, /\.jw-about-bilateral-layer \{/);
 });
 
 test('one moving glow is visible throughout the post-Home site without section seams', () => {
@@ -477,68 +478,62 @@ test('word halves land on opposite sides of the projected head at the same line 
   assert.equal(headPartingSlots(article,null,390,34,43),null);
 });
 
-test('mobile head parts ONE word with two compositor-animated pieces, preserves native sentence flow',()=>{
-  const flow=read('../src/about/mobile-story-flow.js');
-  const css=read('../src/AboutExperience.css');
-  const words=read('../src/WordHighlight.jsx');
-  assert.match(flow,/const activeSplits = new Map\(\)/);
-  assert.match(flow,/const returning = new Map\(\)/);
-  assert.match(flow,/const slots = headPartingSlots\(area, head, midY, a, b\)/);
-  assert.match(flow,/if \(word !== chosen\?\.word\) rejoin\(word\)/);
-  assert.match(flow,/const chosen = candidates\[0\]/);
-  assert.match(flow,/const partingLayer = document\.createElement\('div'\)/);
-  assert.match(flow,/partingLayer\.setAttribute\('aria-hidden', 'true'\)/);
-  assert.match(flow,/node\.textContent = text/);
-  assert.match(flow,/word\.classList\.add\('is-head-splitting'\)/);
-  assert.match(flow,/if \(midY < head\.top \+ 6 \|\| midY > head\.bottom - 6\) continue/);
-  assert.match(flow,/overlapsPeer\(entry, word, slots, rect\.top, rect\.height, a, b\)/);
-  assert.match(flow,/state\.closingTimer = setTimeout/);
-  assert.match(flow,/partingLayer\.remove\(\)/);
-  assert.match(css,/\.jw-head-splittable\.is-head-splitting \{/);
-  assert.match(css,/color: transparent;/);
-  assert.match(css,/\.jw-about-word-parting-layer \{/);
-  assert.match(css,/\.jw-about-parted-fragment \{/);
-  assert.match(css,/white-space: pre;/);
-  const activeWordRule=css.match(/\.jw-head-splittable\.is-head-splitting \{([^}]+)\}/)?.[1];
-  assert.ok(activeWordRule,'the split-word rule must exist');
-  assert.doesNotMatch(activeWordRule,/display:\s*block|width:\s*100%/);
-  assert.match(words,/headSplit = false/);
-  assert.match(flow,/entry\.float\.style\.shapeOutside = shape/);
-  assert.doesNotMatch(flow,/word\.style\.transform|cloneNode|measureText/);
+test('measured two-sided rows allocate left and right words without overlap',async()=>{
+ const {layoutBilateralStory}=await import('../src/about/bilateral-story-flow.js');
+ const make=(w,a=0,b=0)=>({text:'word',width:w,
+   firstWidth:a,lastWidth:b,spaceWidth:5});
+ const head={left:110,right:190,top:-10,bottom:130};
+ const result=layoutBilateralStory([[
+   make(50),make(70,30,40),make(30),make(42),
+   make(40),make(45),make(25)]],300,head,32,17,10);
+ assert.ok(result.bilateralRows>0);
+ assert.ok(result.splitWords>=1,'a crossing word divides across head');
+ const all=result.placements;
+ const from=new Map();
+ for(const row of result.rows){
+   const line=all.slice(row.start,row.end).sort((a,b)=>a.x-b.x);
+   for(let i=1;i<line.length;i++){
+     assert.ok(line[i-1].x+line[i-1].width<=line[i].x+.1,
+       'all fragments and words must occupy nonoverlapping rectangles');
+   }
+   for(const place of line){
+     assert.ok(place.x>=0&&place.x+place.width<=300+.1);
+   }
+ }
+ const divided=all.filter(p=>p.part!=='whole');
+ assert.ok(divided.length>=2);
+ assert.equal(divided[0].token,divided[1].token);
+ assert.ok(divided[0].x<divided[1].x);
 });
-
-
-test('head-word parting cannot steal scroll, change desktop, or leave loose fragments behind',()=>{
-  const flow=read('../src/about/mobile-story-flow.js');
-  const css=read('../src/AboutExperience.css');
-  const page=read('../src/AboutExperience.jsx');
-  assert.match(flow,/window\.innerWidth <= 800 && !reduced\.matches/);
-  assert.match(flow,/window\.addEventListener\('scroll', schedule, \{ passive: true \}\)/);
-  assert.match(flow,/if \(splitFrame\) cancelAnimationFrame\(splitFrame\)/);
-  assert.match(flow,/const clearParting = \(word, state\) =>/);
-  assert.match(flow,/word\.classList\.remove\('is-head-splitting'\)/);
-  assert.match(flow,/state\.first\.remove\(\)/);
-  assert.match(flow,/state\.last\.remove\(\)/);
-  assert.match(flow,/for \(const e of entries\) e\.float\.remove\(\)/);
-  assert.doesNotMatch(flow,/window\.scrollTo\(|preventDefault|ScrollTrigger\.refresh/);
-  assert.match(css,/@media \(max-width: 800px\)/);
-  assert.match(page,/<WordHighlight headSplit>Photoshop, Illustrator, Procreate/);
+test('bilateral text cannot hijack scrolling, alter desktop or leave clone layers behind',()=>{
+ const source=read('../src/about/bilateral-story-flow.js');
+ const about=read('../src/AboutExperience.jsx');
+ assert.match(source,/window\.innerWidth<=800&&!reduced\.matches/);
+ assert.match(source,/window\.addEventListener\('scroll',schedule,\{passive:true\}\)/);
+ assert.match(source,/if\(raf\)cancelAnimationFrame\(raf\)/);
+ assert.match(source,/layer\.setAttribute\('aria-hidden','true'\)/);
+ assert.match(source,/e\.layer\.remove\(\)/);
+ assert.doesNotMatch(source,/window\.scrollTo\(|preventDefault|ScrollTrigger\.refresh/);
+ assert.match(about,/<WordHighlight headSplit>Photoshop, Illustrator, Procreate/);
 });
-
-test('word parting remains part of a sentence instead of orphaning creation on a new row',()=>{
-  const flow=read('../src/about/mobile-story-flow.js');
-  const css=read('../src/AboutExperience.css');
-  const helper=read('../src/about/head-word-split.js');
-  assert.match(css,/\.jw-head-splittable\.is-head-splitting \{\s*color: transparent;/);
-  assert.doesNotMatch(css,/\.jw-head-splittable\.is-head-splitting \{\s*position: relative;\s*display: block;/);
-  assert.match(css,/\.jw-head-splittable \{\s*display: inline;\s*white-space: nowrap;/);
-  assert.match(flow,/The ORIGINAL inline text never leaves natural layout/);
-  assert.match(flow,/The previous version pulled "creation" apart ABOVE the face/);
-  assert.match(flow,/const overlapsPeer =/);
-  assert.match(flow,/if \(collisionLeft \|\| collisionRight\) return true/);
-  assert.match(flow,/if \(word !== chosen\?\.word\) rejoin\(word\)/);
-  assert.match(flow,/partingLayer\.remove\(\)/);
-  assert.equal(centeredHeadWordParts("mind's").join(''),"mind's");
-  assert.match(helper,/if\(letters.length<5\)return null;/);
-  assert.doesNotMatch(flow,/display\s*=\s*'block'|word\.style\.width/);
+test('two-sided copy preserves all words in order, restores full-width rows and never stacks over the head',async()=>{
+ const {layoutBilateralStory}=await import('../src/about/bilateral-story-flow.js');
+ const tokens=['Well,',"it's",'the','creation','of','the',"mind's",'eye,']
+  .map((t,i)=>({text:t,width:20+t.length*5,firstWidth:17,
+     lastWidth:25,spaceWidth:5}));
+ const layout=layoutBilateralStory([tokens],300,
+   {left:110,right:190,top:40,bottom:160},31,17,10);
+ const first=layout.rows[0].lanes;
+ assert.equal(first.length,1,'full-width lines precede the face');
+ assert.ok(layout.rows.some(r=>r.lanes.length===2),
+   'left/right line runs are visible simultaneously');
+ const seen=new Set();
+ for(const p of layout.placements)seen.add(p.token);
+ assert.deepEqual([...seen].map(t=>t.text),tokens.map(t=>t.text),
+   'source word order is preserved without duplication');
+ const source=read('../src/about/bilateral-story-flow.js');
+ const css=read('../src/AboutExperience.css');
+ assert.match(source,/const lanes=lanesAt\(y\+lineHeight\/2\)/);
+ assert.match(css,/\.jw-about-bilateral-word \{/);
+ assert.doesNotMatch(css,/\.jw-head-splittable\.is-head-splitting \{\s*position: relative;\s*display: block;/);
 });

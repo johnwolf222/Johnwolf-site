@@ -273,41 +273,43 @@
     word-break: normal;
     hyphens: none;
   }
-  .jw-about-head-exclusion {
-    display: block;
-    float: right;
-    width: 1px;
+  /* Original source paragraphs stay accessible and in natural flow.
+     Measured two-sided text is painted only while the projected 3D
+     head intersects this chapter, preserving every word and line gap. */
+  .jw-about-message.jw-about-bilateral-active > p {
+    opacity: 0;
     pointer-events: none;
-    background: transparent;
-    shape-margin: 0;
   }
-  .jw-about-head-exclusion--left { float: left; }
+  .jw-about-bilateral-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    overflow: visible;
+  }
+  .jw-about-bilateral-word {
+    position: absolute;
+    display: inline-block;
+    left: 0;
+    top: 0;
+    white-space: nowrap;
+    pointer-events: auto;
+    transform: translate3d(0,0,0);
+    transition: transform .18s cubic-bezier(.22,.75,.2,1), opacity .13s ease;
+    opacity: 0;
+    will-change: transform;
+  }
   #root .about.jw-about-experience .jw-about-message .jw-hover-word {
     display: inline;
     white-space: normal;
     transform: none;
     transition: background-color .15s ease, box-shadow .15s ease;
   }
-  /* Leave every original word INLINE throughout the split. The original
-     ink becomes clear only while its two aria-hidden paint fragments move
-     to the physical left and right rims of the 3D head. No new row,
-     detached letters or changed sentence line lengths. */
+  /* Unchanged inline source words preserve correct text for reading,
+     selection, touch highlighting and desktop's original 3D planes. */
   #root .about.jw-about-experience .jw-about-message .jw-head-splittable {
     display: inline;
     white-space: nowrap;
-  }
-  #root .about.jw-about-experience .jw-about-message .jw-head-splittable.is-head-splitting {
-    color: transparent;
-  }
-  .jw-about-parted-fragment {
-    display: block;
-    position: absolute;
-    top: 0;
-    left: 0;
-    white-space: pre;
-    pointer-events: none;
-    will-change: transform;
-    transition: transform .31s cubic-bezier(.22,.75,.2,1);
   }
   /* The original purple ink recoil composes through translate and scale
      independently of JS head-clearance transform, leaving black ink. */
@@ -363,16 +365,3 @@
   .jw-about-experience *::after { transition: none !important; animation: none !important; }
 }
 
-/* Mobile-only decorative split ink. Appended outside the transformed
-   paragraphs to use viewport-space coordinates matching the 3D projection. */
-.jw-about-word-parting-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  pointer-events: none;
-  overflow: visible;
-  contain: layout style;
-}
-@media (prefers-reduced-motion: reduce) {
-  .jw-about-parted-fragment { transition: none !important; }
-}
