@@ -93,7 +93,7 @@ export function installMobileStoryFlow(section){
   for(const e of entries)e.layer.remove();
   entries.length=0;
   for(const article of articles){
-   article.classList.remove('jw-about-bilateral-active');
+   article.classList.remove('jw-about-bilateral-active','jw-about-flow-active');
    article.style.minHeight='';
   }
   wasEnabled=enabled();
@@ -150,6 +150,7 @@ export function installMobileStoryFlow(section){
     paragraphs.push(tokens);
    }
    article.appendChild(layer);
+   article.classList.add('jw-about-flow-active');
    article.style.minHeight=reserve+'px';
    entries.push({article,layer,paragraphs,lineHeight,
      paragraphGap:size*.85,lastHeight:reserve,active:false});
@@ -239,7 +240,7 @@ export function installMobileStoryFlow(section){
   window.removeEventListener('resize',onResize);
   reduced.removeEventListener?.('change',onResize);
   for(const e of entries){
-   e.layer.remove();e.article.classList.remove('jw-about-bilateral-active');
+   e.layer.remove();e.article.classList.remove('jw-about-bilateral-active','jw-about-flow-active');
    e.article.style.minHeight='';
   }
  };
