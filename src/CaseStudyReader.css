@@ -155,7 +155,17 @@
 .jw-case-library-toggle:focus-visible::after{transform:scaleX(1)}
 .jw-case-exit,.jw-case-bottom-nav button,.jw-case-library-toggle,.jw-case-details-toggle{transition:color .18s ease,background-color .18s ease,border-color .18s ease,box-shadow .18s ease}
 .jw-case-reader button:focus-visible{outline:2px solid #8750f1;outline-offset:4px}
-.jw-case-library{position:absolute;inset:0;overflow:auto;padding:100px 16.6vw 96px;background:#fff}
+/* The All case studies index is a native, independently scrollable surface.
+   Give trackpads, mouse wheels and touch flicks full browser momentum. */
+.jw-case-library{
+ position:absolute;inset:0;min-height:0;
+ overflow-x:hidden;overflow-y:auto;
+ overscroll-behavior-y:contain;
+ -webkit-overflow-scrolling:touch;
+ touch-action:pan-y;
+ padding:100px 16.6vw 96px;
+ background:#fff
+}
 .jw-case-library__grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:25px;align-items:start}
 .jw-case-tile__type{height:clamp(140px,19vw,245px)}
 @media(max-width:720px){
