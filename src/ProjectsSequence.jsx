@@ -701,6 +701,12 @@ export default function ProjectsSequence() {
       render();
     };
     const onVerticalWheel = event => {
+      // The portaled case-study reader owns its own scroll surface.
+      // Never intercept its native mouse-wheel or trackpad gestures.
+      if (document.querySelector('.jw-case-reader')) {
+        verticalGestureRef.current = initialGalleryVerticalState();
+        return;
+      }
       if (snapState === 'landing' || snapState === 'leaving') {
         if (event.cancelable) event.preventDefault();
         verticalGestureRef.current = initialGalleryVerticalState();
@@ -742,6 +748,10 @@ export default function ProjectsSequence() {
       if (result.exit) leaveForAbout();
     };
     const onTouchStart = event => {
+      if (document.querySelector('.jw-case-reader')) {
+        touchOrigin = null;
+        return;
+      }
       // Capture a distinct second swipe even before the first landing ends.
       if (snapState !== 'landing' &&
           (snapState !== 'settled' || !restingInGallery())) return;
@@ -752,6 +762,11 @@ export default function ProjectsSequence() {
       };
     };
     const onTouchMove = event => {
+      // Preserve native iOS/Android inertial scrolling inside the reader.
+      if (document.querySelector('.jw-case-reader')) {
+        touchOrigin = null;
+        return;
+      }
       const point = event.touches[0];
       if (touchOrigin && point) {
         const dx = point.clientX - touchOrigin.x;
@@ -768,6 +783,10 @@ export default function ProjectsSequence() {
       }
     };
     const onTouchEnd = event => {
+      if (document.querySelector('.jw-case-reader')) {
+        touchOrigin = null;
+        return;
+      }
       const origin = touchOrigin;
       touchOrigin = null;
       if (!origin || !origin.direction) return;
@@ -785,6 +804,8 @@ export default function ProjectsSequence() {
       else leaveForHome();
     };
     const onScrollKey = event => {
+      // Keyboard scrolling belongs to the case-study index when it is open.
+      if (document.querySelector('.jw-case-reader')) return;
       if (event.defaultPrevented || event.altKey || event.ctrlKey ||
           event.metaKey) return;
       if (!['ArrowDown', 'PageDown', 'ArrowUp', 'PageUp', ' '].includes(event.key)) return;
@@ -1166,6 +1187,11 @@ export default function ProjectsSequence() {
     setDragging(false);
   };
   const onGalleryWheel = event => {
+    // The index and individual readers have their own native scrolling.
+    if (document.querySelector('.jw-case-reader')) {
+      wheelGestureRef.current = initialGalleryWheelState();
+      return;
+    }
     if (!galleryControlsRef.current?.canInteract()) {
       wheelGestureRef.current = initialGalleryWheelState();
       return;
