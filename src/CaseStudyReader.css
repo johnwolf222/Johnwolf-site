@@ -104,6 +104,25 @@
  font-family:inherit;font-size:29px;line-height:1;font-weight:400;cursor:pointer;padding:0
 }
 .jw-case-bottom-nav span{font-size:15px;font-weight:550;letter-spacing:.02em;text-align:center;white-space:nowrap}
+/* Individual glass backing for the centered study title AND index label.
+   The arrow controls remain separate circular buttons. */
+.jw-case-bottom-nav > span{
+ display:inline-flex;
+ align-items:center;
+ justify-content:center;
+ box-sizing:border-box;
+ min-height:44px;
+ max-width:min(360px,42vw);
+ padding:9px 17px;
+ color:#171717;
+ background:rgba(255,255,255,.62);
+ border:1px solid rgba(57,39,73,.13);
+ border-radius:999px;
+ box-shadow:0 5px 20px rgba(28,18,37,.075),inset 0 1px 0 rgba(255,255,255,.74);
+ -webkit-backdrop-filter:blur(16px) saturate(130%);
+ backdrop-filter:blur(16px) saturate(130%);
+ line-height:1.25;
+}
 .jw-case-library-toggle{
  position:absolute;z-index:11;top:25px;left:50%;transform:translateX(-50%);
  appearance:none;min-height:44px;padding:10px 2px;background:transparent;
@@ -162,6 +181,25 @@
 }
 @media(prefers-reduced-motion:reduce){
  .jw-case-exit,.jw-case-bottom-nav button,.jw-case-library-toggle,.jw-case-details-toggle{transition:none}
+}
+
+/* Keep the lower-center glass label comfortably readable on mobile. */
+@media(max-width:720px){
+ .jw-case-bottom-nav > span{
+  max-width:min(45vw,320px);
+  min-height:40px;
+  padding:8px 12px;
+  font-size:12px;
+  line-height:1.2;
+  white-space:normal;
+ }
+}
+@media(max-width:440px){
+ .jw-case-bottom-nav > span{
+  max-width:42vw;
+  padding:7px 10px;
+  font-size:11px;
+ }
 }
 
 /* Brewty: preserve all three original panels without cropping and keep them equal-sized. */
