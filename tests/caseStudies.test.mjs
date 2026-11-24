@@ -320,3 +320,49 @@ test('individual case studies restore native iPhone touch momentum without disab
  assert.match(viewerStyles,/\.jw-case-library\{[\s\S]*?overflow-y:auto;[\s\S]*?touch-action:pan-y;/,
   'the All case studies index also retains native scrolling');
 });
+
+test('rapid flicks remain inside the populated repeated case-study cycles',async()=>{
+ const {wrapCaseStudyScrollTop}=await import('../src/caseStudyScrollLoop.mjs');
+ const height=5800;
+ const low=height*.5;
+ const high=height*1.5;
+ // Trackpad and iPhone flings can skip several screenfuls in one event.
+ const samples=[0,1,low-1,low,height,height*1.49,high,high+1,
+  height*2.1,height*2.95,height*4,height*12.7,-height*2.4];
+ for(const top of samples){
+  const corrected=wrapCaseStudyScrollTop(top,height);
+  assert.ok(corrected>=low&&corrected<high,
+    'blank-edge scroll '+top+' should land inside the fully populated repeated content');
+  assert.ok(Math.abs((corrected-top)/height-Math.round((corrected-top)/height))<1e-9,
+    'wrap must preserve the same content position within its cycle');
+ }
+ for(const top of [low,low+2,height,high-2]){
+  assert.equal(wrapCaseStudyScrollTop(top,height),top,
+    'normal scrolling must not be interrupted by unnecessary jumps');
+ }
+ assert.equal(wrapCaseStudyScrollTop(900,0),900);
+ assert.equal(wrapCaseStudyScrollTop(900,80),900);
+ assert.equal(wrapCaseStudyScrollTop(900,NaN),900);
+ assert.match(reader,/import \{wrapCaseStudyScrollTop\} from '\.\/caseStudyScrollLoop\.mjs'/);
+ assert.match(reader,/const h=root\.firstElementChild\?\.offsetHeight\|\|0;/,
+  'scroll height must not be distorted by the paper-pull animation');
+ assert.doesNotMatch(reader,/root\.scrollTop\+=h|root\.scrollTop-=h/,
+  'a single-cycle adjustment is unsafe for large momentum jumps');
+ assert.match(reader,/const wrapped=wrapCaseStudyScrollTop\(root\.scrollTop,h\)/);
+ assert.match(reader,/Math\.abs\(wrapped-root\.scrollTop\)>0\.5/,
+  'normal scroll events remain untouched');
+});
+
+test('reader artwork preloads for high-speed scrolling while the gallery index stays lazy',()=>{
+ assert.match(reader,/if\(section\.type==='image'\)[^\n]+loading="eager"/);
+ assert.match(reader,/section\.srcs\.map\([^\n]+loading="eager"/);
+ assert.match(reader,/src=\{study\.cover\}[^\n]+loading="eager"/);
+ assert.match(reader,/src=\{section\.before\}[^\n]+loading="eager"/);
+ assert.match(reader,/src=\{section\.after\}[^\n]+loading="eager"/);
+ assert.match(reader,/src=\{item\.tileCover\|\|item\.cover\} alt="" loading="lazy"/,
+  'All case studies gallery still loads its many previews on demand');
+ assert.match(viewerStyles,/touch-action:pan-y;[^\n]*-webkit-overflow-scrolling:touch/,
+  'native momentum is still enabled in individual readers');
+ assert.match(reader,/if\(e\.pointerType!=='mouse'\|\|e\.button!==0\)return/,
+  'finger gestures must not be converted into scripted drag');
+});
