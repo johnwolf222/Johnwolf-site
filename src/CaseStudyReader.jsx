@@ -217,10 +217,10 @@ export default function CaseStudyReader({selectedProject,onClose}){
    {!study?<div className="jw-case-library" aria-label="All case studies">
      <div className="jw-case-library__intro"><span>JOHN WOLF · CASE STUDIES</span><h2>All case studies</h2><p>Explore all {entries.length} case studies, each focused on the creative decisions and finished work.</p></div>
      <div className="jw-case-library__grid">{entries.map(item=><button type="button" className={'jw-case-tile'+(item.tileCover?' jw-case-tile--custom-cover':'')} key={item.id} onClick={()=>{setActive(item.id);setDetails(false);}} style={{'--jw-case-color':item.highlight}}>
-       {(item.tileCover||item.cover)?<img src={item.tileCover||item.cover} alt="" loading="eager"/>:<div className="jw-case-tile__type">{item.name}</div>}
+       {(item.tileCover||item.cover)?<img src={item.tileCover||item.cover} alt="" loading="lazy"/>:<div className="jw-case-tile__type">{item.name}</div>}
        <span>{item.name}<b aria-hidden="true">↗︎</b></span>
      </button>)}{upcoming.map(item=><div className="jw-case-tile jw-case-tile--custom-cover jw-case-tile--upcoming" key={item.id} style={{'--jw-case-color':item.highlight}} aria-label={item.name+', case study coming soon'}>
-        <img src={item.tileCover} alt={item.name+' cover artwork'} loading="eager"/>
+        <img src={item.tileCover} alt={item.name+' cover artwork'} loading="lazy"/>
         <span>{item.name}<b>Coming soon</b></span>
       </div>)}</div>
     </div>:<div ref={scrollRef} className="jw-case-scroll" style={{'--jw-case-color':study.highlight}} onScroll={cycleScroll} key={study.id} tabIndex={0} aria-label={study.name+' case study, scroll or drag vertically'}>
