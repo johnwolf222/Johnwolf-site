@@ -303,3 +303,20 @@ test('All case studies supports unrestricted native wheel, trackpad, touch and k
  assert.ok(reader.includes('onClick={()=>{setActive(item.id);setDetails(false);}}'),
   'index cards remain selectable');
 });
+
+test('individual case studies restore native iPhone touch momentum without disabling desktop drag',()=>{
+ const readerRule=viewerStyles.match(/\.jw-case-scroll\{position:absolute;inset:0;[^\n]+\}/)?.[0];
+ assert.ok(readerRule,'the final, positioned individual reader scrolling rule exists');
+ assert.match(readerRule,/overflow-y:auto/,'the individual reader remains vertically scrollable');
+ assert.match(readerRule,/touch-action:pan-y/,'native vertical touch gestures are allowed');
+ assert.match(readerRule,/-webkit-overflow-scrolling:touch/,'iOS momentum scrolling stays enabled');
+ assert.doesNotMatch(readerRule,/touch-action:none/,'no later override should lock mobile swipes');
+ assert.match(viewerStyles,/@media \(pointer:coarse\)\{\.jw-case-scroll,\.jw-case-scroll:active\{cursor:auto\}\}/,
+  'touch users should not see a drag cursor');
+ assert.match(reader,/const onDown=e=>\{[\s\S]*?if\(e\.pointerType!=='mouse'\|\|e\.button!==0\)return;/,
+  'manual scroll drags must be restricted to desktop mice');
+ assert.match(reader,/scroll\.scrollTop-=dy;/,'mouse drag interaction remains supported');
+ assert.match(reader,/onScroll=\{cycleScroll\}/,'the approved repeating scroll behavior remains');
+ assert.match(viewerStyles,/\.jw-case-library\{[\s\S]*?overflow-y:auto;[\s\S]*?touch-action:pan-y;/,
+  'the All case studies index also retains native scrolling');
+});
