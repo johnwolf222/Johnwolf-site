@@ -2,6 +2,7 @@ import React,{useEffect,useLayoutEffect,useRef,useState} from 'react';
 import {gsap} from 'gsap';
 import {createPortal} from 'react-dom';
 import content from './content/approved-case-studies.json';
+import {wrapCaseStudyScrollTop} from './caseStudyScrollLoop.mjs';
 import './CaseStudyReader.css';
 
 const entries=content.studies;
@@ -30,8 +31,8 @@ function Comparison({section}){
  return <figure className="jw-case-comparison">
   <div className="jw-case-comparison__head"><span>{section.title}</span><span>DRAG TO COMPARE</span></div>
   <div className="jw-case-comparison__stage" style={{'--jw-split':split+'%'}}>
-   <img src={section.before} alt={section.beforeLabel+' version'} loading="lazy"/>
-   <img className="jw-case-comparison__overlay" src={section.after} alt={section.afterLabel+' version'} loading="lazy"/>
+   <img src={section.before} alt={section.beforeLabel+' version'} loading="eager"/>
+   <img className="jw-case-comparison__overlay" src={section.after} alt={section.afterLabel+' version'} loading="eager"/>
    <div className="jw-case-comparison__line" aria-hidden="true"><span>↔</span></div>
    <input type="range" min="0" max="100" value={split} onChange={event=>setSplit(Number(event.target.value))}
      aria-label={'Compare '+section.title+' '+section.beforeLabel+' and '+section.afterLabel}/>
@@ -70,9 +71,9 @@ function LoopingFilm({section,cycle}){
  </figure>;
 }
 function StoryMedia({section,cycle}){
- if(section.type==='image')return <figure className="jw-case-image"><img src={section.src} alt={section.alt} loading="lazy" decoding="async"/></figure>;
+ if(section.type==='image')return <figure className="jw-case-image"><img src={section.src} alt={section.alt} loading="eager" decoding="async"/></figure>;
  if(section.type==='grid')return <div className={'jw-case-grid jw-case-grid--'+section.columns+(section.variant?' jw-case-grid--'+section.variant:'')} aria-label="Editorial art direction">
-  {section.srcs.map((src,i)=><img key={src} src={src} alt={section.alts?.[i]||'Brand identity artwork'} loading="lazy" decoding="async"/>)}
+  {section.srcs.map((src,i)=><img key={src} src={src} alt={section.alts?.[i]||'Brand identity artwork'} loading="eager" decoding="async"/>)}
  </div>;
  if(section.type==='text')return <div className="jw-case-interlude"><p><Ink phrases={section.emphasis}>{section.body}</Ink></p></div>;
  if(section.type==='video')return <LoopingFilm section={section} cycle={cycle}/>;
@@ -86,7 +87,7 @@ function OneCycle({study,cycle}){
    <h2 className="jw-case-study-heading">{study.name}</h2>
    <p><Ink phrases={study.highlights}>{study.intro}</Ink></p>
   </div>
-  {study.cover&&!study.coverInGrid&&<figure className="jw-case-image"><img src={study.cover} alt={study.name+' original brand artwork'} loading={cycle===1?'eager':'lazy'} decoding="async"/></figure>}
+  {study.cover&&!study.coverInGrid&&<figure className="jw-case-image"><img src={study.cover} alt={study.name+' original brand artwork'} loading="eager" decoding="async"/></figure>}
   {study.sections.map((section,i)=><StoryMedia key={i} section={section} cycle={cycle}/>)}
   {study.beats?.length>0&&<div className="jw-case-beats">{study.beats.map((text,i)=>
    <p key={i}><Ink phrases={study.highlights}>{text}</Ink></p>)}</div>}
@@ -145,11 +146,15 @@ export default function CaseStudyReader({selectedProject,onClose}){
   return()=>cancelAnimationFrame(id);
  },[active]);
  const cycleScroll=event=>{
-  const root=event.currentTarget,h=root.firstElementChild?.getBoundingClientRect().height||0;
-  if(h<80||!loopReady.current)return;
-  if(root.scrollTop<h*.5)root.scrollTop+=h;
-  else if(root.scrollTop>h*1.5)root.scrollTop-=h;
-  const progress=((root.scrollTop%h)+h)%h/h;
+  const root=event.currentTarget;
+  // offsetHeight is independent of the reader's opening paper-pull transform.
+  const h=root.firstElementChild?.offsetHeight||0;
+  if(h<=80||!loopReady.current)return;
+  // Fast iPhone momentum can skip multiple repeated cycles in one frame.
+  // Modulo normalization always returns to the central, populated band.
+  const wrapped=wrapCaseStudyScrollTop(root.scrollTop,h);
+  if(Math.abs(wrapped-root.scrollTop)>0.5)root.scrollTop=wrapped;
+  const progress=((wrapped%h)+h)%h/h;
   if(progressRef.current)progressRef.current.style.strokeDashoffset=String(87.965*(1-progress));
  };
  useEffect(()=>{
@@ -212,10 +217,10 @@ export default function CaseStudyReader({selectedProject,onClose}){
    {!study?<div className="jw-case-library" aria-label="All case studies">
      <div className="jw-case-library__intro"><span>JOHN WOLF · CASE STUDIES</span><h2>All case studies</h2><p>Explore all {entries.length} case studies, each focused on the creative decisions and finished work.</p></div>
      <div className="jw-case-library__grid">{entries.map(item=><button type="button" className={'jw-case-tile'+(item.tileCover?' jw-case-tile--custom-cover':'')} key={item.id} onClick={()=>{setActive(item.id);setDetails(false);}} style={{'--jw-case-color':item.highlight}}>
-       {(item.tileCover||item.cover)?<img src={item.tileCover||item.cover} alt="" loading="lazy"/>:<div className="jw-case-tile__type">{item.name}</div>}
+       {(item.tileCover||item.cover)?<img src={item.tileCover||item.cover} alt="" loading="eager"/>:<div className="jw-case-tile__type">{item.name}</div>}
        <span>{item.name}<b aria-hidden="true">↗︎</b></span>
      </button>)}{upcoming.map(item=><div className="jw-case-tile jw-case-tile--custom-cover jw-case-tile--upcoming" key={item.id} style={{'--jw-case-color':item.highlight}} aria-label={item.name+', case study coming soon'}>
-        <img src={item.tileCover} alt={item.name+' cover artwork'} loading="lazy"/>
+        <img src={item.tileCover} alt={item.name+' cover artwork'} loading="eager"/>
         <span>{item.name}<b>Coming soon</b></span>
       </div>)}</div>
     </div>:<div ref={scrollRef} className="jw-case-scroll" style={{'--jw-case-color':study.highlight}} onScroll={cycleScroll} key={study.id} tabIndex={0} aria-label={study.name+' case study, scroll or drag vertically'}>
