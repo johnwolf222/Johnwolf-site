@@ -277,3 +277,29 @@ test('bottom-center labels in both reader and All case studies index have clear 
  assert.match(viewerStyles,/\.jw-case-bottom-nav\{background:transparent;border:0;box-shadow:none;backdrop-filter:none\}/,
   'arrows and text must not share a single glass bar');
 });
+
+test('All case studies supports unrestricted native wheel, trackpad, touch and keyboard scrolling',()=>{
+ const gestureHandlers=[
+  'const onVerticalWheel = event => {',
+  'const onTouchStart = event => {',
+  'const onTouchMove = event => {',
+  'const onTouchEnd = event => {',
+  'const onScrollKey = event => {',
+  'const onGalleryWheel = event => {'
+ ];
+ for(const handler of gestureHandlers){
+  const start=gallery.indexOf(handler);
+  assert.ok(start>=0,handler+' exists');
+  const beforeInterception=gallery.slice(start,start+390);
+  assert.match(beforeInterception,/document\.querySelector\('\.jw-case-reader'\)/,
+   handler+' must yield to the open case-study reader before preventing default gestures');
+ }
+ assert.match(viewerStyles,/\.jw-case-library\{[\s\S]*?overflow-y:auto;[\s\S]*?overscroll-behavior-y:contain;[\s\S]*?-webkit-overflow-scrolling:touch;[\s\S]*?touch-action:pan-y;/,
+  'all-cases index scrolls with native touch momentum and mouse wheel, without page chaining');
+ assert.ok(reader.includes('!study?<div className="jw-case-library"'),
+  'this behavior belongs specifically to All case studies');
+ assert.ok(reader.includes("className=\"jw-case-scroll\""),
+  'individual case-study scrolling remains a separate, unchanged surface');
+ assert.ok(reader.includes('onClick={()=>{setActive(item.id);setDetails(false);}}'),
+  'index cards remain selectable');
+});
