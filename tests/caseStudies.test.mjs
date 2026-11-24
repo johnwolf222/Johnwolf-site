@@ -257,3 +257,23 @@ test('mobile and desktop index cards fit original artwork without padded image f
  assert.ok(reader.includes('onClick={()=>{setActive(item.id);setDetails(false);}}'),
    'the index cards still open the original individual readers');
 });
+
+test('bottom-center labels in both reader and All case studies index have clear individual glass pills',()=>{
+ assert.match(reader,/className="jw-case-bottom-nav" aria-label="Switch case study"/);
+ assert.match(reader,/\{study\.name\}<\/span>/,'active study name still appears in the center');
+ assert.match(reader,/<span>JOHN WOLF · SELECTED WORK<\/span>/,
+  'the all-cases index still shows the selected-work caption');
+ const label=viewerStyles.slice(
+  viewerStyles.indexOf('/* Individual glass backing for the centered study title AND index label.'),
+  viewerStyles.indexOf('.jw-case-details-toggle,.jw-case-library-toggle,.jw-case-bottom-nav button,.jw-case-exit{')
+ );
+ assert.match(label,/\.jw-case-bottom-nav > span\{/,'only central text labels get the glass backing');
+ assert.match(label,/background:rgba\(255,255,255,\.62\)/);
+ assert.match(label,/border-radius:999px/);
+ assert.match(label,/backdrop-filter:blur\(16px\) saturate\(130%\)/);
+ assert.match(label,/min-height:44px/);
+ assert.match(viewerStyles,/@media\(max-width:720px\)\{\s*\.jw-case-bottom-nav > span\{/);
+ assert.match(viewerStyles,/@media\(max-width:440px\)\{\s*\.jw-case-bottom-nav > span\{/);
+ assert.match(viewerStyles,/\.jw-case-bottom-nav\{background:transparent;border:0;box-shadow:none;backdrop-filter:none\}/,
+  'arrows and text must not share a single glass bar');
+});
