@@ -173,7 +173,9 @@ export default function CaseStudyReader({selectedProject,onClose}){
   const schedule=()=>{if(!frame)frame=requestAnimationFrame(render)};
   scroll.addEventListener('scroll',schedule,{passive:true});
   const onDown=e=>{
-   if(e.pointerType==='mouse'&&e.button!==0)return;
+   // Native touch/pencil gestures must never compete with scripted scrolling.
+   // Keep the original click-and-drag reader interaction for desktop mice.
+   if(e.pointerType!=='mouse'||e.button!==0)return;
    if(e.target.closest('button,a,input,textarea,video'))return;
    dragRef.current={id:e.pointerId,y:e.clientY,moved:false};
   };
