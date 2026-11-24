@@ -74,7 +74,10 @@
 .jw-case-details-icon{font-size:21px;line-height:1;font-weight:400;min-width:12px;text-align:center}
 .jw-case-details{position:absolute;right:3.3vw;top:75px;z-index:12;width:min(350px,86vw);padding:24px;background:#fff;border:1px solid #e9e6ec;box-shadow:0 12px 36px #00000010}
 .jw-case-details h3{margin:0 0 12px}.jw-case-details p{font-size:13px;line-height:1.65}
-.jw-case-scroll{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;padding:0 16.6vw;cursor:grab;touch-action:none;scroll-behavior:auto;scrollbar-width:none;user-select:none;-webkit-user-select:none}
+/* Desktop keeps mouse-drag reading; touch devices get native pan and inertia.
+   Do not override the earlier -webkit-overflow-scrolling:touch with touch-action:none. */
+.jw-case-scroll{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;padding:0 16.6vw;cursor:grab;touch-action:pan-y;-webkit-overflow-scrolling:touch;scroll-behavior:auto;scrollbar-width:none;user-select:none;-webkit-user-select:none}
+@media (pointer:coarse){.jw-case-scroll,.jw-case-scroll:active{cursor:auto}}
 .jw-case-scroll::-webkit-scrollbar{display:none}.jw-case-scroll:active{cursor:grabbing}
 .jw-case-cycle{padding:90px 0 80px;display:flow-root;min-height:0}
 .jw-case-narrative{width:100%;max-width:none;margin:0 auto 48px;padding:20px 0 42px}
